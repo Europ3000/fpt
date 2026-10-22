@@ -393,6 +393,7 @@ body.focus .ex.focused{margin-top:0}
 
 /* Header buttons and settings */
 .hdr-btns{margin-left:auto;display:flex;gap:6px;flex:none}
+#settingsBtn{margin-right:8px}
 .icon-btn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;display:grid;place-items:center}
 .icon-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .settings{border:2px solid var(--ember)}
@@ -807,16 +808,16 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--teal);outline-o
 
 /* ---------- Retro skin ---------- */
 :root{
-  --paper:#f3e8d2; --card:#fffaf0; --ink:#2a1d14; --muted:#7b6552; --line:#e4d3b8;
+  --paper:#ffd9a8; --card:#fffaf0; --ink:#2a1d14; --muted:#6c533d; --line:#efc995;
   --ember:#cf3f1f; --ember-soft:#f9dfd2; --teal:#157a6e; --teal-soft:#d7ece6; --mustard:#d9971c; --mustard-soft:#f7e6bd;
   --shadow:color-mix(in srgb,var(--ink) 14%,transparent);
   --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .13 0 0 0 0 .08 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --paper:#1b1510; --card:#261d16; --ink:#f5e9d6; --muted:#b8a48f; --line:#3d3026;
+  --paper:#231430; --card:#30203d; --ink:#f5e9d6; --muted:#c3aec4; --line:#4a3557;
   --ember:#f2774a; --ember-soft:#43251a; --teal:#5cc3b4; --teal-soft:#173430; --mustard:#f0c05a; --mustard-soft:#3b2f15; --shadow:rgba(0,0,0,.45)}}
 :root[data-theme="dark"]{
-  --paper:#1b1510; --card:#261d16; --ink:#f5e9d6; --muted:#b8a48f; --line:#3d3026;
+  --paper:#231430; --card:#30203d; --ink:#f5e9d6; --muted:#c3aec4; --line:#4a3557;
   --ember:#f2774a; --ember-soft:#43251a; --teal:#5cc3b4; --teal-soft:#173430; --mustard:#f0c05a; --mustard-soft:#3b2f15; --shadow:rgba(0,0,0,.45)}
 body{background-color:var(--paper);background-image:var(--grain);background-attachment:fixed}
 h1,h2,h3,.tile strong,.rec strong,.hello h2,.welcome-card h2{font-variation-settings:"SOFT" 100,"WONK" 1}
@@ -849,6 +850,24 @@ body::before{background:var(--paper)}
 .finish{box-shadow:3px 3px 0 var(--shadow)}
 .toast{box-shadow:3px 3px 0 var(--ember)}
 @media (prefers-reduced-motion:reduce){.save,.next button{transition:none}}
+:root[data-style="retro"] body{background-image:var(--grain),
+  repeating-conic-gradient(from 0deg at 50% -8%,color-mix(in srgb,var(--mustard) 16%,transparent) 0 6deg,transparent 6deg 12deg),
+  radial-gradient(120% 70% at 50% -8%,color-mix(in srgb,var(--ember) 22%,transparent),transparent 70%)}
+:root[data-style="retro"] .panel,:root[data-style="retro"] .tile,:root[data-style="retro"] .add{box-shadow:4px 4px 0 color-mix(in srgb,var(--ember) 45%,var(--shadow))}
+@media (prefers-reduced-motion:no-preference){
+  :root[data-style="retro"] :is(#todayView,#statsBody) > *,:root[data-style="retro"] #trainView > .panel{animation:retro-pop .5s cubic-bezier(.34,1.56,.64,1) both}
+  :root[data-style="retro"] :is(#todayView,#trainView,#statsBody) > :nth-child(2){animation-delay:.05s}
+  :root[data-style="retro"] :is(#todayView,#trainView,#statsBody) > :nth-child(3){animation-delay:.1s}
+  :root[data-style="retro"] :is(#todayView,#trainView,#statsBody) > :nth-child(4){animation-delay:.15s}
+  :root[data-style="retro"] :is(#todayView,#trainView,#statsBody) > :nth-child(n+5){animation-delay:.2s}
+  :root[data-style="retro"] button:not(:disabled){transition:transform .25s cubic-bezier(.34,1.8,.64,1),box-shadow .15s}
+  :root[data-style="retro"] button:not(:disabled):active{transform:scale(.93) translateY(1px)}
+  :root[data-style="retro"] .view-btn[aria-selected="true"],:root[data-style="retro"] .chip[aria-pressed="true"],:root[data-style="retro"] .dt.on{animation:retro-boing .45s cubic-bezier(.34,1.8,.64,1)}
+  :root[data-style="retro"] .brand .logo{animation:retro-bob 3.2s ease-in-out infinite}
+}
+@keyframes retro-pop{0%{opacity:0;transform:translateY(14px) scale(.96)}60%{opacity:1;transform:translateY(-3px) scale(1.01)}100%{transform:none}}
+@keyframes retro-boing{0%{transform:scale(1)}35%{transform:scale(1.08)}65%{transform:scale(.97)}100%{transform:scale(1)}}
+@keyframes retro-bob{0%,100%{transform:rotate(0) translateY(0)}25%{transform:rotate(-6deg) translateY(-1px)}50%{transform:rotate(0) translateY(-2px)}75%{transform:rotate(6deg) translateY(-1px)}}
 /* ---------- Style: Gewoon (modern and clear) ---------- */
 :root[data-style="plain"]{
   --paper:#eef2f6; --card:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#dde3ea;
