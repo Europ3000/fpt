@@ -599,8 +599,14 @@ body.big .badge{font-size:1rem}
 .wl-hero::before{content:"";display:block;width:100%;height:8px;order:9;margin-top:6px;border-radius:2px;
   background:linear-gradient(var(--ember) 0 2px,transparent 2px 3px,var(--mustard) 3px 5px,transparent 5px 6px,var(--teal) 6px 8px)}
 .wl-logo .logo{width:118px;height:118px;filter:drop-shadow(4px 5px 0 color-mix(in srgb,var(--ink) 20%,transparent))}
-.wl-lang{display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:600;color:var(--muted)}
-.wl-lang .lang-sel{max-width:none}
+.wl-langs{align-items:center;text-align:center;gap:12px}
+.wl-globe{font-size:2.6rem;line-height:1;margin-top:4px}
+.wl-langs h2{font-size:1.35rem}
+.wl-langs h2 small{display:block;font-size:.8rem;font-weight:600;color:var(--muted);font-family:inherit;text-transform:none;font-style:normal;margin-top:4px}
+.wl-langgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;overflow-y:auto;max-height:52vh;padding:2px 3px 4px}
+.wl-langbtn{font:inherit;font-weight:700;font-size:.95rem;padding:12px 10px;border-radius:12px;cursor:pointer;background:var(--card);color:var(--ink);border:1.5px solid var(--line)}
+.wl-langbtn[aria-pressed="true"]{border-color:var(--ember);background:var(--ember-soft);box-shadow:2px 2px 0 var(--ember)}
+.wl-langbtn:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
 .wl-demo{align-self:center;max-width:300px}
 .wl-mock{background:var(--paper);border:1.5px solid color-mix(in srgb,var(--ink) 14%,transparent);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px}
 .wl-row{display:flex;justify-content:space-between;gap:10px;align-items:baseline;font-size:.9rem;color:var(--muted)}
@@ -1205,11 +1211,15 @@ body::before{background:var(--paper)}
   <div class="welcome-card wl">
     <div class="wl-top"><span class="wl-count" id="wlCount">1 / 5</span><button class="reset" type="button" id="welcomeSkip">Overslaan</button></div>
     <div class="wl-view"><div class="wl-track" id="wlTrack">
+      <section class="wl-slide wl-langs">
+        <div class="wl-globe" aria-hidden="true">🌐</div>
+        <h2 id="wlLangTitle" translate="no"></h2>
+        <div class="wl-langgrid" id="wlLangs" role="group" translate="no"></div>
+      </section>
       <section class="wl-slide wl-hero">
         <div class="wl-logo" id="wlLogo"></div>
         <h2 id="welcomeTitle">Welkom bij <span>Fitness Progress Tracker</span></h2>
         <p>Je persoonlijke trainingscoach: schema's, slimme voorstellen en al je vooruitgang in één app.</p>
-        <label class="wl-lang">Taal<select id="wlLang" class="lang-sel" aria-label="Taal van de app"></select></label>
       </section>
       <section class="wl-slide">
         <p class="wl-kicker">1 · Trainen</p>
@@ -1538,7 +1548,7 @@ function tr(s, depth = 0){
 }
 const trOrig = new WeakMap(), trDone = new WeakMap(), TR_ATTRS = ["placeholder", "aria-label", "title", "label", "alt"];
 function trText(n){
-  const p = n.parentNode; if (!p || p.nodeName === "SCRIPT" || p.nodeName === "STYLE") return;
+  const p = n.parentNode; if (!p || p.nodeName === "SCRIPT" || p.nodeName === "STYLE" || (p.closest && p.closest('[translate="no"]'))) return;
   const cur = n.nodeValue, src = trDone.get(n) === cur && trOrig.has(n) ? trOrig.get(n) : cur;
   const t = lang === "nl" ? src : tr(src);
   trOrig.set(n, src); trDone.set(n, t);
@@ -3112,7 +3122,18 @@ function deleteScheme(){
 }
 
 let wlAt = 0;
+// First use: the device language is preselected, one tap picks yours and moves on.
+const LANG_PICK = { nl: "Kies je taal", en: "Choose your language", fr: "Choisissez votre langue", es: "Elige tu idioma", de: "Wähle deine Sprache",
+  it: "Scegli la tua lingua", pt: "Escolha o seu idioma", ru: "Выберите язык", zh: "选择你的语言", ar: "اختر لغتك", hi: "अपनी भाषा चुनें" };
+const deviceLang = () => (navigator.languages || [navigator.language || ""]).map(x => String(x).slice(0, 2).toLowerCase()).find(x => LOCALES[x]) || "nl";
+function renderLangSlide(){
+  $("wlLangTitle").innerHTML = esc(LANG_PICK[lang]) + (lang !== "en" ? `<small>${esc(LANG_PICK.en)}</small>` : "");
+  $("wlLangs").innerHTML = LANGS.map(([c, n]) => `<button type="button" class="wl-langbtn" data-l="${c}" lang="${c}" dir="${c === "ar" ? "rtl" : "ltr"}" aria-pressed="${c === lang}">${esc(n)}</button>`).join("");
+  $("wlLangs").querySelectorAll("[data-l]").forEach(b => b.onclick = () => { setLang(b.dataset.l); renderLangSlide(); wlGo(1); $("wlNext").focus({ preventScroll: true }); });
+}
 function showWelcome(){
+  if (!localStorage.getItem("ppl.lang") && !prefs.lang) setLang(deviceLang());
+  renderLangSlide();
   $("welcomeSchemes").innerHTML = orderedSchemes().map(s => `<button type="button" class="wl-scheme" data-s="${esc(s.id)}"><b>${esc(s.name)}</b><small>${esc(s.days.map(d => d.name).join(" · "))}</small></button>`).join("");
   $("welcomeSchemes").querySelectorAll("[data-s]").forEach(b => b.onclick = () => {
     view = { scheme: b.dataset.s, day: 0 }; lsSet(LS_VIEW, view); closeWelcome(); showPage("train"); render(); window.scrollTo(0, 0);
@@ -3126,13 +3147,14 @@ function showWelcome(){
 function wlGo(i){
   const slides = [...document.querySelectorAll(".wl-slide")], n = slides.length;
   wlAt = Math.max(0, Math.min(n - 1, i));
+  $("wlTrack").parentElement.scrollLeft = 0; // focus moving inside a slide must not shift the strip
   $("wlTrack").style.transform = `translateX(${(document.documentElement.dir === "rtl" ? 1 : -1) * wlAt * 100}%)`;
   slides.forEach((sl, j) => { sl.setAttribute("aria-hidden", j !== wlAt); sl.inert = j !== wlAt; });
   [...$("wlDots").children].forEach((d, j) => d.classList.toggle("on", j === wlAt));
   $("wlCount").textContent = `${wlAt + 1} / ${n}`;
   $("wlBack").hidden = !wlAt;
   $("wlNext").hidden = wlAt === n - 1;
-  $("wlNext").textContent = wlAt === 0 ? "Laten we beginnen" : "Volgende";
+  $("wlNext").textContent = wlAt === 1 ? "Laten we beginnen" : "Volgende";
 }
 function closeWelcome(){ $("welcome").hidden = true; lsSet("ppl.welcomed", true); }
 $("wlNext").onclick = () => wlGo(wlAt + 1);
