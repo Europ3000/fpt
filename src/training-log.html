@@ -1013,15 +1013,6 @@ body::before{background:var(--paper)}
           <div id="advice"></div>
         </div>
       </section>
-      <section class="panel mod" data-mod="week">
-        <div class="mod-head">
-          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Weekplanning</h2><span class="chev" aria-hidden="true">▾</span></button>
-          <button class="mod-drag" type="button" aria-label="Weekplanning verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
-        </div>
-        <div class="mod-body" id="weekBody">
-
-        </div>
-      </section>
       <section class="panel mod" data-mod="kcal" data-need>
         <div class="mod-head">
           <button class="mod-toggle" type="button" aria-expanded="true"><h2>Calorieverbruik</h2><span class="chev" aria-hidden="true">▾</span></button>
@@ -1052,6 +1043,26 @@ body::before{background:var(--paper)}
           <div class="weeks" id="weeks"></div>
         </div>
       </section>
+      <section class="panel mod" data-mod="muscles">
+        <div class="mod-head">
+          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Sets per spiergroep</h2><span class="chev" aria-hidden="true">▾</span></button>
+          <button class="mod-drag" type="button" aria-label="Sets per spiergroep verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
+        </div>
+        <div class="mod-body">
+          <p class="note">Laatste 7 dagen. Sterk aangesproken spier = 1 set, minder sterk = ½ set. Richtlijn voor spiergroei: ongeveer 10–20 sets per spiergroep per week.</p>
+          <div class="bodymap" id="bodyMap"></div>
+          <div class="musbars" id="musBars"></div>
+        </div>
+      </section>
+      <section class="panel mod" data-mod="week">
+        <div class="mod-head">
+          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Weekplanning</h2><span class="chev" aria-hidden="true">▾</span></button>
+          <button class="mod-drag" type="button" aria-label="Weekplanning verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
+        </div>
+        <div class="mod-body" id="weekBody">
+
+        </div>
+      </section>
       <section class="panel mod" data-mod="cal">
         <div class="mod-head">
           <button class="mod-toggle" type="button" aria-expanded="true"><h2>Kalender en planning</h2><span class="chev" aria-hidden="true">▾</span></button>
@@ -1065,17 +1076,6 @@ body::before{background:var(--paper)}
           <div class="cal-legend" id="calLegend"></div>
           <h3 class="plan-h">Gepland</h3>
           <div class="plan-list" id="planList"></div>
-        </div>
-      </section>
-      <section class="panel mod" data-mod="muscles">
-        <div class="mod-head">
-          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Sets per spiergroep</h2><span class="chev" aria-hidden="true">▾</span></button>
-          <button class="mod-drag" type="button" aria-label="Sets per spiergroep verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
-        </div>
-        <div class="mod-body">
-          <p class="note">Laatste 7 dagen. Sterk aangesproken spier = 1 set, minder sterk = ½ set. Richtlijn voor spiergroei: ongeveer 10–20 sets per spiergroep per week.</p>
-          <div class="bodymap" id="bodyMap"></div>
-          <div class="musbars" id="musBars"></div>
         </div>
       </section>
       <section class="panel mod" data-mod="progress" id="chartPanel" data-need>
@@ -3236,23 +3236,30 @@ function setupModules(){
   setupModulesIn("statsBody", "modOrder", "modClosed");
   setupModulesIn("trainMods", "trainOrder", "trainClosed");
 }
-const TRAIN_CLOSED = ["cardio", "recovery", "week"];
+const TRAIN_CLOSED = ["cardio", "recovery", "week"], STATS_CLOSED = ["week", "cal"];
+const closedDefault = boxId => boxId === "trainMods" ? TRAIN_CLOSED : STATS_CLOSED;
 function setupModulesIn(boxId, orderKey, closedKey){
   const box = $(boxId);
   // Recovery per muscle and the week plan start folded; once also for lists you already arranged.
+  // Week plan and calendar start folded under "Sets per muscle group"; once also for arranged Analytics.
+  if (boxId === "statsBody" && !prefs.foldedV3){
+    if (prefs[closedKey]) prefs[closedKey] = [...new Set(prefs[closedKey].concat(STATS_CLOSED))];
+    if (prefs[orderKey]){ const o = prefs[orderKey].filter(x => x !== "week" && x !== "cal"), i = o.indexOf("muscles"); o.splice(i < 0 ? o.length : i + 1, 0, "week", "cal"); prefs[orderKey] = o; }
+    prefs.foldedV3 = true; savePrefs();
+  }
   if (boxId === "trainMods" && prefs[closedKey] && !prefs.foldedV2){ prefs[closedKey] = [...new Set(prefs[closedKey].concat(["recovery", "week"]))]; prefs.foldedV2 = true; savePrefs(); }
   const order = (prefs[orderKey] || []).filter(id => box.querySelector(`.mod[data-mod="${id}"]`));
   order.forEach(id => box.appendChild(box.querySelector(`.mod[data-mod="${id}"]`)));
   const hint = box.querySelector(".mod-hint"); if (hint) box.appendChild(hint);
   box.querySelectorAll(".mod").forEach(m => {
-    const id = m.dataset.mod, closed = (prefs[closedKey] || (boxId === "trainMods" ? TRAIN_CLOSED : [])).includes(id);
+    const id = m.dataset.mod, closed = (prefs[closedKey] || closedDefault(boxId)).includes(id);
     m.classList.toggle("closed", closed);
     const t = m.querySelector(".mod-toggle");
     t.setAttribute("aria-expanded", !closed);
     t.onclick = () => {
       const now = !m.classList.contains("closed");
       m.classList.toggle("closed", now); t.setAttribute("aria-expanded", !now);
-      const cur = prefs[closedKey] || (boxId === "trainMods" ? TRAIN_CLOSED : []);
+      const cur = prefs[closedKey] || closedDefault(boxId);
       prefs[closedKey] = cur.filter(x => x !== id).concat(now ? [id] : []); savePrefs();
       if (!now && boxId === "statsBody") renderStats();
     };
