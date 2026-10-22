@@ -1,0 +1,9 @@
+{
+  "name": "FPT",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "postCreateCommand": "pip install pillow",
+  "forwardPorts": [8000],
+  "customizations": {
+    "vscode": { "extensions": ["ms-python.python"] }
+  }
+}

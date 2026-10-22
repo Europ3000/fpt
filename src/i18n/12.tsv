@@ -1,0 +1,30 @@
+Per kant: {0} · stang {1} kg{2}	Per side: {0} · bar {1} kg{2}	Par côté : {0} · barre {1} kg{2}	Por lado: {0} · barra {1} kg{2}	Pro Seite: {0} · Stange {1} kg{2}	Per lato: {0} · bilanciere {1} kg{2}	Por lado: {0} · barra {1} kg{2}	На сторону: {0} · гриф {1} кг{2}	每侧：{0} · 杠 {1} kg{2}	لكل جانب: {0} · القضيب {1} كغ{2}	हर तरफ़: {0} · बार {1} kg{2}
+Per kant: {0} · stang {1} lb{2}	Per side: {0} · bar {1} lb{2}	Par côté : {0} · barre {1} lb{2}	Por lado: {0} · barra {1} lb{2}	Pro Seite: {0} · Stange {1} lb{2}	Per lato: {0} · bilanciere {1} lb{2}	Por lado: {0} · barra {1} lb{2}	На сторону: {0} · гриф {1} lb{2}	每侧：{0} · 杠 {1} lb{2}	لكل جانب: {0} · القضيب {1} رطل{2}	हर तरफ़: {0} · बार {1} lb{2}
+{0} · {1} oefeningen · {2} cardio	{0} · {1} exercises · {2} cardio	{0} · {1} exercices · {2} cardio	{0} · {1} ejercicios · {2} cardio	{0} · {1} Übungen · {2} Cardio	{0} · {1} esercizi · {2} cardio	{0} · {1} exercícios · {2} cardio	{0} · упражнений: {1} · кардио: {2}	{0} · {1} 个动作 · {2} 次有氧	{0} · {1} تمارين · {2} كارديو	{0} · {1} व्यायाम · {2} कार्डियो
+{0} · {1} oefening · {2} cardio	{0} · {1} exercise · {2} cardio	{0} · {1} exercice · {2} cardio	{0} · {1} ejercicio · {2} cardio	{0} · {1} Übung · {2} Cardio	{0} · {1} esercizio · {2} cardio	{0} · {1} exercício · {2} cardio	{0} · {1} упражнение · кардио: {2}	{0} · {1} 个动作 · {2} 次有氧	{0} · {1} تمرين · {2} كارديو	{0} · {1} व्यायाम · {2} कार्डियो
+{0} · {1} oefeningen	{0} · {1} exercises	{0} · {1} exercices	{0} · {1} ejercicios	{0} · {1} Übungen	{0} · {1} esercizi	{0} · {1} exercícios	{0} · упражнений: {1}	{0} · {1} 个动作	{0} · {1} تمارين	{0} · {1} व्यायाम
+{0} · {1} oefening	{0} · {1} exercise	{0} · {1} exercice	{0} · {1} ejercicio	{0} · {1} Übung	{0} · {1} esercizio	{0} · {1} exercício	{0} · {1} упражнение	{0} · {1} 个动作	{0} · {1} تمرين	{0} · {1} व्यायाम
+{0} · {1} cardio	{0} · {1} cardio	{0} · {1} cardio	{0} · {1} cardio	{0} · {1} Cardio	{0} · {1} cardio	{0} · {1} cardio	{0} · кардио: {1}	{0} · {1} 次有氧	{0} · {1} كارديو	{0} · {1} कार्डियो
+{0} trainingen	{0} workouts	{0} séances	{0} entrenos	{0} Trainings	{0} allenamenti	{0} treinos	тренировок: {0}	{0} 次训练	{0} تمارين	{0} वर्कआउट
+{0} training	{0} workout	{0} séance	{0} entreno	{0} Training	{0} allenamento	{0} treino	{0} тренировка	{0} 次训练	{0} تمرين	{0} वर्कआउट
+{0} records	{0} records	{0} records	{0} récords	{0} Rekorde	{0} record	{0} recordes	рекордов: {0}	{0} 项纪录	{0} أرقام قياسية	{0} रिकॉर्ड
+{0} record	{0} record	{0} record	{0} récord	{0} Rekord	{0} record	{0} recorde	{0} рекорд	{0} 项纪录	{0} رقم قياسي	{0} रिकॉर्ड
+in {0} keer · snelste tempo	in {0} sessions · fastest pace	en {0} fois · allure la plus rapide	en {0} veces · ritmo más rápido	in {0} Einheiten · schnellstes Tempo	in {0} volte · ritmo più veloce	em {0} vezes · ritmo mais rápido	за {0} раз · лучший темп	共 {0} 次 · 最快配速	في {0} مرات · أسرع وتيرة	{0} बार में · सबसे तेज़ रफ़्तार
+in {0} keer	in {0} sessions	en {0} fois	en {0} veces	in {0} Einheiten	in {0} volte	em {0} vezes	за {0} раз	共 {0} 次	في {0} مرات	{0} बार में
+{0} omhoog	{0} up	{0} vers le haut	{0} arriba	{0} nach oben	{0} su	{0} para cima	{0} выше	{0} 上移	{0} للأعلى	{0} ऊपर
+{0} omlaag	{0} down	{0} vers le bas	{0} abajo	{0} nach unten	{0} giù	{0} para baixo	{0} ниже	{0} 下移	{0} للأسفل	{0} नीचे
+Afstand {0}	Distance {0}	Distance {0}	Distancia {0}	Strecke {0}	Distanza {0}	Distância {0}	Дистанция {0}	距离 {0}	المسافة {0}	दूरी {0}
+Snelheid {0}	Speed {0}	Vitesse {0}	Velocidad {0}	Geschwindigkeit {0}	Velocità {0}	Velocidade {0}	Скорость {0}	速度 {0}	السرعة {0}	गति {0}
+Helling {0}	Incline {0}	Inclinaison {0}	Inclinación {0}	Steigung {0}	Pendenza {0}	Inclinação {0}	Наклон {0}	坡度 {0}	الميل {0}	ढलान {0}
+Weerstand {0}	Resistance {0}	Résistance {0}	Resistencia {0}	Widerstand {0}	Resistenza {0}	Resistência {0}	Сопротивление {0}	阻力 {0}	المقاومة {0}	प्रतिरोध {0}
+Gem. vermogen {0}	Avg. power {0}	Puissance moy. {0}	Potencia media {0}	Ø Leistung {0}	Potenza media {0}	Potência média {0}	Ср. мощность {0}	平均功率 {0}	متوسط القدرة {0}	औसत पावर {0}
+Cadans {0}	Cadence {0}	Cadence {0}	Cadencia {0}	Trittfrequenz {0}	Cadenza {0}	Cadência {0}	Каденс {0}	踏频 {0}	الإيقاع {0}	कैडेंस {0}
+Slagen {0}	Strokes {0}	Coups {0}	Paladas {0}	Schläge {0}	Colpi {0}	Remadas {0}	Гребки {0}	划桨数 {0}	الضربات {0}	स्ट्रोक {0}
+Verdiepingen {0}	Floors {0}	Étages {0}	Pisos {0}	Etagen {0}	Piani {0}	Andares {0}	Этажи {0}	层数 {0}	الطوابق {0}	मंज़िलें {0}
+Sprongen {0}	Jumps {0}	Sauts {0}	Saltos {0}	Sprünge {0}	Salti {0}	Saltos {0}	Прыжки {0}	跳跃 {0}	القفزات {0}	कूद {0}
+Rondes {0}	Rounds {0}	Tours {0}	Rondas {0}	Runden {0}	Round {0}	Rondas {0}	Раунды {0}	轮数 {0}	الجولات {0}	राउंड {0}
+Werk {0}	Work {0}	Effort {0}	Trabajo {0}	Belastung {0}	Lavoro {0}	Trabalho {0}	Работа {0}	运动 {0}	العمل {0}	काम {0}
+Gem. hartslag {0}	Avg. heart rate {0}	FC moy. {0}	FC media {0}	Ø Herzfrequenz {0}	FC media {0}	FC média {0}	Ср. пульс {0}	平均心率 {0}	متوسط النبض {0}	औसत हृदय गति {0}
+Calorieën {0}	Calories {0}	Calories {0}	Calorías {0}	Kalorien {0}	Calorie {0}	Calorias {0}	Калории {0}	卡路里 {0}	السعرات {0}	कैलोरी {0}
+Duur {0}	Duration {0}	Durée {0}	Duración {0}	Dauer {0}	Durata {0}	Duração {0}	Длительность {0}	时长 {0}	المدة {0}	अवधि {0}
+Duur	Duration	Durée	Duración	Dauer	Durata	Duração	Длительность	时长	المدة	अवधि

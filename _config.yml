@@ -1,3 +1,4 @@
 exclude:
   - src
   - README.md
+  - CLAUDE.md

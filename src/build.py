@@ -47,7 +47,7 @@ manifest = {
     "start_url": "./",
     "scope": "./",
     "display": "standalone",
-    "background_color": "#f7f3ee",
+    "background_color": "#f3e8d2",
     "theme_color": "#16a34a",
     "lang": "nl",
     "icons": [
@@ -58,13 +58,13 @@ manifest = {
 }
 (OUT / "manifest.webmanifest").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
 
-logo = Image.open(ROOT / "fitness-logo-fpt.png").convert("RGBA")
-for size, name in [(192, "icon-192.png"), (512, "icon-512.png"), (180, "apple-touch-icon.png")]:
-    logo.resize((size, size), Image.LANCZOS).save(OUT / name)
-# Maskable: logo shrunk into the safe zone on the same green, so round or squircle masks never cut FPT off.
-mask = Image.new("RGBA", (512, 512), (22, 163, 74, 255))
-mask.alpha_composite(logo.resize((420, 420), Image.LANCZOS), (46, 46))
-mask.save(OUT / "icon-maskable-512.png")
+# Round badge (made by tools/make_icons.py): round for "any", full-bleed for maskable launchers and iOS.
+icons = ROOT / "icons"
+round_logo = Image.open(icons / "fpt-round.png").convert("RGBA")
+for size, name in [(192, "icon-192.png"), (512, "icon-512.png")]:
+    round_logo.resize((size, size), Image.LANCZOS).save(OUT / name)
+Image.open(icons / "fpt-maskable.png").convert("RGBA").resize((512, 512), Image.LANCZOS).save(OUT / "icon-maskable-512.png")
+Image.open(icons / "fpt-apple.png").convert("RGB").resize((180, 180), Image.LANCZOS).save(OUT / "apple-touch-icon.png")
 
 version = time.strftime("%Y%m%d%H%M%S")
 sw = """// Offline support: the app shell is cached; a new version replaces it on the next visit.
