@@ -859,8 +859,8 @@ body.big .badge{font-size:1rem}
 .dm-floor{fill:var(--dm-floor)}
 .dm-edge{stroke:var(--dm-edge);stroke-width:1.2}
 .dm-plank{stroke:color-mix(in srgb,var(--muted) 38%,var(--paper));stroke-width:.6}
-.dm-stripe{fill:color-mix(in srgb,var(--teal) 16%,transparent)}
-.dm-stripe2{fill:color-mix(in srgb,var(--ember) 22%,transparent)}
+.dm-skirt{fill:color-mix(in srgb,var(--muted) 16%,transparent)}
+.dm-path{fill:none;stroke:color-mix(in srgb,var(--ember) 60%,transparent);stroke-width:1.3;stroke-dasharray:2.2 2.6;stroke-linecap:round}
 .dm-shadow{fill:color-mix(in srgb,var(--ink) 18%,transparent)}
 .dm-plate{fill:var(--teal);stroke:var(--paper);stroke-width:1.2}
 .dm-hub{fill:var(--paper)}
@@ -6476,12 +6476,11 @@ function dmFigure(J, hl, gearBack, gearFront){
   }
   return s + (gearFront || "");
 }
-// The gym around the figure: a wall stripe, a skirting board, the floor and a soft shadow under the figure.
+// The gym around the figure: a skirting board, the floor and a soft shadow under the figure.
 function dmScene(J){
   const k = dmBody.k, xs = [J.H[0], J.A1[0], J.A2[0], J.S[0]], lo = Math.min(...xs), hi = Math.max(...xs);
   const cx = 80 + ((lo + hi) / 2 - 80) * k, rx = Math.min(46, Math.max(16, (hi - lo) / 2 + 9)) * k;
-  return `<rect x="-90" y="12" width="340" height="7" class="dm-stripe"/><rect x="-90" y="21" width="340" height="1.6" class="dm-stripe2"/>`
-    + `<rect x="-90" y="104.5" width="340" height="4" class="dm-stripe"/><rect x="-90" y="108.5" width="340" height="30" class="dm-floor"/>`
+  return `<rect x="-90" y="104.5" width="340" height="4" class="dm-skirt"/><rect x="-90" y="108.5" width="340" height="30" class="dm-floor"/>`
     + `<line x1="-90" y1="108.5" x2="250" y2="108.5" class="dm-edge"/><ellipse cx="${dmF(cx)}" cy="110.4" rx="${dmF(rx)}" ry="2.6" class="dm-shadow"/>`;
 }
 
@@ -6864,9 +6863,9 @@ function demoPose(pat, sec){
   const u = Math.min(1, x / tm[i]), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
   return { P: dmLerp(from, to, e), ph: i };
 }
-function demoSvg(pat, P){
+function demoSvg(pat, P, path = ""){
   const J = dmSolve(P, !!pat.front);
-  let back = (pat.mat ? DG.mat(pat.mat[0], pat.mat[1]) : "") + (pat.back ? pat.back(J) : "");
+  let back = path + (pat.mat ? DG.mat(pat.mat[0], pat.mat[1]) : "") + (pat.back ? pat.back(J) : "");
   if (pat.anchor){ back += DG.cable(J.W1, pat.anchor); }
   if (pat.cables){ back += DG.cable(J.W1, pat.cables[1]) + DG.cable(J.W2, pat.cables[0]); }
   let front = "";
@@ -6884,10 +6883,32 @@ function demoSvg(pat, P){
   return dmScene(J) + `<g transform="translate(80 108.5) scale(${dmF(k * 100) / 100}) translate(-80 -108.5)">${dmFigure(J, pat.hl || [], back, front)}</g>`;
 }
 const demoLive = new Set(), demoAll = new Set();
+// Frame the view to the movement (the top follows the highest point of figure and gear) and trace the path of
+// the bar or of the body part that moves most, so the range of motion stays visible.
+function demoFit(d){
+  const pat = d.pat, n = pat.fn ? 8 : pat.k.length, front = !!pat.front;
+  let top = 108;
+  for (let i = 0; i < n; i++){
+    const P = pat.fn ? pat.fn(i / n) : pat.k[i], J = dmSolve(P, front);
+    top = Math.min(top, J.head[1] - 9, J.W1[1] - 12, J.W2[1] - 12);
+    (demoSvg(pat, P).match(/\b(?:y1|y2|y|cy)="-?[\d.]+"/g) || []).forEach(m => { top = Math.min(top, parseFloat(m.split('"')[1]) - 4); });
+  }
+  const y0 = Math.max(-44, Math.min(18, Math.floor(108.5 - (108.5 - top) * dmBody.k - 3)));
+  d.svg.setAttribute("viewBox", `0 ${y0} 160 ${118 - y0}`);
+  d.path = "";
+  if (pat.fn || pat.loop || pat.k.length !== 2) return;
+  const pts = []; for (let i = 0; i <= 12; i++) pts.push(dmSolve(dmLerp(pat.k[0], pat.k[1], i / 12), front));
+  let best = null, far = 8;
+  (pat.eq && pat.eq !== "none" ? ["W1"] : ["W1", "S", "H", "A1"]).forEach(key => {
+    const a = pts[0][key], b = pts[12][key], dd = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (dd > far){ far = dd; best = key; }
+  });
+  if (best) d.path = `<polyline points="${pts.map(J => dmF(J[best][0]) + "," + dmF(J[best][1])).join(" ")}" class="dm-path"/>`;
+}
 // Redraw every demo on screen (also paused ones) after the profile changed.
 function demoRefit(){
   dmBodyFit();
-  demoAll.forEach(d => { if (!d.el.isConnected) demoAll.delete(d); else if (d.P) d.g.innerHTML = demoSvg(d.pat, d.P); });
+  demoAll.forEach(d => { if (!d.el.isConnected) demoAll.delete(d); else if (d.P){ demoFit(d); d.g.innerHTML = demoSvg(d.pat, d.P, d.path); } });
 }
 let demoRaf = 0;
 const demoReduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -6897,7 +6918,7 @@ function demoTick(now){
     if (!d.el.isConnected || (d.details && !d.details.open) || d.el.closest("[hidden]")){ demoLive.delete(d); return; }
     if (d.paused) return;
     const sec = (now - d.t0) / 1000, { P, ph } = demoPose(d.pat, sec);
-    d.P = P; d.g.innerHTML = demoSvg(d.pat, P);
+    d.P = P; d.g.innerHTML = demoSvg(d.pat, P, d.path);
     if (ph !== d.ph){ d.ph = ph; d.label.textContent = demoLabel(d.pat, ph); }
   });
   if (demoLive.size) demoRaf = requestAnimationFrame(demoTick);
@@ -6947,8 +6968,9 @@ function mountDemo(box, name, type){
   demoAll.forEach(d => { if (!d.el.isConnected || d.el === box) demoAll.delete(d); });
   box.innerHTML = `<svg viewBox="0 -36 160 154" role="img" aria-label="Animatie: ${esc(name)}"><g></g></svg>
     <div class="demo-cap"><span class="demo-ph" aria-live="off"></span><button type="button" class="demo-play" aria-label="Pauzeren">❚❚</button></div>`;
-  const d = { el: box, pat, g: box.querySelector("g"), label: box.querySelector(".demo-ph"), details: box.closest("details"), t0: performance.now(), ph: -1, paused: false };
-  const still = () => { const { P } = demoPose(pat, pat.fn ? .25 * pat.period : (pat.tm[0] + .3)); d.P = P; d.g.innerHTML = demoSvg(pat, P); d.label.textContent = demoLabel(pat, 0); };
+  const d = { el: box, pat, svg: box.querySelector("svg"), g: box.querySelector("g"), label: box.querySelector(".demo-ph"), details: box.closest("details"), t0: performance.now(), ph: -1, paused: false };
+  demoFit(d);
+  const still = () => { const { P } = demoPose(pat, pat.fn ? .25 * pat.period : (pat.tm[0] + .3)); d.P = P; d.g.innerHTML = demoSvg(pat, P, d.path); d.label.textContent = demoLabel(pat, 0); };
   still();
   demoAll.add(d);
   const btn = box.querySelector(".demo-play");
