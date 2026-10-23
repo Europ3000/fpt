@@ -250,6 +250,12 @@ body.resting .toast{bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 .suggest{display:flex;flex-direction:column;gap:2px;background:var(--paper);border-radius:10px;padding:10px 12px;font-size:.85rem;color:var(--muted)}
 .suggest b{color:var(--ink);font-size:.95rem;font-variant-numeric:tabular-nums}
 .suggest.up{background:var(--teal-soft)}
+.sg-why{display:block}
+.sg-why > summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:6px}
+.sg-why > summary::-webkit-details-marker{display:none}
+.sg-why > summary::after{content:"▸";color:var(--muted);font-size:.8rem;margin-left:auto}
+.sg-why[open] > summary::after{content:"▾"}
+.sg-why > span{display:block;margin-top:2px}
 .suggest.up b{color:var(--teal)}
 .trend-note{color:var(--ember);font-weight:500}
 
@@ -1163,26 +1169,33 @@ button.cal-d{font:inherit;font-size:.85rem;padding:5px 0;background:none;cursor:
 .day-focus{flex:1 1 9rem}
 .day-btns{margin-left:auto}
 .mod-toggle{min-height:40px}
+h1,h2,h3{overflow-wrap:anywhere}
 .sub-toggle{padding-block:8px}
 .label-row .sub-toggle,.kine-row .label-row .sub-toggle{padding-block:8px}
 :is(.reset,.tip-more,.undo,.acct-back){padding-block:8px;min-height:32px}
 .set-pill button{width:30px;height:30px}
+.goal-x{width:32px;height:32px;flex:none}
 .demo-play{width:36px;height:36px}
 @media (max-width:480px){
-  .tile small,.rec small,.sr.head,.tool-group small,.mus small,.tb-new,.dt-label{font-size:.72rem}
+  .tile small,.rec small,.tool-group small,.mus small,.tb-new,.dt-label{font-size:.72rem}
   .panel,.add{padding:14px}
   .ex{padding:12px}
   :root[data-style="future"] .view-btn{font-size:.66rem}
   .lang-sel{max-width:100%}
+  .session summary{grid-template-columns:4.6rem minmax(0,1fr) auto;gap:8px}
+  .h-count{white-space:normal;text-align:right;max-width:6.5rem}
+  .tr-name{overflow-wrap:anywhere}
 }
 @media (max-width:400px){
   body{padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
-  .sr{grid-template-columns:1.3rem 3.1rem minmax(0,1fr) 3.2rem 2.7rem;gap:4px}
-  .sr.nw{grid-template-columns:1.3rem 3.1rem minmax(0,1fr) 2.7rem}
+  .sr{grid-template-columns:1.6rem 3.1rem minmax(0,1fr) 3.2rem 2.7rem;gap:4px}
+  .sr.nw{grid-template-columns:1.6rem 3.1rem minmax(0,1fr) 2.7rem}
   .sr-ck{width:2.7rem}
   .sr-prev{font-size:.76rem}
   .chip{padding:9px 12px}
   .edit-toggle{padding:8px 12px}
+  .ex-body > .entry-row .ghost{padding:0 10px}
+  .ex-body > .entry-row .save{padding:0 10px;white-space:nowrap}
   h1{font-size:1.2rem}
   :root[data-style] .view-btn{font-size:.8rem;padding:0 3px}
   :root[data-style="plain"] .view-btn{font-size:.68rem}
@@ -1280,15 +1293,8 @@ button.cal-d{font:inherit;font-size:.85rem;padding:5px 0;background:none;cursor:
 
   <section class="panel settings friends" id="friends" hidden>
     <h2>Vrienden</h2>
-    <p class="note">Deel je schema's en doelen met vrienden. Met het oogje kies je per vriend wat die ziet en wat niet. Je deelt via een link in WhatsApp of sms; er gaat niets naar een server.</p>
+    <p class="note">Deel je schema's en doelen met vrienden. Met het oogje kies je wat ze zien en wat niet. Tik op WhatsApp en kies daar met wie je deelt; er gaat niets naar een server.</p>
     <div id="frShare"></div>
-    <label class="fr-me"><span>Je naam voor vrienden</span><input id="frMe" maxlength="40" autocomplete="given-name" placeholder="bv. Maarten"></label>
-    <form class="fr-add" id="frAdd">
-      <p class="label">Vriend toevoegen</p>
-      <input id="frName" maxlength="40" placeholder="Naam" autocomplete="off" required>
-      <input id="frPhone" type="tel" inputmode="tel" maxlength="20" placeholder="Telefoonnummer, bv. +32 470 12 34 56" autocomplete="off" required>
-      <div class="entry-row"><button class="ghost" type="button" id="frContacts" hidden>Uit contacten</button><button class="save" type="submit">Toevoegen</button></div>
-    </form>
     <div id="frList"></div>
     <div id="frInbox"></div>
     <div class="entry-row"><button class="save" type="button" id="friendsClose">Klaar</button></div>
@@ -2781,6 +2787,8 @@ function nextHomeDay(h){
 // Picking a scheme yourself: an add-on remembers where you came from, a main scheme starts fresh.
 function homeFor(s){ const cur = scheme(); return !isAddon(s) ? undefined : isAddon(cur) ? view.home : cur.id; }
 let comboOpen = false;
+const sgOpen = new Set();   // "Voorstel" explanations you opened (folded by default)
+document.addEventListener("toggle", e => { const d = e.target; if (d.classList && d.classList.contains("sg-why")) d.open ? sgOpen.add(d.dataset.sg) : sgOpen.delete(d.dataset.sg); }, true);
 function renderCombo(){
   const box = $("combo"), s = scheme(), h = comboHome();
   if (h){
@@ -2962,8 +2970,8 @@ function renderExercises(){
           <div class="rec"><small>Vorige</small><strong>${r ? fw(r.last) : "—"}</strong>${r && r.date ? `<em>${fmtDate(r.date)}</em>` : ""}</div>`}
         </div>
         ${skipped || done ? "" : `<div class="suggest${sg.up ? " up" : ""}">
-          <b>${sg.up ? "▲ " : ""}Voorstel: ${wHint && !mode ? wHint + " " + U() + " × " : ""}${esc(rHint)} ${unit}</b>
-          <span>${esc(sg.why)}</span>${sg.note ? `<span class="trend-note">${esc(sg.note)}</span>` : ""}${goalCoachHtml(name)}
+          <details class="sg-why" data-sg="${esc(name)}"${sgOpen.has(name) ? " open" : ""}><summary><b>${sg.up ? "▲ " : ""}Voorstel: ${wHint && !mode ? wHint + " " + U() + " × " : ""}${esc(rHint)} ${unit}</b></summary>
+          <span>${esc(sg.why)}</span>${sg.note ? `<span class="trend-note">${esc(sg.note)}</span>` : ""}</details>${goalCoachHtml(name)}
         </div>`}
         ${skipped ? `<div class="entry-row"><button class="ghost wide" type="button" data-unskip>Toch doen</button></div>` : `
         <div class="sets">${rows}</div>
@@ -5765,7 +5773,7 @@ function cardioCard(item, i, items){
       ${sg.prevText ? `<p class="today prev-c">Vorige keer (${esc(relDate(sg.prevDate).toLowerCase())}): ${esc(sg.prevText.replace(/^[^:]+: /, ""))}</p>` : ""}
       ${today_.length ? `<div class="bw-list">${today_.map(c => `<span class="set-pill">${esc(cardioText(c).replace(/^[^:]+: /, ""))}<button type="button" data-ct="${c.t}" aria-label="Verwijder deze cardio">×</button></span>`).join("")}</div>` : ""}
       ${skipped ? `<div class="entry-row"><button class="ghost wide" type="button" data-unskip>Toch doen</button></div>` : `
-      ${done ? "" : `<div class="suggest"><b>Voorstel: ${esc(Object.entries(sg.vals).map(([m, v]) => metricText(m, v)).join(" · "))}</b><span>${esc(sg.why)}</span>${goalCoachHtml(name)}</div>`}
+      ${done ? "" : `<div class="suggest"><details class="sg-why" data-sg="${esc(name)}"${sgOpen.has(name) ? " open" : ""}><summary><b>Voorstel: ${esc(Object.entries(sg.vals).map(([m, v]) => metricText(m, v)).join(" · "))}</b></summary><span>${esc(sg.why)}</span></details>${goalCoachHtml(name)}</div>`}
       <form class="cardio-grid" id="f-${k}">${fields}</form>
       <p class="note">Leeg = het grijze voorstel. Hartslag en calorieën zijn optioneel; neem ze over van het toestel of je horloge.</p>
       <div class="entry-row">
