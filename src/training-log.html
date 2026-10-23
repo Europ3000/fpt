@@ -581,6 +581,8 @@ body.big .cm .field input{font-size:1.35rem}
 .waist-how ol{margin:6px 0 0;padding-left:20px;display:grid;gap:4px}
 .combo{display:grid;gap:6px;margin-top:10px}
 .combo:empty{display:none}
+.combo-row:not(:has(span)) .lang-sel{max-width:none;flex:1}
+.combo .combo-toggle{text-transform:none;letter-spacing:0;font-size:.85rem;font-weight:600}
 .combo-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:.9rem;font-weight:600}
 .combo-row .lang-sel{max-width:62%}
 .combo .note{margin:0}
@@ -1265,6 +1267,15 @@ button.cal-d{font:inherit;font-size:.85rem;padding:5px 0;background:none;cursor:
           <div class="musbars" id="musBars"></div>
         </div>
       </section>
+      <section class="panel mod" data-mod="recovery">
+        <div class="mod-head">
+          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Herstel per spier</h2><span class="chev" aria-hidden="true">▾</span></button>
+          <button class="mod-drag" type="button" aria-label="Herstel per spier verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
+        </div>
+        <div class="mod-body" id="recoveryBody">
+
+        </div>
+      </section>
       <section class="panel mod" data-mod="advice" data-need>
         <div class="mod-head">
           <button class="mod-toggle" type="button" aria-expanded="true"><h2>Balans en voorstellen</h2><span class="chev" aria-hidden="true">▾</span></button>
@@ -1534,15 +1545,6 @@ button.cal-d{font:inherit;font-size:.85rem;padding:5px 0;background:none;cursor:
     <div class="tabs" id="days" role="tablist" aria-label="Training day"></div>
     <div class="combo" id="combo"></div>
   </section>
-        </div>
-      </section>
-      <section class="panel mod" data-mod="recovery">
-        <div class="mod-head">
-          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Herstel per spier</h2><span class="chev" aria-hidden="true">▾</span></button>
-          <button class="mod-drag" type="button" aria-label="Herstel per spier verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
-        </div>
-        <div class="mod-body" id="recoveryBody">
-
         </div>
       </section>
   </div>
@@ -2264,6 +2266,7 @@ function renderStats(){
   const dates = Object.keys(log).sort().reverse();
   $("statsEmpty").hidden = dates.length > 0;
   document.querySelectorAll("#statsBody .mod[data-need]").forEach(m => { m.hidden = !dates.length; });
+  renderRecovery();
   if (!dates.length){
     $("bodyMap").innerHTML = bodyMapSvg({}); wireBodyMap({});
     $("musBars").innerHTML = `<p class="note">Nog geen sets in de laatste 7 dagen. Na je eerste training kleurt de kaart.</p>`;
@@ -2694,6 +2697,7 @@ function nextHomeDay(h){
 }
 // Picking a scheme yourself: an add-on remembers where you came from, a main scheme starts fresh.
 function homeFor(s){ const cur = scheme(); return !isAddon(s) ? undefined : isAddon(cur) ? view.home : cur.id; }
+let comboOpen = false;
 function renderCombo(){
   const box = $("combo"), s = scheme(), h = comboHome();
   if (h){
@@ -2712,9 +2716,17 @@ function renderCombo(){
   const others = allSchemes().filter(x => x.id !== s.id && (isAddon(x) || own.has(x.id) || x.cls));
   const opt = x => `<option value="${esc(x.id)}"${cur && cur.id === x.id ? " selected" : ""}>${esc(x.name.replace(/^Programma: /, ""))}</option>`;
   const day = s.days[view.day].name, next = s.days[(view.day + 1) % s.days.length].name;
-  box.innerHTML = `<label class="combo-row"><span>${esc(`Na ${day}`)}</span><select id="comboAfter" class="lang-sel">
+  // Folded by default: one line with the current choice, tap to change it.
+  if (!comboOpen){
+    box.innerHTML = `<button type="button" class="sub-toggle combo-toggle" id="comboToggle" aria-expanded="false"><span aria-hidden="true">▸</span> <span>${esc(`Na ${day}`)}</span>: <span>${esc(cur ? cur.name.replace(/^Programma: /, "") : "Niets erna")}</span></button>`;
+    $("comboToggle").onclick = () => { comboOpen = true; renderCombo(); };
+    return;
+  }
+  box.innerHTML = `<button type="button" class="sub-toggle combo-toggle" id="comboToggle" aria-expanded="true"><span aria-hidden="true">▾</span> <span>${esc(`Na ${day}`)}</span></button>
+    <label class="combo-row"><select id="comboAfter" class="lang-sel" aria-label="${esc(`Na ${day}`)}">
       <option value="">Niets erna</option>${others.map(opt).join("")}</select></label>
     ${cur ? `<p class="note">${esc(s.days.length > 1 ? `Na ${day} staat ${cur.name} klaar. Daarna ga je verder met ${next}.` : `Na ${day} staat ${cur.name} klaar.`)}</p>` : ""}`;
+  $("comboToggle").onclick = () => { comboOpen = false; renderCombo(); };
   $("comboAfter").onchange = e => {
     prefs.after = Object.assign({}, prefs.after);
     if (e.target.value) prefs.after[dayKey(s, view.day)] = e.target.value; else delete prefs.after[dayKey(s, view.day)];
@@ -3651,7 +3663,7 @@ function wireBodyMap(mus){
 }
 
 // ---------- Analytics modules: collapse and drag to reorder ----------
-const MOD_TITLES = { profile: "Taal en profiel", overview: "Overzicht", weeks: "Trainingen per week", cal: "Kalender", muscles: "Sets per spiergroep", progress: "Vooruitgang",
+const MOD_TITLES = { profile: "Taal en profiel", overview: "Overzicht", weeks: "Trainingen per week", cal: "Kalender", muscles: "Sets per spiergroep", recovery: "Herstel per spier", progress: "Vooruitgang",
   trends: "Alle oefeningen", records: "Records", body: "Lichaamsgewicht", bodystats: "Lichaam en energie", food: "Voeding", history: "Logboek" };
 function setupModules(){
   setupModulesIn("statsBody", "modOrder", "modClosed");
@@ -3673,6 +3685,7 @@ function setupModulesIn(boxId, orderKey, closedKey){
   if (boxId === "statsBody" && prefs[orderKey] && !prefs.orderV5){ prefs[orderKey] = prefs[orderKey].filter(x => x !== "history").concat(["history"]); prefs.orderV5 = true; savePrefs(); }
   if (boxId === "statsBody" && prefs[orderKey] && !prefs.orderV4){ prefs[orderKey] = ["muscles"].concat(prefs[orderKey].filter(x => x !== "muscles" && x !== "food"), ["food"]); prefs.orderV4 = true; savePrefs(); }
   if (boxId === "statsBody" && prefs[orderKey] && !prefs[orderKey].includes("food")){ const o = prefs[orderKey].slice(), i = o.indexOf("kcal"); o.splice(i < 0 ? 0 : i + 1, 0, "food"); prefs[orderKey] = o; savePrefs(); }
+  if (boxId === "statsBody" && prefs[orderKey] && !prefs[orderKey].includes("recovery")){ const o = prefs[orderKey].slice(), i = o.indexOf("muscles"); o.splice(i < 0 ? 0 : i + 1, 0, "recovery"); prefs[orderKey] = o; savePrefs(); }
   if (boxId === "statsBody" && prefs[orderKey] && !prefs[orderKey].includes("bodystats")){ const o = prefs[orderKey].slice(), i = o.indexOf("body"); o.splice(i < 0 ? o.length : i + 1, 0, "bodystats"); prefs[orderKey] = o; savePrefs(); }
   const order = (prefs[orderKey] || []).filter(id => box.querySelector(`.mod[data-mod="${id}"]`));
   order.forEach(id => box.appendChild(box.querySelector(`.mod[data-mod="${id}"]`)));
@@ -3983,7 +3996,7 @@ function renderRecovery(){
     ${s.days.length > 1 ? `<div class="rec-days">${days.map(d => `<button type="button" class="rday ${recClass(d.v)}${d.i === view.day ? " on" : ""}" data-i="${d.i}"><b>${esc(d.name)}</b><span>${d.v}% hersteld</span></button>`).join("")}</div>
       <p class="note">Best hersteld voor vandaag: <b>${esc(best.name)}</b> (${best.v}%). Groen = klaar (90%+), oranje = bijna, rood = nog vermoeid. Een schatting op basis van je sets en de tijd sinds je training.</p>`
       : `<p class="note">Groen = klaar (90%+), oranje = bijna, rood = nog vermoeid. Een schatting op basis van je sets en de tijd sinds je training.</p>`}`;
-  $("recoveryBody").querySelectorAll(".rday").forEach(b => b.onclick = () => { view.day = +b.dataset.i; lsSet(LS_VIEW, view); render(); });
+  $("recoveryBody").querySelectorAll(".rday").forEach(b => b.onclick = () => { view.day = +b.dataset.i; lsSet(LS_VIEW, view); showPage("train"); render(); scrollToExercise(); });
 }
 
 // ---------- Week planner ----------
