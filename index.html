@@ -5219,6 +5219,8 @@ function lastCardio(name){
   }
   return null;
 }
+// A metric name in the app language, lower case inside a sentence (German keeps its capital).
+const metricName = k => { const t = tr(CARDIO_METRICS[k][0]); return lang === "de" ? t : t.toLowerCase(); };
 const metricText = (k, v) => { if (k === "split") return paceText(v); const [, unit] = CARDIO_METRICS[k]; return `${fmt(v)}${unit ? " " + unit : ""}`; };
 const cardioText = c => {
   const t = cardioType(c.type), keys = t ? t[3] : ["min", "km", "kcal"];
@@ -5249,7 +5251,7 @@ function cardioSuggest(name){
   if (intensity !== "min" && (prev.min || 0) >= hi && prev[intensity] != null){
     out[intensity] = Math.round((prev[intensity] + step) * 10) / 10;
     if (intensity === "m" || intensity === "km") why = `Vorige keer ${metricText(intensity, prev[intensity])} in ${prev.min} min. Probeer in dezelfde tijd iets verder: ${metricText(intensity, out[intensity])}.`;
-    else why = `Vorige keer ${hi}+ minuten gehaald. Zelfde tijd, iets zwaarder: ${CARDIO_METRICS[intensity][0].toLowerCase()} ${metricText(intensity, out[intensity])}.`;
+    else why = `Vorige keer ${hi}+ minuten gehaald. Zelfde tijd, iets zwaarder: ${metricName(intensity)} ${metricText(intensity, out[intensity])}.`;
   } else if (prev.min != null){
     out.min = Math.min(hi, (prev.min || lo) + 2);
     why = out.min > prev.min ? `Vorige keer ${prev.min} min. Probeer ${out.min} min, zelfde tempo.` : `Vorige keer ${prev.min} min. Houd die tijd en ga iets sneller of zwaarder.`;
@@ -5312,7 +5314,7 @@ function cardioCard(item, i, items){
       </div>` : "") + `
     ${finished && !editing ? `<button class="ex-head" type="button" aria-expanded="${!collapsed}">${head}</button>` : `<div class="ex-head">${head}</div>`}
     <div class="ex-body">
-      <div class="prescription"><span><b>${esc(target)} min</b> · ${esc(t[3].filter(m => !["hr", "kcal"].includes(m)).map(m => CARDIO_METRICS[m][0].toLowerCase()).join(", "))}</span><span class="tag cardio">cardio</span></div>
+      <div class="prescription"><span><b>${esc(target)} min</b> · ${esc(t[3].filter(m => !["hr", "kcal"].includes(m)).map(metricName).join(", "))}</span><span class="tag cardio">cardio</span></div>
       ${miniTrend(progCache["c-" + k])}
       ${sg.prevText ? `<p class="today prev-c">Vorige keer (${esc(relDate(sg.prevDate).toLowerCase())}): ${esc(sg.prevText.replace(/^[^:]+: /, ""))}</p>` : ""}
       ${today_.length ? `<div class="bw-list">${today_.map(c => `<span class="set-pill">${esc(cardioText(c).replace(/^[^:]+: /, ""))}<button type="button" data-ct="${c.t}" aria-label="Verwijder deze cardio">×</button></span>`).join("")}</div>` : ""}
