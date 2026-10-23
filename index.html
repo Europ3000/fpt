@@ -1043,8 +1043,13 @@ body::before{background:var(--paper)}
 /* Orbitron is wide: on a phone it gets the same two lines as the other styles */
 :root[data-style="future"] .brand h1{font-size:.95rem;letter-spacing:0}
 @media (min-width:480px){:root[data-style="future"] .brand h1{font-size:1.2rem}}
-/* four tabs: the wide Future font gets a bit smaller on a phone */
-@media (max-width:479px){:root[data-style="future"] .view-btn{font-size:.62rem;letter-spacing:.05em}}
+/* four tabs on a phone: a bit lower and smaller, with room around each name */
+@media (max-width:479px){
+  :root[data-style] .top .views{height:44px;padding:3px;gap:3px}
+  :root[data-style] .view-btn{padding:0 5px;font-size:.84rem;letter-spacing:0}
+  :root[data-style="plain"] .view-btn{font-size:.72rem;letter-spacing:.02em}
+  :root[data-style="future"] .view-btn{font-size:.58rem;letter-spacing:.03em}
+}
 :root[data-style] .views{height:50px;box-sizing:border-box;padding:4px;align-items:stretch}
 :root[data-style] .view-btn{padding:0 6px;display:flex;align-items:center;justify-content:center;min-width:0}
 :root[data-style] .top::after{content:"";display:block;height:8px;box-sizing:border-box}
@@ -3668,10 +3673,15 @@ function fitTabs(){
   const tabs = [...document.querySelectorAll(".view-btn")]; let min = Infinity;
   tabs.forEach(b => {
     b.style.fontSize = ""; let fs = parseFloat(getComputedStyle(b).fontSize), n = 0;
-    while (b.scrollWidth > b.clientWidth + 1 && fs > 8 && n++ < 16){ fs -= .5; b.style.fontSize = fs + "px"; }
+    while (b.scrollWidth > b.clientWidth && fs > 8 && n++ < 16){ fs -= .5; b.style.fontSize = fs + "px"; }
     min = Math.min(min, fs);
   });
   tabs.forEach(b => { b.style.fontSize = min + "px"; });
+  // the app name stays on two lines, also on narrow phones
+  const h = document.querySelector(".brand h1"); if (!h) return;
+  h.style.fontSize = ""; let fs = parseFloat(getComputedStyle(h).fontSize), k = 0;
+  const lines = () => h.getBoundingClientRect().height / parseFloat(getComputedStyle(h).lineHeight);
+  while (lines() > 2.2 && fs > 11 && k++ < 24){ fs -= .5; h.style.fontSize = fs + "px"; }
 }
 function applyTheme(){
   const t = lsGet(LS_THEME, "system"), st = styleNow();
