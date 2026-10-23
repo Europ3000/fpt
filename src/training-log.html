@@ -1352,6 +1352,15 @@ h1,h2,h3{overflow-wrap:anywhere}
           <div class="musbars" id="musBars"></div>
         </div>
       </section>
+      <section class="panel mod" data-mod="balance" data-need>
+        <div class="mod-head">
+          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Spierbalans</h2><span class="chev" aria-hidden="true">▾</span></button>
+          <button class="mod-drag" type="button" aria-label="Spierbalans verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
+        </div>
+        <div class="mod-body">
+          <div id="balance"></div>
+        </div>
+      </section>
       <section class="panel mod" data-mod="recovery">
         <div class="mod-head">
           <button class="mod-toggle" type="button" aria-expanded="true"><h2>Herstel per spier</h2><span class="chev" aria-hidden="true">▾</span></button>
@@ -1471,15 +1480,6 @@ h1,h2,h3{overflow-wrap:anywhere}
         </div>
         <div class="mod-body">
           <div id="strength"></div>
-        </div>
-      </section>
-      <section class="panel mod" data-mod="balance" data-need>
-        <div class="mod-head">
-          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Spierbalans</h2><span class="chev" aria-hidden="true">▾</span></button>
-          <button class="mod-drag" type="button" aria-label="Spierbalans verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
-        </div>
-        <div class="mod-body">
-          <div id="balance"></div>
         </div>
       </section>
       <section class="panel mod" data-mod="milestones" data-need>
@@ -3868,6 +3868,7 @@ function setupModulesIn(boxId, orderKey, closedKey){
   if (boxId === "trainMods" && prefs[closedKey] && !prefs.foldedV2){ prefs[closedKey] = [...new Set(prefs[closedKey].concat(["recovery", "week"]))]; prefs.foldedV2 = true; savePrefs(); }
   if (boxId === "statsBody" && prefs[orderKey] && !prefs.orderV5){ prefs[orderKey] = prefs[orderKey].filter(x => x !== "history").concat(["history"]); prefs.orderV5 = true; savePrefs(); }
   if (boxId === "statsBody" && prefs[orderKey] && !prefs.orderV4){ prefs[orderKey] = ["muscles"].concat(prefs[orderKey].filter(x => x !== "muscles" && x !== "food"), ["food"]); prefs.orderV4 = true; savePrefs(); }
+  if (boxId === "statsBody" && prefs[orderKey] && !prefs.orderV6){ const o = prefs[orderKey].filter(x => x !== "balance"); o.splice(Math.min(1, o.length), 0, "balance"); prefs[orderKey] = o; prefs.orderV6 = true; savePrefs(); }
   if (boxId === "statsBody" && prefs[orderKey] && !prefs[orderKey].includes("food")){ const o = prefs[orderKey].slice(), i = o.indexOf("kcal"); o.splice(i < 0 ? 0 : i + 1, 0, "food"); prefs[orderKey] = o; savePrefs(); }
   if (boxId === "statsBody" && prefs[orderKey] && !prefs[orderKey].includes("recovery")){ const o = prefs[orderKey].slice(), i = o.indexOf("muscles"); o.splice(i < 0 ? 0 : i + 1, 0, "recovery"); prefs[orderKey] = o; savePrefs(); }
   if (boxId === "statsBody" && prefs[orderKey] && !prefs[orderKey].includes("bodystats")){ const o = prefs[orderKey].slice(), i = o.indexOf("body"); o.splice(i < 0 ? o.length : i + 1, 0, "bodystats"); prefs[orderKey] = o; savePrefs(); }
@@ -7423,8 +7424,7 @@ const LEVELS = ["Beginner", "Gevorderde beginner", "Gemiddeld", "Gevorderd", "Ex
 function renderStrength(){
   const sex = sexOf(), std = STANDARDS[sex];
   const bw = Object.entries(prefs.body || {}).sort((a, b) => a[0] < b[0] ? -1 : 1).pop();
-  const seg = `<div class="seg" id="segSex"><button type="button" data-v="man" aria-pressed="${sex === "man"}">Man</button><button type="button" data-v="vrouw" aria-pressed="${sex === "vrouw"}">Vrouw</button><button type="button" data-v="anders" aria-pressed="${sex === "anders"}">Anders</button></div>`;
-  if (!bw){ $("strength").innerHTML = `<div class="set-row"><span>Normen voor</span>${seg}</div><p class="note">Vul eerst je lichaamsgewicht in (blok Lichaamsgewicht). Je kracht wordt vergeleken met wat gebruikelijk is voor jouw gewicht.</p>`; }
+  if (!bw){ $("strength").innerHTML = `<p class="note">Vul eerst je lichaamsgewicht in (blok Lichaamsgewicht). Je kracht wordt vergeleken met wat gebruikelijk is voor jouw gewicht.</p>`; }
   else {
     const rows = Object.keys(std).map(lift => {
       const k = keyOf(lift); let best = 0;
@@ -7438,9 +7438,8 @@ function renderStrength(){
         <div class="lvl-track">${th.map(t => `<i style="left:${t / th[4] * 100}%"></i>`).join("")}<span class="lvl-dot" style="left:${pos}%"></span></div>
         <p class="note"><b class="lvl-name">${ratio < th[0] ? "Starter" : LEVELS[lv]}</b>${next ? ` · volgend niveau bij ${fw(Math.round(next * bw[1] * 2) / 2)} (1RM)` : " · top!"}</p></div>`;
     }).join("");
-    $("strength").innerHTML = `<div class="set-row"><span>Normen voor</span>${seg}</div>${rows}<p class="note">Op basis van je beste geschatte 1RM (laatste 4 maanden) en je lichaamsgewicht (${fw(bw[1])}). Streepjes: beginner → expert.</p>`;
+    $("strength").innerHTML = `${rows}<p class="note">Op basis van je beste geschatte 1RM (laatste 4 maanden) en je lichaamsgewicht (${fw(bw[1])}). Streepjes: beginner → expert.</p>`;
   }
-  $("segSex").onclick = e => { const b = e.target.closest("button"); if (!b) return; prefs.sex = b.dataset.v; savePrefs(); renderStrength(); renderProfile(); };
 }
 
 // ---------- Profile: age, height, weight, sex → body and training metrics ----------
