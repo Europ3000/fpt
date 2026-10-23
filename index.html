@@ -2585,6 +2585,7 @@ function orderedSchemes(){
   const known = order.map(id => all.find(s => s.id === id)).filter(Boolean);
   return known.concat(all.filter(s => !order.includes(s.id)));
 }
+const catMore = {};   // per category: ⋯ opened
 let progOpen = false, kineOpen = false, mindOpen = false, classOpen = false, schemaOpen = true;
 function renderSchemes(){
   const box = $("schemes"); box.innerHTML = "";
@@ -2607,22 +2608,7 @@ function renderSchemes(){
   };
   // Always at most two lines of schemes; what does not fit goes behind ⋯ (n). Your own order decides who comes first.
   const chips = main.concat(hidden).map(s => { const c = chip(s); c.dataset.id = s.id; box.appendChild(c); return c; });
-  const t = document.createElement("button");
-  t.className = "chip more-chip"; t.type = "button"; t.setAttribute("aria-expanded", moreOpen);
-  t.onclick = () => { moreOpen = !moreOpen; renderSchemes(); };
-  const lines = () => new Set([...box.children].map(x => x.offsetTop)).size;
-  if (moreOpen){ t.textContent = "⋯"; t.setAttribute("aria-label", "Minder tonen"); box.appendChild(t); }
-  else if (box.offsetParent && lines() > 2){
-    t.textContent = `⋯ (${chips.length})`; box.appendChild(t);
-    const shown = chips.slice();
-    while (shown.length && lines() > 2){
-      // keep the scheme you train with in view: drop the last other one instead
-      let i = shown.length - 1; if (shown[i].dataset.id === cur.id && i > 0) i--;
-      shown.splice(i, 1)[0].remove();
-      t.textContent = `⋯ (${chips.length - shown.length})`;
-    }
-    t.setAttribute("aria-label", `Nog ${chips.length - shown.length} schema's tonen`);
-  }
+  fitTwoLines(box, chips, moreOpen, () => { moreOpen = !moreOpen; renderSchemes(); }, cur.id);
   // Kine and meditation: each its own row, folded until you open it
   const row = (el, items, open, label, toggle, kind) => {
     el.innerHTML = ""; if (!items.length) return;
@@ -2632,13 +2618,34 @@ function renderSchemes(){
     t.textContent = `${open ? "▾" : "▸"} ${label} (${items.length})`;
     t.onclick = () => { toggle(); renderSchemes(); };
     head.append(t); el.appendChild(head);
-    if (open){ const c = document.createElement("div"); c.className = "chips"; items.forEach(s => c.appendChild(chip(s))); el.appendChild(c); }
+    if (!open) return;
+    const c = document.createElement("div"); c.className = "chips"; el.appendChild(c);
+    const chips = items.map(s => { const b = chip(s); b.dataset.id = s.id; c.appendChild(b); return b; });
+    fitTwoLines(c, chips, !!catMore[kind], () => { catMore[kind] = !catMore[kind]; renderSchemes(); }, cur.id);
   };
   row($("classRow"), catSchemes("cls"), classOpen, "Groepslessen en wedstrijd", () => { classOpen = !classOpen; }, "cls");
   row($("kineRow"), orderedSchemes().filter(s => s.kine), kineOpen, "Kinetherapie en blessures", () => { kineOpen = !kineOpen; }, "kine");
   row($("mindRow"), orderedSchemes().filter(s => s.mind), mindOpen, "Meditatie en ademhaling", () => { mindOpen = !mindOpen; }, "mind");
   $("schemeNote").innerHTML = esc(cur.note) + (cur.kine ? `<br><small class="warn-t">${esc(KINE_NOTE)}</small>` : cur.mind ? `<br><small class="warn-t">${esc(MIND_NOTE)}</small>` : "");
   renderSchemeOrder();
+}
+// At most two lines of chips; the rest goes behind ⋯ (n), which opens the whole list. The chip you train with stays in view.
+function fitTwoLines(box, chips, open, toggle, curId){
+  const t = document.createElement("button");
+  t.className = "chip more-chip"; t.type = "button"; t.setAttribute("aria-expanded", open);
+  t.onclick = toggle;
+  const lines = () => new Set([...box.children].map(x => x.offsetTop)).size;
+  if (open){ t.textContent = "⋯"; t.setAttribute("aria-label", "Minder tonen"); box.appendChild(t); }
+  else if (box.offsetParent && lines() > 2){
+    t.textContent = `⋯ (${chips.length})`; box.appendChild(t);
+    const shown = chips.slice();
+    while (shown.length && lines() > 2){
+      let i = shown.length - 1; if (shown[i].dataset.id === curId && i > 0) i--;
+      shown.splice(i, 1)[0].remove();
+      t.textContent = `⋯ (${chips.length - shown.length})`;
+    }
+    t.setAttribute("aria-label", `Nog ${chips.length - shown.length} schema's tonen`);
+  }
 }
 // The four main categories: schemes, group classes, physio and meditation
 const CATS = [["", "Schema"], ["cls", "Groepslessen en wedstrijd"], ["kine", "Kinetherapie en blessures"], ["mind", "Meditatie en ademhaling"]];
