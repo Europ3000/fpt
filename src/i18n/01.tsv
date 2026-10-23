@@ -29,7 +29,7 @@ Mijlpalen verslepen	Drag Milestones	Déplacer Étapes	Arrastrar Hitos	Meilenstei
 Volume per week verslepen	Drag Volume per week	Déplacer Volume par semaine	Arrastrar Volumen por semana	Volumen pro Woche verschieben	Trascina Volume a settimana	Arrastar Volume por semana	Переместить «Объём в неделю»	拖动“每周训练量”	اسحب «الحجم الأسبوعي»	प्रति सप्ताह वॉल्यूम खिसकाएँ
 Spiergroep voor volume	Muscle group for volume	Groupe musculaire pour le volume	Grupo muscular para el volumen	Muskelgruppe für das Volumen	Gruppo muscolare per il volume	Grupo muscular para o volume	Группа мышц для объёма	用于训练量的肌群	مجموعة العضلات للحجم	वॉल्यूम के लिए मांसपेशी समूह
 Cardio verslepen	Drag Cardio	Déplacer Cardio	Arrastrar Cardio	Cardio verschieben	Trascina Cardio	Arrastar Cardio	Переместить «Кардио»	拖动“有氧”	اسحب «الكارديو»	कार्डियो खिसकाएँ
-Schema en dag verslepen	Drag Plan and day	Déplacer Programme et jour	Arrastrar Rutina y día	Plan und Tag verschieben	Trascina Scheda e giorno	Arrastar Plano e dia	Переместить «Программа и день»	拖动“计划与训练日”	اسحب «البرنامج واليوم»	योजना और दिन खिसकाएँ
+Programma verslepen	Drag Program	Déplacer Programme	Arrastrar Programa	Programm verschieben	Trascina Programma	Arrastar Programa	Переместить «Программа»	拖动“训练计划”	اسحب «البرنامج»	कार्यक्रम खिसकाएँ
 Eigen schema maken	Create your own plan	Créer votre programme	Crear tu propia rutina	Eigenen Plan erstellen	Crea la tua scheda	Criar o seu plano	Создать свою программу	创建自己的计划	أنشئ برنامجك الخاص	अपनी योजना बनाएँ
 Volgorde van schema's aanpassen	Change the order of plans	Modifier l’ordre des programmes	Cambiar el orden de las rutinas	Reihenfolge der Pläne ändern	Cambia l’ordine delle schede	Alterar a ordem dos planos	Изменить порядок программ	调整计划顺序	تغيير ترتيب البرامج	योजनाओं का क्रम बदलें
 Volgorde aanpassen	Change order	Modifier l’ordre	Cambiar orden	Reihenfolge ändern	Cambia ordine	Alterar ordem	Изменить порядок	调整顺序	تغيير الترتيب	क्रम बदलें
@@ -99,7 +99,7 @@ Openen	Open	Ouvrir	Abrir	Öffnen	Apri	Abrir	Открыть	打开	فتح	खो�
 Start deloadweek	Start deload week	Commencer la semaine de décharge	Empezar semana de descarga	Deload-Woche starten	Inizia settimana di scarico	Iniciar semana de descarga	Начать разгрузочную неделю	开始减载周	ابدأ أسبوع التخفيف	डीलोड सप्ताह शुरू करें
 Later	Later	Plus tard	Más tarde	Später	Più tardi	Mais tarde	Позже	稍后	لاحقًا	बाद में
 Opnieuw starten	Start again	Recommencer	Empezar de nuevo	Neu starten	Ricomincia	Recomeçar	Начать заново	重新开始	ابدأ من جديد	फिर से शुरू करें
-Schema en dag	Plan and day	Programme et jour	Rutina y día	Plan und Tag	Scheda e giorno	Plano e dia	Программа и день	计划与训练日	البرنامج واليوم	योजना और दिन
+Programma	Program	Programme	Programa	Programm	Programma	Programa	Программа	训练计划	البرنامج	कार्यक्रम
 Schema	Plan	Programme	Rutina	Plan	Scheda	Plano	Программа	计划	البرنامج	योजना
 Naam	Name	Nom	Nombre	Name	Nome	Nome	Название	名称	الاسم	नाम
 Dagen, gescheiden door komma's	Days, separated by commas	Jours, séparés par des virgules	Días, separados por comas	Tage, durch Kommas getrennt	Giorni, separati da virgole	Dias, separados por vírgulas	Дни через запятую	训练日，用逗号分隔	الأيام مفصولة بفواصل	दिन, कॉमा से अलग करें
