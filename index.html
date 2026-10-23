@@ -5207,6 +5207,7 @@ function openShareSheet(date){
 }
 
 // ---------- Today ----------
+let recOpen = false;
 function renderToday(){
   const s = scheme(), rec = recoveryMap(), wk = weekPlan();
   const nx = nextDayIndex(s), idx = inWorkout() ? view.day : nx ? nx.idx : view.day;
@@ -5245,9 +5246,11 @@ function renderToday(){
       ${(prefs.planDays || []).length ? "" : `<p class="note">Kies in Planning → Weekplanning op welke dagen je traint.</p>`}
     </section>
     <section class="panel">
-      <h2>Herstel</h2>
+      <button class="mod-toggle" type="button" id="recToggle" aria-expanded="${recOpen}"><h2>Herstel</h2><span class="chev" aria-hidden="true">${recOpen ? "▾" : "▸"}</span></button>
+      <div ${recOpen ? "" : "hidden"}>
       <p class="note">${low.length ? `Nog vermoeid: <b>${esc(low.join(", "))}</b>. ` : "Al je spieren zijn (bijna) hersteld. "}Klaar voor ${esc(s.days[idx].name)}: ${ready}%.</p>
       <div class="rec-chips">${RECOVERY_SHOWN.map(g => `<span class="rchip ${recClass(rec[g])}"><b>${rec[g]}%</b> ${esc(g)}</span>`).join("")}</div>
+      </div>
     </section>
     ${goalsToday.length ? `<section class="panel"><h2>${goalsToday.length > 1 ? "Je doelen" : "Je doel"}</h2>${goalsToday.map(goalRow).join("")}</section>` : ""}
     ${STANDALONE && dates.length >= 5 && (!lsGet("ppl.lastBackup", "") || daysAgo(lsGet("ppl.lastBackup", "")) > 30) ? `<section class="panel tip-card"><small class="label">Back-up</small><p>Je gegevens staan alleen op deze telefoon. Download een back-up via Instellingen (rechtsboven).</p></section>` : ""}
@@ -5258,6 +5261,7 @@ function renderToday(){
   $("startBtn").onclick = () => { view.day = idx; lsSet(LS_VIEW, view); showPage("train"); render(); scrollToExercise(); };
   $("toWeek").onclick = () => { showPage("plan"); openTrainMod("week"); };
   $("todayView").querySelectorAll(".wk-plan [data-date]").forEach(b => b.onclick = () => { showPage("plan"); selectDay(b.dataset.date, "wk"); openTrainMod("week"); });
+  $("recToggle").onclick = () => { recOpen = !recOpen; renderToday(); };
   $("toSummary").onclick = openSummary;
   $("toTips").onclick = openTips;
 }
