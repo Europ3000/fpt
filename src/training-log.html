@@ -1144,6 +1144,17 @@ body::before{background:var(--paper)}
   <section class="log" id="statsView" hidden>
     <p class="log-empty" id="statsEmpty">Nog geen trainingen. Ga naar Training, controleer gewicht en reps en tik op "Set opslaan". Je grafieken en je trainingsoverzicht verschijnen dan hier.</p>
     <div class="log" id="statsBody">
+      <section class="panel mod" data-mod="muscles">
+        <div class="mod-head">
+          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Sets per spiergroep</h2><span class="chev" aria-hidden="true">▾</span></button>
+          <button class="mod-drag" type="button" aria-label="Sets per spiergroep verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
+        </div>
+        <div class="mod-body">
+          <p class="note">Laatste 7 dagen. Sterk aangesproken spier = 1 set, minder sterk = ½ set. Richtlijn voor spiergroei: ongeveer 10–20 sets per spiergroep per week.</p>
+          <div class="bodymap" id="bodyMap"></div>
+          <div class="musbars" id="musBars"></div>
+        </div>
+      </section>
       <section class="panel mod" data-mod="advice" data-need>
         <div class="mod-head">
           <button class="mod-toggle" type="button" aria-expanded="true"><h2>Balans en voorstellen</h2><span class="chev" aria-hidden="true">▾</span></button>
@@ -1165,13 +1176,6 @@ body::before{background:var(--paper)}
           <p class="note" id="kcalNote"></p>
         </div>
       </section>
-      <section class="panel mod" data-mod="food">
-        <div class="mod-head">
-          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Voeding</h2><span class="chev" aria-hidden="true">▾</span></button>
-          <button class="mod-drag" type="button" aria-label="Voeding verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
-        </div>
-        <div class="mod-body"><div id="foodBody"></div></div>
-      </section>
       <section class="panel mod" data-mod="overview" data-need>
         <div class="mod-head">
           <button class="mod-toggle" type="button" aria-expanded="true"><h2>Overzicht</h2><span class="chev" aria-hidden="true">▾</span></button>
@@ -1188,17 +1192,6 @@ body::before{background:var(--paper)}
         </div>
         <div class="mod-body">
           <div class="weeks" id="weeks"></div>
-        </div>
-      </section>
-      <section class="panel mod" data-mod="muscles">
-        <div class="mod-head">
-          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Sets per spiergroep</h2><span class="chev" aria-hidden="true">▾</span></button>
-          <button class="mod-drag" type="button" aria-label="Sets per spiergroep verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
-        </div>
-        <div class="mod-body">
-          <p class="note">Laatste 7 dagen. Sterk aangesproken spier = 1 set, minder sterk = ½ set. Richtlijn voor spiergroei: ongeveer 10–20 sets per spiergroep per week.</p>
-          <div class="bodymap" id="bodyMap"></div>
-          <div class="musbars" id="musBars"></div>
         </div>
       </section>
       <section class="panel mod" data-mod="progress" id="chartPanel" data-need>
@@ -1329,6 +1322,13 @@ body::before{background:var(--paper)}
           <p class="note" id="cardioSum"></p>
           <div class="records-list" id="cardioTypes"></div>
         </div>
+      </section>
+      <section class="panel mod" data-mod="food">
+        <div class="mod-head">
+          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Voeding</h2><span class="chev" aria-hidden="true">▾</span></button>
+          <button class="mod-drag" type="button" aria-label="Voeding verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
+        </div>
+        <div class="mod-body"><div id="foodBody"></div></div>
       </section>
       <p class="note mod-hint">Tik op een titel om een blok in of uit te klappen. Sleep aan ⋮⋮ om de volgorde te veranderen.</p>
     </div>
@@ -3432,6 +3432,7 @@ function setupModulesIn(boxId, orderKey, closedKey){
     prefs.foldedV3 = true; savePrefs();
   }
   if (boxId === "trainMods" && prefs[closedKey] && !prefs.foldedV2){ prefs[closedKey] = [...new Set(prefs[closedKey].concat(["recovery", "week"]))]; prefs.foldedV2 = true; savePrefs(); }
+  if (boxId === "statsBody" && prefs[orderKey] && !prefs.orderV4){ prefs[orderKey] = ["muscles"].concat(prefs[orderKey].filter(x => x !== "muscles" && x !== "food"), ["food"]); prefs.orderV4 = true; savePrefs(); }
   if (boxId === "statsBody" && prefs[orderKey] && !prefs[orderKey].includes("food")){ const o = prefs[orderKey].slice(), i = o.indexOf("kcal"); o.splice(i < 0 ? 0 : i + 1, 0, "food"); prefs[orderKey] = o; savePrefs(); }
   if (boxId === "statsBody" && prefs[orderKey] && !prefs[orderKey].includes("bodystats")){ const o = prefs[orderKey].slice(), i = o.indexOf("body"); o.splice(i < 0 ? o.length : i + 1, 0, "bodystats"); prefs[orderKey] = o; savePrefs(); }
   const order = (prefs[orderKey] || []).filter(id => box.querySelector(`.mod[data-mod="${id}"]`));
