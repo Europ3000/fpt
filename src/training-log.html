@@ -61,7 +61,6 @@ h1 span{color:var(--ember)}
 .mb.ok .mb-fill{background:var(--teal)}
 .mb.high .mb-fill{background:var(--ember)}
 .mb b{text-align:right;font-variant-numeric:tabular-nums}
-.mb-guide{position:absolute;top:0;bottom:0;width:2px;background:var(--card)}
 button.mb{width:100%;padding:4px 6px;margin:-4px -6px;box-sizing:content-box;border:0;border-radius:8px;background:none;color:inherit;font:inherit;font-size:.88rem;text-align:start;cursor:pointer}
 button.mb:hover,button.mb.open{background:color-mix(in srgb,var(--line) 55%,transparent)}
 button.mb span{text-decoration:underline dotted;text-underline-offset:3px}
@@ -2469,10 +2468,9 @@ function renderStats(){
   };
   $("musBars").innerHTML = musList.length ? musList.map(([g, v]) => `
     <button type="button" class="mb ${v > 20 ? "high" : v >= 10 ? "ok" : ""}${g === musOpen ? " open" : ""}" data-g="${esc(g)}" aria-expanded="${g === musOpen}"><span title="${esc(g)}">${esc(g)}</span>
-      <div class="mb-track"><div class="mb-fill" style="width:${v / scaleMax * 100}%"></div>
-        <i class="mb-guide" style="left:${10 / scaleMax * 100}%"></i><i class="mb-guide" style="left:${20 / scaleMax * 100}%"></i></div>
+      <div class="mb-track"><div class="mb-fill" style="width:${v / scaleMax * 100}%"></div></div>
       <b>${half(v)}</b></button>${g === musOpen ? musDetail(g) : ""}`).join("")
-    + `<p class="note">Tik op een spiergroep voor de oefeningen en onderdelen.</p><p class="note">Groen = 10–20 sets, oranje = meer dan 20, grijs = minder dan 10. De streepjes in de balk staan op 10 en 20.</p>`
+    + `<p class="note">Tik op een spiergroep voor de oefeningen en onderdelen.</p><p class="note">Groen = 10–20 sets, oranje = meer dan 20, grijs = minder dan 10.</p>`
     : `<p class="note">Nog geen sets in de laatste 7 dagen.</p>`;
   $("bodyMap").innerHTML = bodyMapSvg(mus); wireBodyMap(mus);
   const pickMuscle = (g, fromMap) => {
