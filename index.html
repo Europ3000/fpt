@@ -1242,7 +1242,7 @@ h1,h2,h3{overflow-wrap:anywhere}
       </svg>
       <h1>Fitness <span>Progress</span> Tracker</h1>
       <div class="hdr-btns">
-        <button class="icon-btn" id="friendsBtn" type="button" aria-label="Vrienden" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.3 10.7l7.4-4.3M8.3 13.3l7.4 4.3"/></svg></button>
+        <button class="icon-btn" id="friendsBtn" type="button" aria-label="Delen" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.3 10.7l7.4-4.3M8.3 13.3l7.4 4.3"/></svg></button>
         <button class="icon-btn" id="settingsBtn" type="button" aria-label="Instellingen" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
       </div>
     </div>
@@ -1308,16 +1308,9 @@ h1,h2,h3{overflow-wrap:anywhere}
   </section>
 
   <section class="panel settings friends" id="friends" hidden>
-    <h2>Vrienden</h2>
-    <p class="note">Deel je schema's en doelen met vrienden. Met het oogje kies je per vriend wat die ziet en wat niet. Je deelt via een link in WhatsApp of sms; er gaat niets naar een server.</p>
+    <h2>Delen</h2>
+    <p class="note">Deel je schema's en doelen met vrienden. Met het oogje kies je wat ze zien en wat niet. Tik op WhatsApp en kies daar met wie je deelt; er gaat niets naar een server.</p>
     <div id="frShare"></div>
-    <label class="fr-me"><span>Je naam voor vrienden</span><input id="frMe" maxlength="40" autocomplete="given-name" placeholder="bv. Maarten"></label>
-    <form class="fr-add" id="frAdd">
-      <p class="label">Vriend toevoegen</p>
-      <input id="frName" maxlength="40" placeholder="Naam" autocomplete="off" required>
-      <input id="frPhone" type="tel" inputmode="tel" maxlength="20" placeholder="Telefoonnummer, bv. +32 470 12 34 56" autocomplete="off" required>
-      <div class="entry-row"><button class="ghost" type="button" id="frContacts" hidden>Uit contacten</button><button class="save" type="submit">Toevoegen</button></div>
-    </form>
     <div id="frList"></div>
     <div id="frInbox"></div>
     <div class="entry-row"><button class="save" type="button" id="friendsClose">Klaar</button></div>
