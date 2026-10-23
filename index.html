@@ -912,6 +912,8 @@ body.big .badge{font-size:1rem}
 .tag.core{background:var(--paper);color:var(--muted);border:1px solid var(--line)}
 .prescription{font-variant-numeric:tabular-nums;color:var(--muted);font-size:.92rem}
 .prescription b{color:var(--ink);font-weight:600}
+.rec-toggle{color:var(--muted)}
+.records[hidden]{display:none}
 .records{display:flex;gap:16px;flex-wrap:wrap;font-variant-numeric:tabular-nums;font-size:.92rem}
 .rec{display:flex;flex-direction:column}
 .rec small{font-size:.68rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
@@ -2881,6 +2883,7 @@ function scrollToKey(k){
   setTimeout(() => c.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" }), 50);
 }
 
+let recsOpen = lsGet("ppl.recsOpen", false);   // records under each exercise: closed by default, remembers the last choice
 function renderExercises(){
   const list = $("exercises"); list.innerHTML = "";
   const s = scheme(), items = dayItems(), pw = programWeek(s);
@@ -2966,7 +2969,8 @@ function renderExercises(){
         ${orig ? `<p class="ex-swapped">Vervangt vandaag <b>${esc(orig)}</b> · <button type="button" class="link" data-unswap>Terugzetten</button></p>` : ""}
         ${note ? `<p class="ex-note"><b>Notitie:</b> <span></span></p>` : ""}
         ${miniTrend(progCache[k])}
-        <div class="records">${mode ? `
+        <button type="button" class="sub-toggle rec-toggle" data-recs aria-expanded="${recsOpen}"><span aria-hidden="true">${recsOpen ? "▾" : "▸"}</span> Records</button>
+        <div class="records"${recsOpen ? "" : " hidden"}>${mode ? `
           <div class="rec best"><small>Beste</small><strong>${bw ? bw.best + " " + unit : "—"}</strong></div>
           <div class="rec"><small>Vorige</small><strong>${bw ? bw.last + " " + unit : "—"}</strong>${bw ? `<em>${esc(shortDate(bw.date))}</em>` : ""}</div>` : `
           <div class="rec best"><small>Beste</small><strong>${r ? fw(r.best) : "—"}</strong></div>
@@ -3020,6 +3024,7 @@ function renderExercises(){
 
     const headBtn = li.querySelector("button.ex-head");
     if (headBtn) headBtn.onclick = () => { expanded.has(k) ? expanded.delete(k) : expanded.add(k); renderExercises(); };
+    li.querySelector("[data-recs]").onclick = () => { recsOpen = !recsOpen; lsSet("ppl.recsOpen", recsOpen); renderExercises(); };
     const rc = li.querySelector("[data-rest]");
     if (rc) rc.onclick = () => { if (restName === name && !$("restBar").hidden) stopRest(); else { warmUpSound(); startRest(+rc.dataset.sec, name); } };
     li.querySelector("[data-note]").onclick = () => {
