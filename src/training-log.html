@@ -1468,7 +1468,6 @@ h1,h2,h3{overflow-wrap:anywhere}
           <div class="chart" id="bwChart"></div>
           <div class="bw-list" id="bwList"></div>
           <div id="profMetrics"></div>
-          <div id="kcalTiles"></div>
           <div class="weeks" id="kcalWeeks"></div>
           <p class="note" id="kcalNote"></p>
         </div>
@@ -7660,24 +7659,21 @@ function kcalParts(d, kg){
 function trainingKcal(d, kg){ const k = kcalParts(d, kg); return Math.round(k.lift + k.cardio); }
 // ---------- Calorie burn: per week, per training and how strength and cardio share it ----------
 function renderKcal(){
-  if (!$("kcalTiles")) return;
+  if (!$("kcalWeeks")) return;
   const kg = latestBw();
   if (!kg){
-    $("kcalTiles").innerHTML = ""; $("kcalWeeks").innerHTML = ""; $("kcalSplit").innerHTML = "";
+    $("kcalWeeks").innerHTML = ""; $("kcalSplit").innerHTML = "";
     $("kcalNote").textContent = "Vul je lichaamsgewicht in (Instellingen → Taal en profiel, of Lichaamsgewicht), dan berekent de app je calorieverbruik.";
     return;
   }
-  const per = {}, recent = [];
+  const per = {};
   let lift4 = 0, cardio4 = 0;
   Object.keys(log).forEach(d => {
     const k = kcalParts(d, kg), tot = k.lift + k.cardio; if (!tot) return;
     const w = weekOf(d); per[w] = (per[w] || 0) + tot;
-    if (daysAgo(d) < 28){ recent.push(tot); lift4 += k.lift; cardio4 += k.cardio; }
+    if (daysAgo(d) < 28){ lift4 += k.lift; cardio4 += k.cardio; }
   });
-  const thisWeek = Math.round(per[weekOf(today())] || 0), avg = recent.length ? Math.round(recent.reduce((a, b) => a + b, 0) / recent.length) : 0;
   const total4 = Math.round(lift4 + cardio4), best = Math.round(Math.max(0, ...Object.values(per)));
-  const tile = (lab, val, sub) => `<div class="tile"><small>${esc(lab)}</small><strong>${esc(val)}</strong><em>${esc(sub)}</em></div>`;
-  $("kcalTiles").innerHTML = `<div class="tiles">${tile("Deze week", thisWeek ? "±" + thisWeek : "0", "kcal")}${tile("Per training", avg ? "±" + avg : "—", "kcal, laatste 4 weken")}${tile("4 weken", total4 ? "±" + total4 : "0", "kcal in totaal")}</div>`;
   weekBars("kcalWeeks", per, (v, short) => short ? (v >= 1000 ? fmt(Math.round(v / 100) / 10) + "k" : String(Math.round(v))) : Math.round(v) + " kcal");
   const lp = total4 ? Math.round(lift4 / total4 * 100) : 0;
   $("kcalSplit").innerHTML = total4 ? `<div class="bal"><div class="goal-top"><b>${esc(`Kracht ${lp}% · cardio ${100 - lp}%`)}</b><span>${esc(`${Math.round(lift4)} / ${Math.round(cardio4)} kcal`)}</span></div>
