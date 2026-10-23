@@ -2686,7 +2686,7 @@ const cardFor = k => document.querySelector(`#exercises .ex[data-k="${k}"]`);
 const isFinishedKey = k => { const c = cardFor(k); return !!c && c.classList.contains("finished"); };
 function scrollToKey(k){
   const c = cardFor(k); if (!c) return;
-  if (focusOn && !editing){ focusKey = k; applyFocus(); window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }); return; }
+  if (focusOn && !editing){ focusTo(k); return; }
   setTimeout(() => c.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" }), 50);
 }
 
@@ -2957,11 +2957,19 @@ function applyFocus(){
   $("fPos").textContent = `Oefening ${at + 1} van ${cards.length}`;
   $("fPrev").disabled = at === 0; $("fNext").disabled = at === cards.length - 1;
 }
+// Switch the exercise in focus without moving the screen: the bar with the arrows stays where it is,
+// or comes just under the header when you had scrolled past it.
+function focusTo(k){
+  const bar = $("focusBar"), y0 = bar.getBoundingClientRect().top, head = document.querySelector(".top").getBoundingClientRect().bottom;
+  focusKey = k; applyFocus();
+  const y1 = bar.getBoundingClientRect().top, target = Math.max(y0, head + 8);
+  if (Math.abs(y1 - target) > 1) window.scrollBy(0, y1 - target);
+}
 function focusStep(d){
   const cards = [...document.querySelectorAll("#exercises .ex")];
   const at = cards.findIndex(x => x.dataset.k === focusKey);
   const next = cards[at + d];
-  if (next){ focusKey = next.dataset.k; applyFocus(); window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }); }
+  if (next) focusTo(next.dataset.k);
 }
 
 // ---------- In the gym: skip, rest timer, screen on ----------
