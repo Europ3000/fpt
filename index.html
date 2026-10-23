@@ -1448,6 +1448,8 @@ h1,h2,h3{overflow-wrap:anywhere}
           <select id="volGroup" aria-label="Weergave per week"></select>
           <div class="weeks vol" id="volWeeks"></div>
           <p class="note" id="volNote"></p>
+          <p class="note" id="cardioSum"></p>
+          <div class="records-list" id="cardioTypes"></div>
         </div>
       </section>
       <section class="panel mod" data-mod="progress" id="chartPanel" data-need>
@@ -1520,17 +1522,6 @@ h1,h2,h3{overflow-wrap:anywhere}
         </div>
         <div class="mod-body">
           <div class="badges" id="badges"></div>
-        </div>
-      </section>
-      <section class="panel mod" data-mod="cardioStats" data-need>
-        <div class="mod-head">
-          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Cardio</h2><span class="chev" aria-hidden="true">▾</span></button>
-          <button class="mod-drag" type="button" aria-label="Cardio verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
-        </div>
-        <div class="mod-body">
-          <div class="weeks" id="cardioWeeks"></div>
-          <p class="note" id="cardioSum"></p>
-          <div class="records-list" id="cardioTypes"></div>
         </div>
       </section>
       <section class="panel mod" data-mod="food">
@@ -5960,7 +5951,7 @@ function weekBars(boxId, values, labelFn){
     <small>${w === thisWeek ? "nu" : esc(shortDate(w))}</small></div>`).join("");
 }
 function renderVolume(){
-  const sel = $("volGroup"), groups = ["Trainingen", "Alles"].concat(RECOVERY_SHOWN);
+  const sel = $("volGroup"), groups = ["Trainingen", "Cardio", "Alles"].concat(RECOVERY_SHOWN);
   if (!sel.options.length) sel.innerHTML = groups.map(g => `<option>${esc(g)}</option>`).join("");
   const g = sel.value || "Trainingen";
   if (g === "Trainingen"){
@@ -5968,6 +5959,13 @@ function renderVolume(){
     Object.keys(log).forEach(d => { per[weekOf(d)] = (per[weekOf(d)] || 0) + 1; });
     weekBars("volWeeks", per, (v, short) => short ? String(v) : v + (v === 1 ? " training" : " trainingen"));
     $("volNote").textContent = "Aantal trainingen per week, laatste 8 weken.";
+    return;
+  }
+  if (g === "Cardio"){
+    const per = {};
+    Object.keys(log).forEach(d => (log[d].cardio || []).forEach(c => { per[weekOf(d)] = (per[weekOf(d)] || 0) + c.min; }));
+    weekBars("volWeeks", per, (v, short) => short ? String(v) : v + " min");
+    $("volNote").textContent = "Cardio-minuten per week, laatste 8 weken.";
     return;
   }
   const per = {};
@@ -5985,12 +5983,11 @@ function renderVolume(){
   $("volNote").textContent = "Volume = gewicht × reps van al je sets. Stijgt het over de weken, dan verzet je meer werk.";
 }
 function renderCardioStats(){
-  const per = {}; let monthMin = 0, monthKm = 0, total = 0;
+  let monthMin = 0, monthKm = 0, total = 0;
   Object.keys(log).forEach(d => (log[d].cardio || []).forEach(c => {
-    per[weekOf(d)] = (per[weekOf(d)] || 0) + c.min; total += c.min;
+    total += c.min;
     if (monthOf(d) === monthOf(today())){ monthMin += c.min; monthKm += c.km || 0; }
   }));
-  weekBars("cardioWeeks", per, (v, short) => short ? String(v) : v + " min");
   const perType = {};
   Object.keys(log).forEach(d => (log[d].cardio || []).forEach(c => { const o = perType[c.type] = perType[c.type] || { min: 0, n: 0, best: null }; o.min += c.min || 0; o.n++;
     const v = c.km ? c.min / c.km : c.m ? c.min / (c.m / 500) : null;
