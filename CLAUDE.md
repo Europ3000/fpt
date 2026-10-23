@@ -19,6 +19,11 @@ Phone-first training app (Dutch source text, translated in the page to 10 more l
   `records`, `prefs`, `layout`, `log/sessions/<date>`. The sync code (`connectStore`, `sbDoc`) uses the
   same document API as the old claude.ai store, so the merge logic is shared.
 - `build.py` adds the Supabase URL to the CSP `connect-src`.
+- Linked apps (Instellingen → Gekoppelde apps): Strava runs through the Edge Function
+  `supabase/functions/strava` (secrets STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET, "Verify JWT" off) and the
+  table `fpt_links` from `supabase/links.sql` (RLS on, no policies: only the function reaches it). The app
+  only keeps `prefs.links.strava = {name, auto, sent}`. Garmin Connect needs partner approval from Garmin;
+  Health Connect (Samsung Health) and Apple Health need the native apps (Capacitor). Until then: .tcx file.
 
 ## Translations
 
