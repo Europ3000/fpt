@@ -2652,8 +2652,10 @@ function orderedSchemes(){
   return known.concat(all.filter(s => !order.includes(s.id)));
 }
 const catMore = {};   // per category: ⋯ opened
-let noteOpen = false;
-const noteSeen = new Set(lsGet("ppl.noteSeen", []));
+// Uitleg per scheme: open the first time you pick it, closed after that; then it keeps what you chose.
+const noteState = Object.assign(Object.fromEntries(lsGet("ppl.noteSeen", []).map(id => [id, false])), lsGet("ppl.noteState", {}));
+let noteForce = null;
+const noteIsOpen = id => noteForce === id || noteState[id] === true;
 let progOpen = false, kineOpen = false, mindOpen = false, classOpen = false, cardioOpen = false, schemaOpen = true;
 function renderSchemes(){
   const box = $("schemes"); box.innerHTML = "";
@@ -2673,7 +2675,7 @@ function renderSchemes(){
     b.className = "chip"; b.type = "button"; b.textContent = s.name.replace(/^Programma: /, "");
     b.setAttribute("aria-pressed", s.id === cur.id);
     b.onclick = () => { const nx = nextDayIndex(s); view = { scheme: s.id, day: nx ? nx.idx : 0, home: homeFor(s) }; lsSet(LS_VIEW, view);
-      noteOpen = !noteSeen.has(s.id); noteSeen.add(s.id); lsSet("ppl.noteSeen", [...noteSeen]); $("newScheme").hidden = true; render(); };
+      noteForce = null; if (noteState[s.id] === undefined){ noteState[s.id] = false; noteForce = s.id; lsSet("ppl.noteState", noteState); } $("newScheme").hidden = true; render(); };
     return b;
   };
   // Always at most two lines of schemes; what does not fit goes behind ⋯ (n). Your own order decides who comes first.
@@ -2699,9 +2701,10 @@ function renderSchemes(){
   row($("mindRow"), orderedSchemes().filter(s => s.mind), mindOpen, "Meditatie en ademhaling", () => { mindOpen = !mindOpen; }, "mind");
   const focusLines = cur.days.filter(d => d.focus).map(d => `<br><b>${esc(d.name)}</b>: ${esc(d.focus)}`).join("");
   $("schemeNote").innerHTML = esc(cur.note) + focusLines + (cur.kine ? `<br><small class="warn-t">${esc(KINE_NOTE)}</small>` : cur.mind ? `<br><small class="warn-t">${esc(MIND_NOTE)}</small>` : "");
+  const noteOpen = noteIsOpen(cur.id);
   $("schemeNote").hidden = !noteOpen;
   const ntg = $("noteToggle"); ntg.setAttribute("aria-expanded", noteOpen); ntg.firstElementChild.textContent = noteOpen ? "▾" : "▸";
-  ntg.onclick = () => { noteOpen = !noteOpen; renderSchemes(); };
+  ntg.onclick = () => { noteState[cur.id] = !noteOpen; noteForce = null; lsSet("ppl.noteState", noteState); renderSchemes(); };
   renderSchemeOrder();
 }
 // At most two lines of chips; the rest goes behind ⋯ (n), which opens the whole list. The chip you train with stays in view.
@@ -2784,7 +2787,7 @@ function renderSchemeOrder(){
 
 // Combining schemes: after a day of one scheme an add-on can follow (e.g. Core after Push).
 // When the add-on is done you go back to the scheme you came from, at its next day (Pull), unless you choose to stay.
-const ADDON_IDS = ["core", "cardio", "mobility", "yoga"];
+const ADDON_IDS = ["core", "mobility", "yoga"];
 const isAddon = s => ADDON_IDS.includes(s.id) || !!s.kine || !!s.mind || !!s.crd;
 const findScheme = id => allSchemes().find(x => x.id === id) || null;
 const comboHome = () => view.home && view.home !== view.scheme ? findScheme(view.home) : null;
@@ -3623,7 +3626,7 @@ function kindOf(sc){
   if (!sc) return "strength";
   if (sc.kine) return "kine";
   if (sc.mind) return "mind";
-  if (sc.crd || sc.id === "cardio") return "cardio";
+  if (sc.crd) return "cardio";
   if (sc.id === "core") return "core";
   if (sc.id === "mobility" || sc.id === "yoga") return "flex";
   if (sc.cls) return "class";
@@ -5162,7 +5165,7 @@ function renderFood(){
   const btns = [];
   if (losing && goal !== "fat") btns.push(`<button class="ghost" type="button" data-fd="goal-fat">Trainingsdoel op Vetverlies</button>`);
   if (gaining && goal !== "muscle") btns.push(`<button class="ghost" type="button" data-fd="goal-muscle">Trainingsdoel op Spieropbouw</button>`);
-  if (losing && !addon) btns.push(`<button class="ghost" type="button" data-fd="cardio">Cardio na je krachtdagen</button>`);
+  if (losing && !addon) btns.push(`<button class="ghost" type="button" data-fd="walk">Wandelen na je krachtdagen</button>`);
   box.innerHTML = `<div class="tips-for"><span>${losing ? "Afvallen" : gaining ? "Spieren opbouwen" : "Sterker worden"}</span>${bg ? `<span>Streefgewicht ${fw(Math.round(bg.v * 10) / 10)}</span>` : ""}</div>
     ${tiles}
     <section class="food-sec"><h3>Je training afstemmen</h3><ul class="tips-list">${train.map(x => `<li>${esc(x)}</li>`).join("")}</ul>${btns.length ? `<div class="food-btns">${btns.join("")}</div>` : ""}</section>
@@ -5174,8 +5177,8 @@ function renderFood(){
     else if (a === "goal-muscle"){ setTrainGoal("muscle"); toast("Je trainingsdoel staat nu op Spieropbouw."); }
     else {
       prefs.after = Object.assign({}, prefs.after);
-      main.days.forEach((d, i) => { if (!d.ex.every(e => e[5] === "cardio")) prefs.after[dayKey(main, i)] = "cardio"; });
-      savePrefs(); render(); toast("Cardio volgt nu na je krachtdagen.");
+      main.days.forEach((d, i) => { if (!d.ex.every(e => e[5] === "cardio")) prefs.after[dayKey(main, i)] = "walk"; });
+      savePrefs(); render(); toast("Wandelen volgt nu na je krachtdagen.");
     }
     renderFood();
   });
@@ -5676,7 +5679,7 @@ const CARDIO_TYPES = [
 ];
 CARDIO_TYPES.forEach(([n, nl, desc, , , , strong, less]) => { if (!NL[n]) NL[n] = [nl, desc]; if (!MUSCLES[n]) MUSCLES[n] = [strong, less]; });
 const cardioType = n => CARDIO_TYPES.find(c => c[0] === n);
-// Cardio: its own category under the group classes. Running, swimming, cycling, and the general cardio scheme.
+// Cardio: its own category under the group classes. Running, swimming, cycling, walking and rowing.
 const cdx = (n, min) => [n, "1", min || cardioType(n)[5], "—", "cardio", "cardio"];
 SCHEMES.push({ id: "run", name: "Lopen", crd: true, note: "Hardlopen buiten of op de loopband. Loop de meeste kilometers in praattempo en één keer per week sneller; bouw per week hooguit 10% op.",
   days: [
@@ -5708,13 +5711,6 @@ SCHEMES.push({ id: "row", name: "Roeien", crd: true, note: "Roeien op het roeito
     { name: "Rustig roeien", focus: "20–30 min in een rustig, gelijkmatig tempo: conditie", ex: [cdx("Roeien", "20–30")] },
     { name: "Intervallen", focus: "Bv. 8× 250 m stevig met 1 min rustig roeien ertussen: kracht en conditie", ex: [cdx("Roeien", "15–25")] },
     { name: "Lange afstand", focus: "30–45 min zonder te stoppen: uithouding", ex: [cdx("Roeien", "30–45")] }
-  ]});
-SCHEMES.push({ id: "cardio", name: "Cardio", crd: true, note: "Conditie op toestellen in de fitness, buiten wandelen of zwemmen. Doe er een paar of kies er één; sla over wat je vandaag niet doet. Richtlijn: 150 minuten matig of 75 minuten intens per week.",
-  days: [
-    { name: "Zone 2 (duurtraining)", was: ["Duurtraining"], focus: "Rustig en lang in praattempo: hart, longen en vetverbranding", ex: ["Loopband", "Hellingwandelen", "Spinning", "Crosstrainer", "Roeien", "Traploper", "Lopen"].map(n => [n, "1", cardioType(n)[5], "—", "cardio", "cardio"]) },
-    { name: "HIIT (intervallen)", was: ["Intervallen"], focus: "Kort en fel: conditie en uithouding", ex: ["Air bike", "SkiErg", "Roeien", "Springtouw", "HIIT-intervallen"].map(n => [n, "1", cardioType(n)[5], "—", "cardio", "cardio"]) },
-    { name: "Wandelen (vetverbranding)", focus: "Elke dag ±5 km stevig wandelen tegen ±4,5 km/u, ongeveer een uur: verbrandt vooral vet en is zacht voor je gewrichten", ex: [["Wandelen", "1", "60–70", "—", "cardio", "cardio"]] },
-    { name: "Zwemmen (blessurevriendelijk)", focus: "20–45 minuten rustig zwemmen: conditie zonder schokken, ideaal bij blessures", ex: [["Zwemmen", "1", "20–45", "—", "cardio", "cardio"]] }
   ]});
 
 const sessionCardio = name => (((log[today()] || {}).cardio) || []).filter(c => c.type === name && (!endedAt || c.t > endedAt));
@@ -5920,7 +5916,7 @@ const homeGear = n => /^Band /.test(n) ? "band" : /Kettlebell/.test(n) ? "kettle
 const baseName = n => n.replace(/\s*\(.*\)/, "").replace(/^(Assisted|Weighted) /, "");
 function longItems(items){
   const s = scheme();
-  if (s.cls || s.crd || s.kine || s.mind || ["mobility", "yoga", "cardio"].includes(s.id)) return items;
+  if (s.cls || s.crd || s.kine || s.mind || ["mobility", "yoga"].includes(s.id)) return items;
   const strength = items.filter(it => it[5] !== "cardio" && !isStretch(it[0]) && MUSCLES[it[0]]);
   if (strength.length < 2) return items;
   const have = new Set(items.map(it => it[0])), bases = new Set(items.map(it => baseName(it[0]))), groups = new Map();
@@ -7625,7 +7621,7 @@ function renderAdvice(){
       T.balance ? "Yoga Hatha openen" : "Yoga Yin openen", open("yoga", yin));
   }
   if (r.cardio.pct < 100){
-    add(r.cardio.pct, `Mik op ${T.cardio} minuten conditie per week, bv. 3× 30–40 minuten Zone 2 waarbij je nog kan praten.`, "Cardio Zone 2 openen", open("cardio", 0));
+    add(r.cardio.pct, `Mik op ${T.cardio} minuten conditie per week, bv. 3× 30–40 minuten Zone 2 waarbij je nog kan praten.`, "Lopen openen", open("run", 0));
   }
   if (lvl != null && lvl < 1 && r.str.pct >= 100){
     add(40, `Je kracht ligt onder het gemiddelde voor je leeftijd en geslacht. Een gericht krachtprogramma helpt het snelst.`, "Kracht 5/3/1 openen", open("prog-531"));
@@ -7635,11 +7631,11 @@ function renderAdvice(){
   const behind = (prefs.goals || []).map(g => ({ g, ev: goalEval(g) })).filter(o => !o.ev.done).map(o => Object.assign(o, { pl: goalPlan(o.g) })).filter(o => o.pl && o.pl.verdict && o.pl.verdict !== "ok")[0];
   if (behind){
     const t = behind.ev.type, nm = behind.g.name || "";
-    const pick = ["dist", "dur", "pace"].includes(t) ? ["cardio", 1, "Cardio HIIT openen"] : t === "body" ? ["cardio", 0, "Cardio Zone 2 openen"] : t === "freq" ? null : ["prog-531", null, "Kracht 5/3/1 openen"];
+    const pick = ["dist", "dur", "pace"].includes(t) ? ["run", 1, "Lopen openen"] : t === "body" ? ["walk", 0, "Wandelen openen"] : t === "freq" ? null : ["prog-531", null, "Kracht 5/3/1 openen"];
     if (pick) add(10, nm ? `Voor je doel ${nm} heb je wat extra nodig.` : "Voor je doel heb je wat extra nodig.", pick[2], open(pick[0], pick[1]));
   }
   const tg = trainGoal();
-  if (tg === "fat") add(45, "Vetverlies: houd je krachttraining zwaar genoeg, doe 150–300 minuten cardio per week en eet ±300–500 kcal per dag minder dan je verbruikt.", "Cardio Zone 2 openen", open("cardio", 0));
+  if (tg === "fat") add(45, "Vetverlies: houd je krachttraining zwaar genoeg, doe 150–300 minuten cardio per week en eet ±300–500 kcal per dag minder dan je verbruikt.", "Wandelen openen", open("walk", 0));
   else if (tg === "strength") add(50, "Kracht: zware basisoefeningen in 3–6 herhalingen en elke week een klein beetje zwaarder. Een vast programma zoals 5/3/1 helpt.", "Kracht 5/3/1 openen", open("prog-531"));
   else if (r.area.pct < 100) add(55, "Spieropbouw: mik op 10–20 sets per spiergroep per week in 6–12 herhalingen.", "Push / Pull / Legs openen", open("ppl"));
   tips.sort((x, y) => x.score - y.score);
