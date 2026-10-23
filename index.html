@@ -2815,7 +2815,6 @@ function nextHomeDay(h){
 }
 // Picking a scheme yourself: an add-on remembers where you came from, a main scheme starts fresh.
 function homeFor(s){ const cur = scheme(); return !isAddon(s) ? undefined : isAddon(cur) ? view.home : cur.id; }
-let comboOpen = false;
 const sgOpen = new Set();   // "Voorstel" explanations you opened (folded by default)
 document.addEventListener("toggle", e => { const d = e.target; if (d.classList && d.classList.contains("sg-why")) d.open ? sgOpen.add(d.dataset.sg) : sgOpen.delete(d.dataset.sg); }, true);
 function renderCombo(){
@@ -2824,27 +2823,7 @@ function renderCombo(){
     box.innerHTML = `<p class="note">${esc(`Aanvulling bij ${h.name.replace(/^Programma: /, "")}.`)}</p>`;
     return;
   }
-  if (isAddon(s)){ box.innerHTML = ""; return; }
-  const cur = afterOf(s, view.day), own = new Set((prefs.custom || []).map(c => c.id));
-  const others = allSchemes().filter(x => x.id !== s.id && (isAddon(x) || own.has(x.id) || x.cls));
-  const opt = x => `<option value="${esc(x.id)}"${cur && cur.id === x.id ? " selected" : ""}>${esc(x.name.replace(/^Programma: /, ""))}</option>`;
-  const day = s.days[view.day].name, next = s.days[(view.day + 1) % s.days.length].name;
-  // Folded by default: one line with the current choice, tap to change it.
-  if (!comboOpen){
-    box.innerHTML = `<button type="button" class="sub-toggle combo-toggle" id="comboToggle" aria-expanded="false"><span aria-hidden="true">▸</span> <span>${esc(`Na ${day}`)}</span>: <span>${esc(cur ? cur.name.replace(/^Programma: /, "") : "Niets erna")}</span></button>`;
-    $("comboToggle").onclick = () => { comboOpen = true; renderCombo(); };
-    return;
-  }
-  box.innerHTML = `<button type="button" class="sub-toggle combo-toggle" id="comboToggle" aria-expanded="true"><span aria-hidden="true">▾</span> <span>${esc(`Na ${day}`)}</span></button>
-    <label class="combo-row"><select id="comboAfter" class="lang-sel" aria-label="${esc(`Na ${day}`)}">
-      <option value="">Niets erna</option>${others.map(opt).join("")}</select></label>
-    ${cur ? `<p class="note">${esc(s.days.length > 1 ? `Na ${day} staat ${cur.name} klaar. Daarna ga je verder met ${next}.` : `Na ${day} staat ${cur.name} klaar.`)}</p>` : ""}`;
-  $("comboToggle").onclick = () => { comboOpen = false; renderCombo(); };
-  $("comboAfter").onchange = e => {
-    prefs.after = Object.assign({}, prefs.after);
-    if (e.target.value) prefs.after[dayKey(s, view.day)] = e.target.value; else delete prefs.after[dayKey(s, view.day)];
-    savePrefs(); renderCombo();
-  };
+  box.innerHTML = "";
 }
 
 // A logged label ("Yoga · Yin (herstel)") belongs to a day, also under the day's old name.
