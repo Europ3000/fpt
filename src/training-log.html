@@ -5191,7 +5191,7 @@ function openShareSheet(date){
 }
 
 // ---------- Today ----------
-let recOpen = false;
+let recOpen = lsGet("ppl.recOpen", false);
 function renderToday(){
   const s = scheme(), rec = recoveryMap(), wk = weekPlan();
   const nx = nextDayIndex(s), idx = inWorkout() ? view.day : nx ? nx.idx : view.day;
@@ -5245,7 +5245,7 @@ function renderToday(){
   $("startBtn").onclick = () => { view.day = idx; lsSet(LS_VIEW, view); showPage("train"); render(); scrollToExercise(); };
   $("toWeek").onclick = () => { showPage("plan"); openTrainMod("week"); };
   $("todayView").querySelectorAll(".wk-plan [data-date]").forEach(b => b.onclick = () => { showPage("plan"); selectDay(b.dataset.date, "wk"); openTrainMod("week"); });
-  $("recToggle").onclick = () => { recOpen = !recOpen; renderToday(); };
+  $("recToggle").onclick = () => { recOpen = !recOpen; lsSet("ppl.recOpen", recOpen); renderToday(); };
   $("toSummary").onclick = openSummary;
   $("toTips").onclick = openTips;
 }
