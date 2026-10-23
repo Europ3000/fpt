@@ -1008,9 +1008,9 @@ body::before{background:var(--paper)}
 :root[data-style="retro"] body{background-image:var(--grain),
   repeating-conic-gradient(from 0deg at 50% -8%,color-mix(in srgb,var(--mustard) 9%,transparent) 0 6deg,transparent 6deg 12deg),
   radial-gradient(120% 70% at 50% -8%,color-mix(in srgb,var(--ember) 12%,transparent),transparent 70%)}
-/* Retro: text straight on the beige background (not in a module) in white, so it stands out */
-:root[data-style="retro"] :is(.hello h2,.hello .note,.day-focus,.progress p,.day-row .dt-label,.mod-hint,.combo .combo-toggle,.combo .note){color:#fff;text-shadow:0 1px 2px rgb(0 0 0 / .35)}
-:root[data-style="retro"] :is(.day-btns .edit-toggle,.finish){color:#fff;border-color:#fff;text-shadow:0 1px 2px rgb(0 0 0 / .35)}
+/* Retro: text straight on the beige background (not in a module) in the dark ink colour, so it stays readable */
+:root[data-style="retro"] :is(.hello h2,.hello .note,.day-focus,.progress p,.day-row .dt-label,.mod-hint,.combo .combo-toggle,.combo .note){color:var(--ink);font-weight:700}
+:root[data-style="retro"] :is(.day-btns .edit-toggle,.finish){color:var(--ink);border-color:var(--ink)}
 :root[data-style="retro"] .panel,:root[data-style="retro"] .tile,:root[data-style="retro"] .add{box-shadow:4px 4px 0 color-mix(in srgb,var(--ember) 45%,var(--shadow))}
 @media (prefers-reduced-motion:no-preference){
   :root[data-style="retro"] :is(#todayView,#statsBody,#planBody) > *,:root[data-style="retro"] #trainView > .panel{animation:retro-pop .5s cubic-bezier(.34,1.56,.64,1) both}
