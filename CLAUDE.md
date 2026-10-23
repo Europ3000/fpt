@@ -2,12 +2,23 @@
 
 Phone-first training app (Dutch source text, translated in the page to 10 more languages).
 
-- `src/training-log.html` is the whole app (HTML + CSS + JS in one file). The same file is the
-  claude.ai artifact https://claude.ai/artifact/YALR6JNP2gzcr65ixxeyfA (published from a Claude session).
+- `src/training-log.html` is the whole app (HTML + CSS + JS in one file).
 - `py src/build.py` (or `python src/build.py`) builds the stand-alone PWA into the repo root:
   `index.html`, `manifest.webmanifest`, `sw.js` and the icons. GitHub Pages serves the root:
   https://europ3000.github.io/fpt/
-- Commit the source and the built files together and push to `master`.
+- Commit the source and the built files together and push to `main`.
+- The claude.ai artifact https://claude.ai/artifact/YALR6JNP2gzcr65ixxeyfA is retired (since 2026-10-23):
+  its last version only points to the app. Do not republish it; work on the GitHub app only.
+
+## Account and sync (Supabase)
+
+- The stand-alone app (`window.FPT_STANDALONE`) logs in with Google or an email link and syncs with
+  Supabase project https://vcbyebuhmefyydevjsur.supabase.co (EU). The publishable key in the source is
+  public by design; row level security keeps each user to their own rows.
+- One table `public.fpt_store (user_id, key, value jsonb)`, created by `supabase/schema.sql`. Keys:
+  `records`, `prefs`, `layout`, `log/sessions/<date>`. The sync code (`connectStore`, `sbDoc`) uses the
+  same document API as the old claude.ai store, so the merge logic is shared.
+- `build.py` adds the Supabase URL to the CSP `connect-src`.
 
 ## Translations
 
