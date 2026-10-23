@@ -1663,7 +1663,7 @@ h1,h2,h3{overflow-wrap:anywhere}
         <select id="addMode"><option value="">kg + reps</option><option value="bw">alleen reps</option><option value="time">seconden</option><option value="cardio">cardio-toestel</option></select>
       </label>
       <label>Plaats
-        <select id="addPos"><option value="top">Bovenaan (als eerste)</option><option value="bottom">Onderaan</option></select>
+        <select id="addPos"><option value="bottom">Onderaan</option><option value="top">Bovenaan (als eerste)</option></select>
       </label>
       <label class="check"><input id="addAll" type="checkbox"> Aan alle dagen van dit schema toevoegen</label>
       <button class="save add-btn" type="submit">Toevoegen</button>
@@ -2815,14 +2815,7 @@ document.addEventListener("toggle", e => { const d = e.target; if (d.classList &
 function renderCombo(){
   const box = $("combo"), s = scheme(), h = comboHome();
   if (h){
-    const back = prefs.addonBack !== false, nd = h.days[nextHomeDay(h)].name;
-    box.innerHTML = `<p class="note">${esc(`Aanvulling bij ${h.name.replace(/^Programma: /, "")}.`)}</p>
-      <label class="combo-row"><span>Daarna</span><select id="comboBack" class="lang-sel">
-        <option value="back"${back ? " selected" : ""}>${esc(`Terug naar ${nd}`)}</option>
-        <option value="stay"${back ? "" : " selected"}>Hier blijven</option></select></label>
-      <button type="button" class="ghost-sm" id="comboHome">${esc(`Nu naar ${nd}`)}</button>`;
-    $("comboBack").onchange = e => { prefs.addonBack = e.target.value === "back"; savePrefs(); };
-    $("comboHome").onclick = () => { view = { scheme: h.id, day: nextHomeDay(h) }; lsSet(LS_VIEW, view); render(); };
+    box.innerHTML = `<p class="note">${esc(`Aanvulling bij ${h.name.replace(/^Programma: /, "")}.`)}</p>`;
     return;
   }
   if (isAddon(s)){ box.innerHTML = ""; return; }
@@ -3278,10 +3271,10 @@ function finishWorkout(){
     const ax = nextDayIndex(addon);
     combo = s.days.length > 1 ? `Nu nog ${addon.name} als aanvulling. Daarna ga je verder met ${s.days[view.day].name}.` : `Nu nog ${addon.name} als aanvulling.`;
     view = { scheme: addon.id, day: ax ? ax.idx : 0, home: s.id };
-  } else if (home && prefs.addonBack !== false){
+  } else if (home){
     view = { scheme: home.id, day: nextHomeDay(home) };
     combo = `Terug naar ${home.name.replace(/^Programma: /, "")}: volgende is ${home.days[view.day].name}.`;
-  } else if (home) delete view.home;
+  }
   lsSet(LS_VIEW, view);
   render();
 
