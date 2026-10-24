@@ -517,7 +517,7 @@ body.focus .ex.focused{margin-top:0}
 .hello h2{font-family:var(--display);font-size:1.6rem;margin:0}
 .hello .note{margin:2px 0 0}
 .next-card{border:2px solid var(--ember);background:linear-gradient(160deg,var(--ember-soft),var(--card) 60%)}
-.next-card h2{font-family:var(--display);font-size:1.7rem;margin:0}
+.nc-day{font-family:var(--display);font-size:1.7rem;margin:0}
 .next-card .label{margin:0}
 .nc-stats{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:.9rem;color:var(--muted)}
 .nc-stats b{color:var(--ink);font-variant-numeric:tabular-nums}
@@ -3904,8 +3904,8 @@ function foldPlanAfterOpens(){
   }
   savePrefs();
 }
-const TRAIN_CLOSED = ["cardio", "recovery", "week"], STATS_CLOSED = ["week", "cal"];
-const closedDefault = boxId => boxId === "trainMods" ? TRAIN_CLOSED : boxId === "planBody" ? [] : STATS_CLOSED;
+const TRAIN_CLOSED = ["cardio", "recovery", "week"], STATS_CLOSED = ["week", "cal"], TODAY_CLOSED = ["rec"];
+const closedDefault = boxId => boxId === "trainMods" ? TRAIN_CLOSED : boxId === "planBody" ? [] : boxId === "todayMods" ? TODAY_CLOSED : STATS_CLOSED;
 function setupModulesIn(boxId, orderKey, closedKey){
   const box = $(boxId);
   // Recovery per muscle and the week plan start folded; once also for lists you already arranged.
@@ -5488,7 +5488,8 @@ function openShareSheet(date){
 }
 
 // ---------- Today ----------
-let recOpen = lsGet("ppl.recOpen", false);
+// drag-head markup shared by every module on "Vandaag" (mirrors the mod-head on the other pages)
+const modHead = (title, extraBtn = "") => `<div class="mod-head"><button class="mod-toggle" type="button" aria-expanded="true"><h2>${esc(title)}</h2><span class="chev" aria-hidden="true">▾</span></button>${extraBtn}<button class="mod-drag" type="button" aria-label="${esc(title)} verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button></div>`;
 function renderToday(){
   const s = scheme(), rec = recoveryMap(), wk = weekPlan();
   const nx = nextDayIndex(s), idx = inWorkout() ? view.day : nx ? nx.idx : view.day;
@@ -5505,44 +5506,60 @@ function renderToday(){
   const low = RECOVERY_SHOWN.filter(g => rec[g] < 60);
   const homeS = comboHome(), afterS = !homeS && afterOf(s, idx);
   const comboNote = homeS ? `Daarna terug naar ${homeS.days[nextHomeDay(homeS)].name}.` : afterS ? `Daarna: ${afterS.name}` : "";
+  const goalsTitle = goalsToday.length > 1 ? "Je doelen" : "Je doel";
   $("todayView").innerHTML = `
     <div class="hello"><h2>${hello}</h2><p class="note">${esc(longDate(today()))}</p></div>
     ${prefs.daysPerWeek ? "" : `<section class="panel"><h2>Hoeveel dagen per week?</h2><p class="note">Kies hoe vaak je wil trainen; de app zet je weekplanning klaar.</p><div class="days-pick" id="todayDays">${dayButtons()}</div></section>`}
-    ${dailyTipHtml()}
-    <section class="panel next-card">
-      <small class="label">${inWorkout() ? "Je bent bezig met" : todayPlan && todayPlan.state === "free" && (prefs.planDays || []).length ? "Rustdag volgens je planning · volgende training" : "Volgende training"}</small>
-      <h2>${esc(s.days[idx].name)}</h2>
-      <p class="note">${esc(s.name)}${pw ? ` · week ${pw.week}: ${esc(pw.name)}` : ""}${deloadActive() ? " · deloadweek" : ""}</p>
-      ${comboNote ? `<p class="note nc-combo">${esc(comboNote)}</p>` : ""}
-      <div class="nc-stats"><span><b>${items.length}</b> oefeningen</span><span><b>${sets}</b> sets</span><span><b>±${Math.max(20, Math.round(sets * 2.6))}</b> min</span><span class="${recClass(ready)}"><b>${ready}%</b> hersteld</span></div>
-      <button class="save big-start" type="button" id="startBtn">${inWorkout() ? "Verder trainen" : "Start training"}</button>
-    </section>
-    <div class="tiles rep">
-      <div class="tile"><small>Reeks</small><strong>${streak}</strong><em>${streak === 1 ? "week" : "weken"} op rij</em></div>
-      <div class="tile"><small>Deze week</small><strong>${thisWeek}</strong><em>${(prefs.planDays || []).length ? "van " + prefs.planDays.length + " gepland" : "trainingen"}</em></div>
+    <div class="mods" id="todayMods">
+      ${dailyTipHtml()}
+      <section class="panel mod next-card" data-mod="next">
+        ${modHead("Volgende training")}
+        <div class="mod-body">
+          <small class="label">${inWorkout() ? "Je bent bezig met" : todayPlan && todayPlan.state === "free" && (prefs.planDays || []).length ? "Rustdag volgens je planning · volgende training" : "Volgende training"}</small>
+          <h2 class="nc-day">${esc(s.days[idx].name)}</h2>
+          <p class="note">${esc(s.name)}${pw ? ` · week ${pw.week}: ${esc(pw.name)}` : ""}${deloadActive() ? " · deloadweek" : ""}</p>
+          ${comboNote ? `<p class="note nc-combo">${esc(comboNote)}</p>` : ""}
+          <div class="nc-stats"><span><b>${items.length}</b> oefeningen</span><span><b>${sets}</b> sets</span><span><b>±${Math.max(20, Math.round(sets * 2.6))}</b> min</span><span class="${recClass(ready)}"><b>${ready}%</b> hersteld</span></div>
+          <button class="save big-start" type="button" id="startBtn">${inWorkout() ? "Verder trainen" : "Start training"}</button>
+        </div>
+      </section>
+      <section class="panel mod" data-mod="tiles">
+        ${modHead("Reeks en deze week")}
+        <div class="mod-body">
+          <div class="tiles rep">
+            <div class="tile"><small>Reeks</small><strong>${streak}</strong><em>${streak === 1 ? "week" : "weken"} op rij</em></div>
+            <div class="tile"><small>Deze week</small><strong>${thisWeek}</strong><em>${(prefs.planDays || []).length ? "van " + prefs.planDays.length + " gepland" : "trainingen"}</em></div>
+          </div>
+        </div>
+      </section>
+      <section class="panel mod" data-mod="weekstrip">
+        ${modHead("Deze week", `<button class="reset" type="button" id="toWeek">Planning aanpassen</button>`)}
+        <div class="mod-body">
+          <div class="wk-plan">${wk.map(wpCell).join("")}</div>
+          ${(prefs.planDays || []).length ? "" : `<p class="note">Kies in Planning → Weekplanning op welke dagen je traint.</p>`}
+        </div>
+      </section>
+      <section class="panel mod" data-mod="rec">
+        ${modHead("Herstel")}
+        <div class="mod-body">
+          <p class="note">${low.length ? `Nog vermoeid: <b>${esc(low.join(", "))}</b>. ` : "Al je spieren zijn (bijna) hersteld. "}Klaar voor ${esc(s.days[idx].name)}: ${ready}%.</p>
+          <div class="rec-chips">${RECOVERY_SHOWN.map(g => `<span class="rchip ${recClass(rec[g])}"><b>${rec[g]}%</b> ${esc(g)}</span>`).join("")}</div>
+        </div>
+      </section>
+      ${goalsToday.length ? `<section class="panel mod" data-mod="doel">
+        ${modHead(goalsTitle)}
+        <div class="mod-body">${goalsToday.map(goalRow).join("")}</div>
+      </section>` : ""}
     </div>
-    <section class="panel">
-      <div class="panel-head"><h2>Deze week</h2><button class="reset" type="button" id="toWeek">Planning aanpassen</button></div>
-      <div class="wk-plan">${wk.map(wpCell).join("")}</div>
-      ${(prefs.planDays || []).length ? "" : `<p class="note">Kies in Planning → Weekplanning op welke dagen je traint.</p>`}
-    </section>
-    <section class="panel">
-      <button class="mod-toggle" type="button" id="recToggle" aria-expanded="${recOpen}"><h2>Herstel</h2><span class="chev" aria-hidden="true">${recOpen ? "▾" : "▸"}</span></button>
-      <div ${recOpen ? "" : "hidden"}>
-      <p class="note">${low.length ? `Nog vermoeid: <b>${esc(low.join(", "))}</b>. ` : "Al je spieren zijn (bijna) hersteld. "}Klaar voor ${esc(s.days[idx].name)}: ${ready}%.</p>
-      <div class="rec-chips">${RECOVERY_SHOWN.map(g => `<span class="rchip ${recClass(rec[g])}"><b>${rec[g]}%</b> ${esc(g)}</span>`).join("")}</div>
-      </div>
-    </section>
-    ${goalsToday.length ? `<section class="panel"><h2>${goalsToday.length > 1 ? "Je doelen" : "Je doel"}</h2>${goalsToday.map(goalRow).join("")}</section>` : ""}
     ${STANDALONE && dates.length >= 5 && (!lsGet("ppl.lastBackup", "") || daysAgo(lsGet("ppl.lastBackup", "")) > 30) ? `<section class="panel tip-card"><small class="label">Back-up</small><p>Je gegevens staan alleen op deze telefoon. Download een back-up via Instellingen (rechtsboven).</p></section>` : ""}
     <div class="entry-row"><button class="ghost wide sum-btn" type="button" id="toSummary">Samenvatting</button><button class="ghost wide tips-btn" type="button" id="toTips">Tips${tipsChanged() ? `<span class="tb-new">Nieuw</span>` : ""}</button></div>`;
 
+  setupModulesIn("todayMods", "todayOrder", "todayClosed");
   const td = $("todayDays"); if (td) td.querySelectorAll("[data-days]").forEach(b => b.onclick = () => { setDaysPerWeek(+b.dataset.days); toast(b.dataset.days === "1" ? "1 dag per week ingepland." : `${b.dataset.days} dagen per week ingepland.`); });
   wireTip();
   $("startBtn").onclick = () => { view.day = idx; lsSet(LS_VIEW, view); showPage("train"); render(); scrollToExercise(); };
   $("toWeek").onclick = () => { showPage("plan"); openTrainMod("week"); };
   $("todayView").querySelectorAll(".wk-plan [data-date]").forEach(b => b.onclick = () => { showPage("plan"); selectDay(b.dataset.date, "wk"); openTrainMod("week"); });
-  $("recToggle").onclick = () => { recOpen = !recOpen; lsSet("ppl.recOpen", recOpen); renderToday(); };
   $("toSummary").onclick = openSummary;
   $("toTips").onclick = openTips;
 }
@@ -7605,12 +7622,18 @@ function dailyTip(){
 }
 function dailyTipHtml(){
   const [cat, text] = dailyTip(), [icon, label] = TIP_CATS[cat] || TIP_CATS.train;
-  return `<section class="panel tip-card" id="tipCard"><div class="tip-head"><small class="label">Tip van de dag</small><span class="tip-cat"><i aria-hidden="true">${icon}</i> ${esc(label)}</span></div>
-    <p>${esc(text)}</p><button type="button" class="tip-more" id="tipMore"><span aria-hidden="true">↻</span> Nog een tip</button></section>`;
+  return `<section class="panel mod tip-card" data-mod="tip" id="tipCard">
+    ${modHead("Tip van de dag")}
+    <div class="mod-body">
+      <span class="tip-cat"><i aria-hidden="true">${icon}</i> ${esc(label)}</span>
+      <p>${esc(text)}</p>
+      <button type="button" class="tip-more" id="tipMore"><span aria-hidden="true">↻</span> Nog een tip</button>
+    </div>
+  </section>`;
 }
 function wireTip(){
   const b = $("tipMore"); if (!b) return;
-  b.onclick = () => { tipExtra++; const card = $("tipCard"); card.outerHTML = dailyTipHtml(); wireTip(); };
+  b.onclick = () => { tipExtra++; renderToday(); };
 }
 
 // ---------- Strength level against bodyweight standards ----------
