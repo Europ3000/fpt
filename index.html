@@ -472,10 +472,8 @@ body.focus .ex.focused{margin-top:0}
 .bodymap .bm{stroke:var(--card);stroke-width:1.2;stroke-linejoin:round;cursor:pointer;transition:opacity .2s,filter .2s}
 .bodymap .bm.l0{fill:color-mix(in srgb,var(--muted) 22%,var(--paper))}
 .bm-line{fill:none;stroke:var(--line);stroke-width:1.2;stroke-linecap:round}
-/* The tapped muscle: thick outline and a glow, the rest fades back */
-.bodymap.has-sel svg .bm:not(.sel){opacity:.25}
-.bodymap .bm.sel{stroke:var(--ink);stroke-width:2.6;filter:drop-shadow(0 0 3px color-mix(in srgb,var(--ink) 55%,transparent))}
-.bodymap .bm.sel.l0{fill:color-mix(in srgb,var(--muted) 50%,var(--paper))}
+/* The tapped muscle: green with a thick outline and a glow; the others keep their colour */
+.bodymap .bm.sel{fill:#22a55a;fill-opacity:1;stroke:var(--ink);stroke-width:2.6;filter:drop-shadow(0 0 3px color-mix(in srgb,#22a55a 70%,transparent))}
 .bodymap.has-sel .bm-info b{color:var(--ink);font-size:1rem}
 .bm-info{margin:0;text-align:center;font-size:.88rem;color:var(--muted)}
 .bm-info b{color:var(--ink)}
