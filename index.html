@@ -1621,7 +1621,7 @@ h1,h2,h3{overflow-wrap:anywhere}
   <div class="mods" id="trainMods">
       <section class="panel mod" data-mod="plan">
         <div class="mod-head">
-          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Programma</h2><span class="chev" aria-hidden="true">▾</span></button>
+          <button class="mod-toggle" type="button" aria-expanded="true"><h2>Programma's</h2><span class="chev" aria-hidden="true">▾</span></button>
           <button class="plus-btn hd-btn" id="ownScheme" type="button" aria-label="Iets nieuws maken" title="Nieuw schema, groepsles, kineprogramma of meditatie" aria-expanded="false">+</button>
           <button class="plus-btn hd-btn" id="orderScheme" type="button" aria-label="Volgorde aanpassen" title="Volgorde aanpassen" aria-expanded="false">⇅</button>
           <button class="mod-drag" type="button" aria-label="Programma verslepen" title="Sleep om de volgorde te veranderen">⋮⋮</button>
@@ -3902,9 +3902,23 @@ function wireBodyMap(mus){
 const MOD_TITLES = { profile: "Taal en profiel", overview: "Overzicht", cal: "Kalender", muscles: "Sets per spiergroep", recovery: "Herstel per spier", progress: "Vooruitgang",
   body: "Lichaam en energie", food: "Voeding", history: "Logboek" };
 function setupModules(){
+  foldPlanAfterOpens();
   setupModulesIn("statsBody", "modOrder", "modClosed");
   setupModulesIn("trainMods", "trainOrder", "trainClosed");
   setupModulesIn("planBody", "planOrder", "planClosed");
+}
+// "Programma's" stays open the first 3 times you open the app; after that it folds shut on its own,
+// unless you've already toggled it yourself (then your own setting wins).
+let planOpenCounted = false;
+function foldPlanAfterOpens(){
+  if (planOpenCounted) return;
+  planOpenCounted = true;
+  prefs.planOpens = (prefs.planOpens || 0) + 1;
+  if (prefs.planOpens > 3 && !prefs.planUserSet){
+    const cur = prefs.trainClosed || TRAIN_CLOSED.slice();
+    if (!cur.includes("plan")) prefs.trainClosed = cur.concat(["plan"]);
+  }
+  savePrefs();
 }
 const TRAIN_CLOSED = ["cardio", "recovery", "week"], STATS_CLOSED = ["week", "cal"];
 const closedDefault = boxId => boxId === "trainMods" ? TRAIN_CLOSED : boxId === "planBody" ? [] : STATS_CLOSED;
@@ -3935,7 +3949,9 @@ function setupModulesIn(boxId, orderKey, closedKey){
       const now = !m.classList.contains("closed");
       m.classList.toggle("closed", now); t.setAttribute("aria-expanded", !now);
       const cur = prefs[closedKey] || closedDefault(boxId);
-      prefs[closedKey] = cur.filter(x => x !== id).concat(now ? [id] : []); savePrefs();
+      prefs[closedKey] = cur.filter(x => x !== id).concat(now ? [id] : []);
+      if (boxId === "trainMods" && id === "plan") prefs.planUserSet = true;
+      savePrefs();
       if (boxId === "statsBody") now ? renderJump() : renderStats();
     };
     const h = m.querySelector(".mod-drag");
