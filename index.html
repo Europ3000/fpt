@@ -7300,13 +7300,13 @@ Object.assign(DEMOS, {
   quadStretch: dmHold(Object.assign({}, DS, { th: 94, sh: -112, foot: undefined, foot2: [80, 105], hand: [72, 62], ub: 0, fb: 0 }), { hl: ["th"] }, { th: 2 }),
   couch: dmHold({ x: 70, y: 82, t: -86, foot: [102, 105], foot2: [54, 82], fd2: 180, hr: [4, 34] }, { back: () => DG.wall(44), mat: [40, 120], hl: ["th2"] }, { t: -2 }),
   hamStretch: dmHold({ x: 50, y: 100, t: -32, th: 0, sh: 0, fd: -90, hand: [92, 96] }, { mat: [20, 120], hl: ["th"] }, { t: 3 }),
-  figure4: dmHold({ x: 84, y: 101, t: 180, foot: [104, 72], tb: -20, sb: 70, hand: [100, 76] }, { mat: [20, 130], hl: ["th2"] }, { t: 0, x: 1 }),
+  figure4: dmHold({ x: 84, y: 101, t: 192, foot: [99, 80], foot2: [112, 104], hand: [88, 92] }, { mat: [20, 130], hl: ["th2"] }, { t: 0, x: 1 }),
   butterfly: dmHold({ x: 80, y: 98, t: -90, th: 12, sh: 160, hand: [86, 104] }, { front: true, mat: [30, 130], hl: ["th"] }, { th: 3 }),
   calfStretch: dmHold({ x: 84, y: 64, t: -76, foot: [100, 105], foot2: [56, 105], hand: [124, 30] }, { back: () => DG.wall(126), hl: ["sh2"] }, { x: 1 }),
   deepSquat: dmHold({ x: 70, y: 94, t: -72, foot: [80, 105], hr: [14, 12] }, { mat: [40, 120], hl: ["th"] }, { y: 1 }),
-  pigeon: dmHold({ x: 66, y: 96, t: -84, th: 14, sh: 170, fd: 170, tb: 178, sb: 178, hand: [96, 104] }, { mat: [10, 140], hl: ["th"] }, { t: 3 }),
+  pigeon: dmHold({ x: 66, y: 96, t: -84, th: 14, sh: 170, fd: 170, tb: 178, sb: 178, hand: [77, 99] }, { mat: [10, 140], hl: ["th"] }, { t: 3 }),
   worldsGreatest: dmHold({ x: 74, y: 86, t: -36, foot: [104, 105], foot2: [44, 102], fd2: 20, hand: [102, 104], hand2: [70, 2] }, { mat: [30, 130], hl: ["th2"] }, { t: -2 }),
-  hip9090: dmPair({ x: 80, y: 100, t: -90, foot: [112, 104], foot2: [60, 92], ts: .7, hand: [92, 100] }, { x: 80, y: 100, t: -90, foot: [100, 92], foot2: [48, 104], ts: .7, hand: [68, 100] },
+  hip9090: dmPair({ x: 80, y: 100, t: -90, foot: [112, 104], foot2: [60, 92], ts: .7, hand: [102, 100] }, { x: 80, y: 100, t: -90, foot: [100, 92], foot2: [48, 104], ts: .7, hand: [102, 100] },
     { front: true, mat: [30, 130], hl: ["th"], ph: ["Knieën naar de andere kant draaien", "En terug"], tm: [2, 2] }),
   legSwing: dmPair(Object.assign({}, DS, { foot: undefined, th: 38, sh: 46, foot2: [80, 105], hand2: [64, 50], ua: 160, fa: 140 }), Object.assign({}, DS, { foot: undefined, th: 132, sh: 124, foot2: [80, 105], hand2: [64, 50], ua: 20, fa: 30 }),
     { back: () => DG.wall(54), hl: ["th"], ph: ["Been naar voor zwaaien", "Been naar achter zwaaien"], tm: [.8, .8] }),
@@ -7320,7 +7320,7 @@ Object.assign(DEMOS, {
   warrior1: dmHold({ x: 76, y: 74, t: -90, foot: [104, 105], foot2: [40, 105], fd2: -20, ua: -94, fa: -92 }, { hl: ["th"] }, { y: 1 }),
   warrior2: dmHold({ x: 80, y: 72, t: -90, foot: [122, 105], foot2: [34, 105], kb: -1, kb2: -1, ua: 0, fa: 0 }, { front: true, hl: ["th"] }, { y: 1 }),
   warrior3: dmHold({ x: 80, y: 59, t: 0, foot: [80, 105], tb: 180, sb: 180, ua: 0, fa: 0 }, { hl: ["th2", "t"] }, { t: -1.5 }),
-  triangle: dmHold({ x: 80, y: 62, t: -24, foot: [118, 105], foot2: [42, 105], ua: 66, fa: 66, ub: -114, fb: -114 }, { front: true, hl: ["th"] }, { t: -2 }),
+  triangle: dmHold({ x: 80, y: 68, t: -24, foot: [112, 105], foot2: [48, 105], ua: 66, fa: 66, ub: -114, fb: -114 }, { front: true, hl: ["th"] }, { t: -2 }),
   chair: dmHold({ x: 68, y: 76, t: -62, foot: [80, 105], ua: -64, fa: -62 }, { hl: ["th"] }, { y: 1 }),
   tree: dmHold({ x: 80, y: 59, t: -90, th: 30, sh: 168, foot2: [78, 105], hand: [80, -10] }, { front: true, hl: ["th"] }, { y: -1 }),
   boat: dmHold({ x: 72, y: 100, t: -126, th: -46, sh: -46, ua: -6, fa: -6 }, { mat: [20, 140], hl: ["t"] }, { t: 2 }),
@@ -7481,32 +7481,40 @@ function demoFit(d){
   if (pat.fn || pat.loop || pat.k.length !== 2) return;
   const pts = []; for (let i = 0; i <= 12; i++) pts.push(dmSolve(dmLerp(pat.k[0], pat.k[1], i / 12), front));
   let best = null, far = 8;
-  (pat.eq && pat.eq !== "none" ? ["W1"] : ["W1", "S", "H", "A1"]).forEach(key => {
-    const a = pts[0][key], b = pts[12][key], dd = Math.hypot(a[0] - b[0], a[1] - b[1]);
+  // with a weight follow the hand; without, the body part that moves most (hands count a bit less, so a lean
+  // shows the shoulders rather than the swinging arms)
+  (pat.eq && pat.eq !== "none" ? ["W1"] : ["W1", "S", "H", "K1", "A1"]).forEach(key => {
+    const a = pts[0][key], b = pts[12][key], dd = Math.hypot(a[0] - b[0], a[1] - b[1]) * (key === "W1" && !(pat.eq && pat.eq !== "none") ? .7 : 1);
     if (dd > far){ far = dd; best = key; }
   });
   if (!best) return;
   d.path = `<polyline points="${pts.map(J => dmF(J[best][0]) + "," + dmF(J[best][1])).join(" ")}" class="dm-path"/>`;
-  // the arrow runs beside the path, clear of the bar or dumbbell, on the side and at the distance that keeps it
-  // furthest from the body
-  const t = d.track = pts.map(J => J[best]), m = t[6], L = Math.hypot(t[12][0] - t[0][0], t[12][1] - t[0][1]) || 1;
-  const v = [(t[12][0] - t[0][0]) / L, (t[12][1] - t[0][1]) / L], q = [-v[1], v[0]], len = Math.min(18, L * .7), J = pts[6], body = [];
-  [["H", "S"], ["S", "head"], ["S1", "E1"], ["E1", "W1"], ["S2", "E2"], ["E2", "W2"], ["H1", "K1"], ["K1", "A1"], ["H2", "K2"], ["K2", "A2"]]
-    .forEach(([a, b]) => { for (let i = 0; i <= 4; i++) body.push(dmMix(J[a], J[b], i / 4)); });
-  const clear = p => Math.min(...body.map(b => Math.hypot(p[0] - b[0], p[1] - b[1])));
-  const base = (best === "W1" && pat.eq === "bb" ? pat.plateR || 10 : best === "W1" ? 5 : 3) + 6;
+  // The arrow runs beside the path. Try a few spots (along the path, either side, a few distances) and keep the one
+  // that stays clear of body and weight during the whole movement (a few units is enough, closer to the path is
+  // better), inside the view and above the floor.
+  const t = d.track = pts.map(J => J[best]), L = Math.hypot(t[12][0] - t[0][0], t[12][1] - t[0][1]) || 1, k = dmBody.k;
+  const v = [(t[12][0] - t[0][0]) / L, (t[12][1] - t[0][1]) / L], q = [-v[1], v[0]], len = Math.min(18, L * .7), body = [];
+  const wr = pat.eq === "bb" ? (pat.plateR || 10) + 1 : pat.eq && pat.eq !== "none" ? 6 : 3;
+  pts.forEach(J => {
+    [["H", "S", 6], ["S", "head", 0], ["S1", "E1", 4], ["E1", "W1", 3], ["S2", "E2", 4], ["E2", "W2", 3], ["H1", "K1", 5], ["K1", "A1", 3.5], ["H2", "K2", 5], ["K2", "A2", 3.5]]
+      .forEach(([a, b, r]) => { for (let i = 0; i <= 4; i++) body.push([dmMix(J[a], J[b], i / 4), r]); });
+    body.push([J.head, 8.5], [J.W1, wr], [J.W2, wr]);
+  });
+  const clear = p => Math.min(...body.map(([b, r]) => Math.hypot(p[0] - b[0], p[1] - b[1]) - r));
+  const inView = p => { const x = 80 + (p[0] - 80) * k, y = 108.5 - (108.5 - p[1]) * k; return x > 3 && x < 157 && y > y0 + 3 && y < 102; };
   let score = -1e9;
-  [1, -1].forEach(sg => [0, 6, 12].forEach(extra => {
-    const c = dmAdd(m, q, sg * (base + extra)), ends = [dmAdd(c, v, len / 2), dmAdd(c, v, -len / 2)];
-    const sc = Math.min(clear(c), clear(ends[0]), clear(ends[1])) - extra * .3 - (Math.max(ends[0][1], ends[1][1]) > 102 ? 50 : 0);   // not in the floor
-    if (sc > score){ score = sc; d.side = [q[0] * sg, q[1] * sg]; d.off = base + extra; }
-  }));
+  const shift = len / 2 + 8;
+  [6, 3, 9].forEach(at => [1, -1].forEach(sg => [4, 9, 14, 20].forEach(off => [0, shift, -shift, shift * 1.7, -shift * 1.7].forEach(al => {
+    const c = dmAdd(dmAdd(t[at], q, sg * off), v, al), ps = [c, dmAdd(c, v, len / 2), dmAdd(c, v, -len / 2)];
+    const sc = Math.min(4, ...ps.map(clear)) - off * .12 - Math.abs(at - 6) * .15 - (al ? 1.5 : 0) - (ps.every(inView) ? 0 : 50);
+    if (sc > score){ score = sc; d.at = at; d.side = [q[0] * sg, q[1] * sg]; d.off = off; d.al = al; }
+  }))));
 }
 // An arrow beside the traced path that shows where the movement goes now (phase 0: to the end pose, phase 1: back).
 function demoArrow(d, ph){
   if (!d.track) return "";
   const t = d.track, a = t[ph === 1 ? 12 : 0], b = t[ph === 1 ? 0 : 12], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, v = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], n = [-v[1], v[0]];
-  const len = Math.min(18, L * .7), c = dmAdd(t[6], d.side, d.off), p0 = dmAdd(c, v, -len / 2), p1 = dmAdd(c, v, len / 2), base = dmAdd(p1, v, -4.6);
+  const len = Math.min(18, L * .7), c = dmAdd(dmAdd(t[d.at], d.side, d.off), [t[12][0] - t[0][0], t[12][1] - t[0][1]], d.al / (Math.hypot(t[12][0] - t[0][0], t[12][1] - t[0][1]) || 1)), p0 = dmAdd(c, v, -len / 2), p1 = dmAdd(c, v, len / 2), base = dmAdd(p1, v, -4.6);
   return `<path d="M${dmPt(p0)}L${dmPt(base)}" class="dm-arrowl"/><path d="M${dmPt(p1)}L${dmPt(dmAdd(base, n, 3.2))}L${dmPt(dmAdd(base, n, -3.2))}Z" class="dm-arrow"/>`;
 }
 // Redraw every demo on screen (also paused ones) after the profile changed.
