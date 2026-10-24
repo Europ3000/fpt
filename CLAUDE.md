@@ -25,9 +25,14 @@ Phone-first training app (Dutch source text, translated in the page to 10 more l
   only keeps `prefs.links.strava = {name, auto, sent, read, pull, got, from}`. Strava works both ways: the
   function's `activities` action (scope `activity:read_all`) hands back new activities, and `stravaPull`
   puts each one in the log as a cardio entry (`src`, `sid`, plus `hrmax`, `elev`, `cad`, `name`, `dev`) under
-  the matching cardio scheme day (a run under Lopen). Garmin Connect needs partner approval from Garmin, so
-  Garmin activities come in via Strava (Garmin Connect → Strava → FPT) or as a .fit/.tcx/.gpx/.zip file
-  (`importFile`). Health Connect (Samsung Health) and Apple Health need the native apps (Capacitor).
+  the matching cardio scheme day (a run under Lopen). Since June 2026 a Strava API app needs a paid Strava
+  subscription; the function and `fpt_links` are deployed, the secrets are not set yet.
+- Garmin Connect needs partner approval from Garmin, so Garmin activities come in via intervals.icu (free,
+  official Garmin partner): `icuPull` calls the intervals.icu API straight from the browser (CORS allowed;
+  `build.py` adds it to `connect-src`) with the user's own API key in `prefs.links.intervals = {id, key, name,
+  got, from, pull}`. Activities that intervals.icu got from Strava come back as stubs and are skipped.
+  One-off: a .fit/.tcx/.gpx/.zip file (`importFile`). Health Connect (Samsung Health) and Apple Health need
+  the native apps (Capacitor).
 
 ## Translations
 
