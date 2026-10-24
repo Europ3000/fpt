@@ -910,26 +910,26 @@ body.big .badge{font-size:1rem}
 .ex-nl:empty,.ex-desc:empty{display:none}
 .demo{display:flex;gap:8px;flex-wrap:wrap}
 /* Animated example */
-/* A small gym: a wall lit from above with a stripe, and a floor that runs on under the caption */
+/* A small gym: a wall lit from above and a floor that runs on under the caption */
 .demo-stage{--dm-wall:color-mix(in srgb,var(--teal-soft) 50%,var(--card));--dm-wall2:color-mix(in srgb,var(--ink) 6%,var(--paper));
   --dm-floor:color-mix(in srgb,var(--muted) 26%,var(--paper));--dm-edge:color-mix(in srgb,var(--muted) 55%,var(--paper));
-  --dm-face:color-mix(in srgb,var(--ink) 55%,var(--paper));--dm-hairc:var(--ink);
+  --dm-face:color-mix(in srgb,var(--ink) 48%,var(--paper));--dm-cloth:var(--ink);--dm-hairc:var(--ink);
   position:relative;max-width:340px;width:100%;background:var(--dm-floor);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .demo-stage{--dm-face:color-mix(in srgb,var(--ink) 82%,var(--paper));--dm-hairc:color-mix(in srgb,var(--ink) 42%,var(--paper))}}
-:root[data-theme="dark"] .demo-stage{--dm-face:color-mix(in srgb,var(--ink) 82%,var(--paper));--dm-hairc:color-mix(in srgb,var(--ink) 42%,var(--paper))}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .demo-stage{--dm-face:color-mix(in srgb,var(--ink) 82%,var(--paper));--dm-cloth:color-mix(in srgb,var(--ink) 50%,var(--paper));--dm-hairc:color-mix(in srgb,var(--ink) 64%,var(--paper))}}
+:root[data-theme="dark"] .demo-stage{--dm-face:color-mix(in srgb,var(--ink) 82%,var(--paper));--dm-cloth:color-mix(in srgb,var(--ink) 50%,var(--paper));--dm-hairc:color-mix(in srgb,var(--ink) 64%,var(--paper))}
 .demo-stage svg{display:block;width:100%;height:auto;max-height:250px;overflow:hidden;
   background:radial-gradient(90% 60% at 50% 0,color-mix(in srgb,var(--card) 75%,transparent),transparent 70%),linear-gradient(var(--dm-wall),var(--dm-wall2))}
 .demo-cap{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:30px;padding:2px 8px 4px}
 .demo-ph{font-size:.82rem;font-weight:700;color:var(--ember)}
 .demo-play{font:inherit;font-size:.72rem;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;flex:none}
-.dm-b{stroke:var(--ink);stroke-linecap:round;fill:none}
-.dm-far{stroke:color-mix(in srgb,var(--ink) 38%,var(--paper))}
-.dm-hl{stroke:var(--ember)}
-.dm-far.dm-hl{stroke:color-mix(in srgb,var(--ember) 55%,var(--paper))}
-.dm-torso{fill:var(--ink);stroke:var(--ink);stroke-linejoin:round}
-.dm-fill{fill:var(--ink)}
-.dm-hlf{fill:var(--ember);stroke:var(--ember)}
-.dm-head{fill:var(--dm-face)}
+.dm-skin{fill:var(--dm-face)}
+.dm-cloth,.dm-shoe{fill:var(--dm-cloth)}
+.dm-mus{fill:var(--ember)}
+.dm-skin.dm-far{fill:color-mix(in srgb,var(--dm-face) 50%,var(--dm-wall))}
+.dm-cloth.dm-far,.dm-shoe.dm-far{fill:color-mix(in srgb,var(--dm-cloth) 50%,var(--dm-wall))}
+.dm-mus.dm-far{fill:color-mix(in srgb,var(--ember) 55%,var(--dm-wall))}
+.dm-arrow{fill:var(--ember)}
+.dm-arrowl{stroke:var(--ember);stroke-width:1.8;stroke-linecap:round;fill:none}
 .dm-hair{stroke:var(--dm-hairc);stroke-linecap:round;stroke-linejoin:round;fill:none}
 .dm-hairf{fill:var(--dm-hairc)}
 .dm-floor{fill:var(--dm-floor)}
@@ -6948,53 +6948,96 @@ function dmSolve(P, front){
 
 // ---------- drawing ----------
 const dmF = n => Math.round(n * 10) / 10;
-const dmLine = (a, b, w, cls) => `<line x1="${dmF(a[0])}" y1="${dmF(a[1])}" x2="${dmF(b[0])}" y2="${dmF(b[1])}" stroke-width="${w}" class="${cls}"/>`;
 const dmCirc = (p, r, cls) => `<circle cx="${dmF(p[0])}" cy="${dmF(p[1])}" r="${r}" class="${cls}"/>`;
+const dmMix = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+const dmPt = p => dmF(p[0]) + " " + dmF(p[1]);
+// A limb as a tapered capsule with a muscle bulge: half-width ra at a, rb at b, rounded at both joints.
+function dmLimb(a, b, ra, rb, cls, bulge = 1.1){
+  const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy);
+  if (L < .6) return dmCirc(a, dmF(Math.max(ra, rb)), cls);
+  const d = [dx / L, dy / L], n = [-d[1], d[0]], c = (4 * (ra + rb) / 2 * bulge - ra - rb) / 2;
+  const P = (p, r, s) => dmAdd(p, n, r * s), C = s => dmAdd(dmAdd(a, d, L * .42), n, c * s);
+  return `<path d="M${dmPt(P(a, ra, 1))}Q${dmPt(C(1))} ${dmPt(P(b, rb, 1))}A${dmF(rb)} ${dmF(rb)} 0 0 0 ${dmPt(P(b, rb, -1))}`
+    + `Q${dmPt(C(-1))} ${dmPt(P(a, ra, -1))}A${dmF(ra)} ${dmF(ra)} 0 0 0 ${dmPt(P(a, ra, 1))}Z" class="${cls}"/>`;
+}
+// A smooth closed outline through points (Catmull-Rom as cubic curves).
+function dmSmooth(pts, cls){
+  const n = pts.length;
+  let s = `M${dmPt(pts[0])}`;
+  for (let i = 0; i < n; i++){
+    const p0 = pts[(i + n - 1) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+    s += `C${dmPt([p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6])} ${dmPt([p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6])} ${dmPt(p2)}`;
+  }
+  return `<path d="${s}Z" class="${cls}"/>`;
+}
+// Torso outline from hips to shoulders. Side view: back and front profile (glutes, waist, chest, shoulders) that
+// bends with the spine; front view: hips, waist and shoulders. k < 1 gives the inner shape for a working muscle.
+function dmTorso(J, cls, k = 1){
+  const B = dmBody, f = B.f, w = 1 + (B.w - 1) * .9, belly = Math.pow(B.w, 1.8), u = dmDir(J.t), p = dmDir(J.t + 90), Lt = DM_LEN.t;
+  const ax = s => { const c = Math.max(0, Math.min(1, s)); return dmAdd(dmAdd(J.H, u, Lt * s), p, 2 * c * (1 - c) * (J.cv || 0)); };
+  const pts = [];
+  if (J.front){
+    const hw = Math.abs(J.H1[0] - J.H2[0]) / 2 || 6, sw = Math.abs(J.S1[0] - J.S2[0]) / 2 || 11, wst = (hw + sw) / 2 * (f ? .66 : .8) * belly;
+    const prof = [[-.04, hw + .6], [.2, hw + 1.1], [.48, wst], [.74, sw * .84], [.92, sw * .98], [1.04, sw * .6]];
+    prof.forEach(([s, r]) => pts.push(dmAdd(ax(s), p, -r * k)));
+    pts.push(ax(1.12));
+    prof.slice().reverse().forEach(([s, r]) => pts.push(dmAdd(ax(s), p, r * k)));
+    pts.push(ax(-.14));
+  } else {
+    // [level along the spine, front, back]
+    const prof = f ? [[-.06, 5, 6.6], [.16, 5.8, 7.6], [.46, 4.6 * belly, 4.6], [.7, 6.4, 5.2], [.9, 4.9, 5], [1.04, 3.2, 3.6]]
+      : [[-.06, 4.6, 5.8], [.18, 5.3, 6.4], [.46, 5.2 * belly, 5], [.72, 6.6, 6.1], [.92, 5.3, 5.6], [1.05, 3.4, 4]];
+    prof.forEach(([s, , b]) => pts.push(dmAdd(ax(s), p, -b * w * k)));
+    pts.push(ax(1.13));
+    prof.slice().reverse().forEach(([s, fr]) => pts.push(dmAdd(ax(s), p, fr * w * k)));
+    pts.push(ax(-.15));
+  }
+  return dmSmooth(pts, cls);
+}
 // Head with hair: short hair for a man, a ponytail (side view) or long hair (front view) for a woman.
 function dmHead(J){
-  const h = J.head, r = 7.5, up = J.t + (J.P.n || 0), back = up - 90, pt = (a, rr) => dmAdd(h, dmDir(a), rr);
+  const h = J.head, r = 7.2, up = J.t + (J.P.n || 0), back = up - 90, pt = (a, rr) => dmAdd(h, dmDir(a), rr);
   // the hair is the part of the head cut off by a chord between two angles
-  const cap = (a1, a2) => { const R = r + .5, p = pt(a1, R), q = pt(a2, R); return `<path d="M${dmF(p[0])} ${dmF(p[1])}A${R} ${R} 0 ${Math.abs(a2 - a1) > 180 ? 1 : 0} ${a2 > a1 ? 1 : 0} ${dmF(q[0])} ${dmF(q[1])}Z" class="dm-hairf"/>`; };
-  let s = dmCirc(h, r, "dm-head");
+  const cap = (a1, a2) => { const R = r + .5, p = pt(a1, R), q = pt(a2, R); return `<path d="M${dmPt(p)}A${R} ${R} 0 ${Math.abs(a2 - a1) > 180 ? 1 : 0} ${a2 > a1 ? 1 : 0} ${dmPt(q)}Z" class="dm-hairf"/>`; };
+  let s = dmCirc(h, r, "dm-skin");
+  if (!J.front) s += dmCirc(pt(up + 98, r - .3), 1.6, "dm-skin");      // nose, so you see which way the face points
   if (!dmBody.f) return s + (J.front ? cap(up - 80, up + 80) : cap(up + 55, up - 140));
   if (J.front){
     const l = pt(up - 92, r - 1), rt = pt(up + 92, r - 1);
-    return `<path d="M${dmF(l[0])} ${dmF(l[1])}l-1 10M${dmF(rt[0])} ${dmF(rt[1])}l1 10" stroke-width="4" class="dm-hair"/>` + s + cap(up - 105, up + 105);
+    return `<path d="M${dmPt(l)}l-1 10M${dmPt(rt)}l1 10" stroke-width="4" class="dm-hair"/>` + s + cap(up - 105, up + 105);
   }
   const a = pt(up - 60, r), sway = Math.sin(performance.now() / 300) * 1.2, c = dmAdd(a, dmDir(back), 6.5), e = dmAdd(dmAdd(a, dmDir(back), 5), [sway, 9]);
-  return `<path d="M${dmF(a[0])} ${dmF(a[1])}Q${dmF(c[0])} ${dmF(c[1])} ${dmF(e[0])} ${dmF(e[1])}" stroke-width="4.2" class="dm-hair"/>` + s
-    + cap(up + 55, up - 150) + dmCirc(a, 2.6, "dm-hairf");
+  return `<path d="M${dmPt(a)}Q${dmPt(c)} ${dmPt(e)}" stroke-width="4.2" class="dm-hair"/>` + s + cap(up + 55, up - 150) + dmCirc(a, 2.6, "dm-hairf");
 }
+// The figure: skin-coloured limbs with sleeves, shorts and shoes; the working muscles in the accent colour.
 function dmFigure(J, hl, gearBack, gearFront){
-  const c = seg => hl.includes(seg) ? "dm-b dm-hl" : "dm-b";
-  const cf = seg => hl.includes(seg + "2") ? "dm-b dm-far dm-hl" : "dm-b dm-far";
-  const B = dmBody, w = B.w, f = B.f, tf = hl.includes("t") ? "dm-hlf" : "dm-fill";
-  // line widths: thigh, shank, foot, upper arm, forearm, neck, torso
-  const L = { th: 9 * w * (f ? 1.05 : 1), sh: 7 * (1 + (w - 1) * .7), ft: 5, ua: 6.5 * w * (f ? .88 : 1), fa: 5.5 * (1 + (w - 1) * .6) * (f ? .9 : 1), nk: f ? 5 : 6, tr: 12 * w * (f ? .94 : 1) };
+  const B = dmBody, f = B.f, k = v => v * (1 + (B.w - 1) * .9);
+  const R = f ? { ua: [3.2, 2.3], fa: [2.4, 1.6], th: [5.6, 3.2], sh: [3.1, 1.8] } : { ua: [3.8, 2.6], fa: [2.8, 1.8], th: [5.3, 3.4], sh: [3.4, 2] };
+  // top part covered by clothing (short sleeve, shorts)
+  const CL = { ua: .42, th: .5 };
+  const limb = (a, b, seg, far, hot) => {
+    const [ra, rb] = R[seg].map(k), x = far ? " dm-far" : "";
+    let s = dmLimb(a, b, ra, rb, "dm-skin" + x, seg === "sh" ? 1.18 : 1.12);
+    if (CL[seg]){ const u = CL[seg]; s += dmLimb(a, dmMix(a, b, u), ra + .6, ra + (rb - ra) * u + .6, "dm-cloth" + x, 1.04); }
+    if (hot) s += dmLimb(dmMix(a, b, .1), dmMix(a, b, .84), ra * .66, rb * .7, "dm-mus" + x, 1.2);
+    return s;
+  };
+  const shoe = (a, t, far) => { const v = dmDir(Math.atan2(t[1] - a[1], t[0] - a[0]) * 180 / Math.PI); return dmLimb(dmAdd(a, v, -1.6), dmAdd(t, v, 1), 2.4, 1.6, "dm-shoe" + (far ? " dm-far" : ""), 1); };
+  const hand = (p, far) => dmCirc(p, dmF(k(f ? 1.9 : 2.2)), "dm-skin" + (far ? " dm-far" : ""));
+  const arm = (S, E, W, far, hot) => limb(S, E, "ua", far, hot("ua")) + limb(E, W, "fa", far, hot("fa")) + hand(W, far);
+  const leg = (H, K, A, T, far, hot) => limb(H, K, "th", far, hot("th")) + limb(K, A, "sh", far, hot("sh")) + shoe(A, T, far);
+  const near = seg => hl.includes(seg), farHot = seg => hl.includes(seg + "2");
+  const torso = () => dmTorso(J, "dm-cloth") + (hl.includes("t") ? dmTorso(J, "dm-mus", .62) : "");
+  const neck = dmLimb(J.S, dmAdd(J.S, dmDir(J.t + (J.front ? 0 : J.P.n || 0)), 6), k(f ? 2.2 : 2.7), k(f ? 2 : 2.4), "dm-skin", 1);
   let s = gearBack || "";
   if (J.front){
-    // legs, torso (narrower at the waist for a woman), arms, head
-    s += dmLine(J.H2, J.K2, L.th * .95, c("th")) + dmLine(J.K2, J.A2, L.sh, c("sh")) + dmLine(J.A2, J.T2, L.ft, "dm-b");
-    s += dmLine(J.H1, J.K1, L.th * .95, c("th")) + dmLine(J.K1, J.A1, L.sh, c("sh")) + dmLine(J.A1, J.T1, L.ft, "dm-b");
-    const n = dmAdd(J.S, dmDir(J.t), 5), M = [(J.S[0] + J.H[0]) / 2, (J.S[1] + J.H[1]) / 2], wf = (f ? .78 : .97) * (1 + (w - 1) * .8);
-    const waist = (a, b) => { const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; return [M[0] + (m[0] - M[0]) * wf, M[1] + (m[1] - M[1]) * wf]; };
-    const p = [J.S2, J.S1, waist(J.S1, J.H1), J.H1, J.H2, waist(J.S2, J.H2)];
-    s += `<path d="M${p.map(q => dmF(q[0]) + " " + dmF(q[1])).join("L")}Z" stroke-width="${dmF(5 * w)}" class="${hl.includes("t") ? "dm-torso dm-hlf" : "dm-torso"}"/>`;
-    s += dmLine(J.S, n, L.nk, "dm-b");
-    s += dmLine(J.S2, J.E2, L.ua, c("ua")) + dmLine(J.E2, J.W2, L.fa, c("fa"));
-    s += dmLine(J.S1, J.E1, L.ua, c("ua")) + dmLine(J.E1, J.W1, L.fa, c("fa"));
-    s += dmHead(J);
+    s += leg(J.H2, J.K2, J.A2, J.T2, false, near) + leg(J.H1, J.K1, J.A1, J.T1, false, near);
+    s += neck + torso();
+    s += arm(J.S2, J.E2, J.W2, false, near) + arm(J.S1, J.E1, J.W1, false, near) + dmHead(J);
   } else {
-    s += dmLine(J.S2, J.E2, L.ua, cf("ua")) + dmLine(J.E2, J.W2, L.fa, cf("fa"));
-    s += dmLine(J.H2, J.K2, L.th, cf("th")) + dmLine(J.K2, J.A2, L.sh, cf("sh")) + dmLine(J.A2, J.T2, L.ft, "dm-b dm-far");
-    const m = [(J.H[0] + J.S[0]) / 2, (J.H[1] + J.S[1]) / 2], fw = dmDir(J.t + 90), q = dmAdd(m, fw, J.cv);
-    const n = dmAdd(J.S, dmDir(J.t + (J.P.n || 0)), 5);
-    s += `<path d="M${dmF(J.H[0])} ${dmF(J.H[1])}Q${dmF(q[0])} ${dmF(q[1])} ${dmF(J.S[0])} ${dmF(J.S[1])}" stroke-width="${dmF(L.tr)}" class="${c("t")}" fill="none"/>`;
-    if (f) s += dmCirc(dmAdd(J.H, fw, -1.6), dmF(L.tr * .6), tf);                                   // hips
-    if (w > 1.1) s += dmCirc(dmAdd(dmAdd(J.H, dmDir(J.t), DM_LEN.t * .42), fw, (w - 1) * 10), dmF(L.tr * .46), tf);   // belly
-    s += dmLine(J.S, n, L.nk, "dm-b") + dmHead(J);
-    s += dmLine(J.H1, J.K1, L.th, c("th")) + dmLine(J.K1, J.A1, L.sh, c("sh")) + dmLine(J.A1, J.T1, L.ft, "dm-b");
-    s += dmLine(J.S1, J.E1, L.ua, c("ua")) + dmLine(J.E1, J.W1, L.fa, c("fa"));
+    s += arm(J.S2, J.E2, J.W2, true, farHot) + leg(J.H2, J.K2, J.A2, J.T2, true, farHot);
+    s += neck + dmHead(J) + torso();
+    s += leg(J.H1, J.K1, J.A1, J.T1, false, near) + arm(J.S1, J.E1, J.W1, false, near);
   }
   return s + (gearFront || "");
 }
@@ -7385,7 +7428,7 @@ function demoPose(pat, sec){
   const u = Math.min(1, x / tm[i]), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
   return { P: dmLerp(from, to, e), ph: i };
 }
-function demoSvg(pat, P, path = ""){
+function demoSvg(pat, P, path = "", over = ""){
   const J = dmSolve(P, !!pat.front);
   let back = path + (pat.mat ? DG.mat(pat.mat[0], pat.mat[1]) : "") + (pat.back ? pat.back(J) : "");
   if (pat.anchor){ back += DG.cable(J.W1, pat.anchor); }
@@ -7401,6 +7444,7 @@ function demoSvg(pat, P, path = ""){
     const p = (performance.now() / 1000 / pat.period) % 1, a = p * 360, c = dmAdd([J.H[0] - 2, J.H[1] - 14], dmDir(a - 90), 66);
     back += `<path d="M${dmF(J.W1[0])} ${dmF(J.W1[1])}Q${dmF(c[0])} ${dmF(c[1])} ${dmF(J.W1[0] - 1)} ${dmF(J.W1[1])}" class="dm-cable dm-rope"/>`;
   }
+  front += over;
   const k = dmBody.k;
   return dmScene(J) + `<g transform="translate(80 108.5) scale(${dmF(k * 100) / 100}) translate(-80 -108.5)">${dmFigure(J, pat.hl || [], back, front)}</g>`;
 }
@@ -7417,7 +7461,7 @@ function demoFit(d){
   }
   const y0 = Math.max(-44, Math.min(18, Math.floor(108.5 - (108.5 - top) * dmBody.k - 3)));
   d.svg.setAttribute("viewBox", `0 ${y0} 160 ${118 - y0}`);
-  d.path = "";
+  d.path = ""; d.track = null;
   if (pat.fn || pat.loop || pat.k.length !== 2) return;
   const pts = []; for (let i = 0; i <= 12; i++) pts.push(dmSolve(dmLerp(pat.k[0], pat.k[1], i / 12), front));
   let best = null, far = 8;
@@ -7425,12 +7469,34 @@ function demoFit(d){
     const a = pts[0][key], b = pts[12][key], dd = Math.hypot(a[0] - b[0], a[1] - b[1]);
     if (dd > far){ far = dd; best = key; }
   });
-  if (best) d.path = `<polyline points="${pts.map(J => dmF(J[best][0]) + "," + dmF(J[best][1])).join(" ")}" class="dm-path"/>`;
+  if (!best) return;
+  d.path = `<polyline points="${pts.map(J => dmF(J[best][0]) + "," + dmF(J[best][1])).join(" ")}" class="dm-path"/>`;
+  // the arrow runs beside the path, clear of the bar or dumbbell, on the side and at the distance that keeps it
+  // furthest from the body
+  const t = d.track = pts.map(J => J[best]), m = t[6], L = Math.hypot(t[12][0] - t[0][0], t[12][1] - t[0][1]) || 1;
+  const v = [(t[12][0] - t[0][0]) / L, (t[12][1] - t[0][1]) / L], q = [-v[1], v[0]], len = Math.min(18, L * .7), J = pts[6], body = [];
+  [["H", "S"], ["S", "head"], ["S1", "E1"], ["E1", "W1"], ["S2", "E2"], ["E2", "W2"], ["H1", "K1"], ["K1", "A1"], ["H2", "K2"], ["K2", "A2"]]
+    .forEach(([a, b]) => { for (let i = 0; i <= 4; i++) body.push(dmMix(J[a], J[b], i / 4)); });
+  const clear = p => Math.min(...body.map(b => Math.hypot(p[0] - b[0], p[1] - b[1])));
+  const base = (best === "W1" && pat.eq === "bb" ? pat.plateR || 10 : best === "W1" ? 5 : 3) + 6;
+  let score = -1e9;
+  [1, -1].forEach(sg => [0, 6, 12].forEach(extra => {
+    const c = dmAdd(m, q, sg * (base + extra)), ends = [dmAdd(c, v, len / 2), dmAdd(c, v, -len / 2)];
+    const sc = Math.min(clear(c), clear(ends[0]), clear(ends[1])) - extra * .3 - (Math.max(ends[0][1], ends[1][1]) > 102 ? 50 : 0);   // not in the floor
+    if (sc > score){ score = sc; d.side = [q[0] * sg, q[1] * sg]; d.off = base + extra; }
+  }));
+}
+// An arrow beside the traced path that shows where the movement goes now (phase 0: to the end pose, phase 1: back).
+function demoArrow(d, ph){
+  if (!d.track) return "";
+  const t = d.track, a = t[ph === 1 ? 12 : 0], b = t[ph === 1 ? 0 : 12], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, v = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], n = [-v[1], v[0]];
+  const len = Math.min(18, L * .7), c = dmAdd(t[6], d.side, d.off), p0 = dmAdd(c, v, -len / 2), p1 = dmAdd(c, v, len / 2), base = dmAdd(p1, v, -4.6);
+  return `<path d="M${dmPt(p0)}L${dmPt(base)}" class="dm-arrowl"/><path d="M${dmPt(p1)}L${dmPt(dmAdd(base, n, 3.2))}L${dmPt(dmAdd(base, n, -3.2))}Z" class="dm-arrow"/>`;
 }
 // Redraw every demo on screen (also paused ones) after the profile changed.
 function demoRefit(){
   dmBodyFit();
-  demoAll.forEach(d => { if (!d.el.isConnected) demoAll.delete(d); else if (d.P){ demoFit(d); d.g.innerHTML = demoSvg(d.pat, d.P, d.path); } });
+  demoAll.forEach(d => { if (!d.el.isConnected) demoAll.delete(d); else if (d.P){ demoFit(d); d.g.innerHTML = demoSvg(d.pat, d.P, d.path, demoArrow(d, Math.max(0, d.ph))); } });
 }
 let demoRaf = 0;
 const demoReduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -7440,7 +7506,7 @@ function demoTick(now){
     if (!d.el.isConnected || (d.details && !d.details.open) || d.el.closest("[hidden]")){ demoLive.delete(d); return; }
     if (d.paused) return;
     const sec = (now - d.t0) / 1000, { P, ph } = demoPose(d.pat, sec);
-    d.P = P; d.g.innerHTML = demoSvg(d.pat, P, d.path);
+    d.P = P; d.g.innerHTML = demoSvg(d.pat, P, d.path, demoArrow(d, ph));
     if (ph !== d.ph){ d.ph = ph; d.label.textContent = demoLabel(d.pat, ph); }
   });
   if (demoLive.size) demoRaf = requestAnimationFrame(demoTick);
@@ -7492,7 +7558,7 @@ function mountDemo(box, name, type){
     <div class="demo-cap"><span class="demo-ph" aria-live="off"></span><button type="button" class="demo-play" aria-label="Pauzeren">❚❚</button></div>`;
   const d = { el: box, pat, svg: box.querySelector("svg"), g: box.querySelector("g"), label: box.querySelector(".demo-ph"), details: box.closest("details"), t0: performance.now(), ph: -1, paused: false };
   demoFit(d);
-  const still = () => { const { P } = demoPose(pat, pat.fn ? .25 * pat.period : (pat.tm[0] + .3)); d.P = P; d.g.innerHTML = demoSvg(pat, P, d.path); d.label.textContent = demoLabel(pat, 0); };
+  const still = () => { const { P } = demoPose(pat, pat.fn ? .25 * pat.period : (pat.tm[0] + .3)); d.P = P; d.g.innerHTML = demoSvg(pat, P, d.path, demoArrow(d, 0)); d.label.textContent = demoLabel(pat, 0); };
   still();
   demoAll.add(d);
   const btn = box.querySelector(".demo-play");
