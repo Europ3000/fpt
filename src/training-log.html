@@ -2654,6 +2654,8 @@ function moveExercise(i, action){
     changeDay(s, view.day, list => { while (list[i].length < 6) list[i].push(""); list[i][6] = !list[i][6]; return list; });
     renderExercises(); return;
   }
+  // Moving a spot keeps the screen on it, so you can click the same button again right away.
+  const movedKey = ["top", "up", "down"].includes(action) ? keyOf(dayItems()[i][0]) : null;
   changeDay(s, view.day, list => {
     const [item] = list.splice(i, 1);
     const to = action === "top" ? 0 : action === "up" ? i - 1 : action === "down" ? i + 1 : -1;
@@ -2662,6 +2664,7 @@ function moveExercise(i, action){
   });
   if (action === "remove") undoToast("Oefening verwijderd van deze dag", sn);
   renderExercises();
+  if (movedKey) scrollToKey(movedKey);
 }
 
 function addExercise(e){
