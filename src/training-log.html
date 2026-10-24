@@ -138,7 +138,17 @@ button.mb.open span{font-weight:700;text-decoration:none}
 .add-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
 .add-grid label{display:flex;flex-direction:column;gap:4px;font-size:.78rem;font-weight:600;color:var(--muted);min-width:0}
 .add-grid input,.add-grid select{font:inherit;font-size:1rem;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:8px;padding:9px 10px;min-width:0}
-.add-grid .add-name,.add-grid .check,.add-grid .add-btn{grid-column:1/-1}
+.add-grid .add-name,.add-grid .check,.add-grid .add-btn,.add-grid .add-name-list{grid-column:1/-1}
+.add-name-list{display:flex;flex-direction:column;gap:10px;max-height:280px;overflow-y:auto;margin-top:-4px}
+.add-name-list:empty{display:none}
+.add-name-chosen{margin:0;font-size:.82rem;font-weight:600;color:var(--muted)}
+.add-name-group{display:flex;flex-direction:column;gap:6px}
+.add-name-group-title{margin:0;font-size:.72rem;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
+.add-name-opt{display:block;width:100%;text-align:left;font:inherit;font-size:.92rem;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.add-name-opt:hover,.add-name-opt:focus-visible{border-color:var(--ink)}
+.add-name-opt[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.add-name-list .note{margin:4px 0}
 .add-grid .check{flex-direction:row;align-items:center;gap:8px;font-size:.9rem;color:var(--ink)}
 .add-grid .check input{width:20px;height:20px}
 .add-btn{min-height:46px}
@@ -424,7 +434,7 @@ body.focus .ex.focused{margin-top:0}
 .mod.closed .mod-body{display:none}
 .mod-body{display:flex;flex-direction:column;gap:12px;min-width:0}
 .mod-order{display:flex;gap:6px;flex:none}
-.mod-order-btn{font:inherit;color:var(--muted);background:var(--paper);border:1px solid var(--line);border-radius:9px;
+.mod-order-btn{font:inherit;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:9px;
   width:40px;height:36px;cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center}
 .mod-order-btn[hidden]{display:none}
 .mod-order-btn:disabled{opacity:.35;cursor:default}
@@ -1674,8 +1684,9 @@ h1,h2,h3{overflow-wrap:anywhere}
     <div class="add-subs" id="addSubs"></div>
     <form id="addForm" class="add-grid">
       <label class="add-name">Oefening zoeken in bibliotheek
-        <select id="addName" translate="no"><option value="">Kies een oefening…</option></select>
+        <input id="addName" type="search" autocomplete="off" placeholder="Eigen naam, of zoek bv. borst, curl, buik">
       </label>
+      <div class="add-name-list" id="addNameList" translate="no"></div>
       <label>Sets <input id="addSets" inputmode="numeric" value="3"></label>
       <label>Herhalingen <input id="addReps" value="8–12"></label>
       <label>Rust <input id="addRest" value="90 s"></label>
@@ -1953,8 +1964,8 @@ const NL = {
   "Push-up":["Opdrukken (pompen)","Handen iets breder dan je schouders, lichaam in een rechte lijn. Zak tot je borst bijna de grond raakt en duw weer omhoog. Te zwaar? Doe ze op je knieën."],
   "Ab Wheel Rollout":["Ab wheel rollout (buikwiel)","Op je knieën met het wiel onder je schouders. Rol langzaam naar voor zonder dat je onderrug doorzakt, en trek jezelf met je buik terug."],
   "Plank":["Plank (horizontaal)","Op je onderarmen en tenen, ellebogen onder je schouders. Hou je lichaam in een rechte lijn en span buik en billen aan."],
-  "Side Plank (left)":["Zijplank links","Op je linkeronderarm, voeten op elkaar. Til je heup op tot je lichaam een rechte lijn vormt en hou vast."],
-  "Side Plank (right)":["Zijplank rechts","Op je rechteronderarm, voeten op elkaar. Til je heup op tot je lichaam een rechte lijn vormt en hou vast."]
+  "Side Plank (left)":["Plank zijwaarts links","Op je linkeronderarm, voeten op elkaar. Til je heup op tot je lichaam een rechte lijn vormt en hou vast."],
+  "Side Plank (right)":["Plank zijwaarts rechts","Op je rechteronderarm, voeten op elkaar. Til je heup op tot je lichaam een rechte lijn vormt en hou vast."]
 };
 
 // Muscle groups per exercise: [strongly worked, less strongly worked]
@@ -2658,7 +2669,7 @@ function addExercise(e){
   e.preventDefault();
   // a choice from the library, or else the name you typed yourself
   const name = $("addName").value.trim();
-  if (!name){ toast("Kies een oefening uit de lijst."); return; }
+  if (!name){ toast("Kies een oefening uit de lijst of geef een naam."); return; }
   const item = [name, $("addSets").value.trim() || "3", $("addReps").value.trim() || "8–12", $("addRest").value.trim() || "90 s", $("addType").value];
   if ($("addMode").value) item.push($("addMode").value);
   $("addName").value = "";
@@ -2723,16 +2734,37 @@ function exerciseCatalog(){
   LIB.forEach(x => put(x[0], x[1]));
   return cat;
 }
-let addSelectLang = null;
-function fillAddSelect(){
-  const sel = $("addName"); if (addSelectLang === lang && sel.options.length > 1) return;
-  addSelectLang = lang;
-  const cat = exerciseCatalog(), keep = sel.value, label = n => tr(NL[n] ? NL[n][0] : n);
-  sel.innerHTML = `<option value="">${esc(tr("Kies een oefening…"))}</option>` + ADD_GROUPS.map(([g, title]) => {
-    const names = [...cat].filter(([, x]) => x === g).map(([n]) => n).sort((a, b) => label(a).localeCompare(label(b), LOC()));
-    return names.length ? `<optgroup label="${esc(tr(title))}">${names.map(n => `<option value="${esc(n)}">${esc(label(n))}</option>`).join("")}</optgroup>` : "";
+// Search text for one exercise: its name, Dutch label, description and muscles, so typing a body part
+// (bv. "borst") or a word from the name (bv. "curl") both find it, in whichever language is shown.
+const normSearch = s => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+function addNameHaystack(n, label){
+  const [, desc] = NL[n] || ["", ""], mus = MUSCLES[n] ? MUSCLES[n][0].concat(MUSCLES[n][1]) : [];
+  return normSearch([n, label, tr(desc), ...mus.map(m => tr(m))].join(" "));
+}
+let addCatalogLang = null, addCatalog = [];
+function buildAddCatalog(){
+  addCatalogLang = lang;
+  const cat = exerciseCatalog(), label = n => tr(NL[n] ? NL[n][0] : n);
+  addCatalog = [...cat].map(([n, g]) => { const l = label(n); return { n, g, label: l, hay: addNameHaystack(n, l) }; });
+}
+// The exercise picker: a text field you can type a search into, with the matching exercises always
+// listed below it so you can tap one instead of typing the whole name. Typing a name with no match
+// just keeps it as a new custom exercise.
+function renderAddNameList(){
+  const input = $("addName"), box = $("addNameList"), val = input.value.trim();
+  if (addCatalogLang !== lang) buildAddCatalog();
+  const q = normSearch(val), byGroup = new Map();
+  addCatalog.forEach(it => {
+    if (q && !it.hay.includes(q)) return;
+    (byGroup.get(it.g) || byGroup.set(it.g, []).get(it.g)).push(it);
+  });
+  const chosen = val && addCatalog.find(it => it.n.toLowerCase() === val.toLowerCase());
+  const list = ADD_GROUPS.map(([g, title]) => {
+    const items = (byGroup.get(g) || []).sort((a, b) => a.label.localeCompare(b.label, LOC()));
+    return items.length ? `<div class="add-name-group"><p class="add-name-group-title">${esc(tr(title))}</p>${items.map(it => `<button type="button" class="add-name-opt" data-name="${esc(it.n)}" aria-selected="${it === chosen}">${esc(it.label)}</button>`).join("")}</div>` : "";
   }).join("");
-  if (keep) sel.value = keep;
+  box.innerHTML = (chosen ? `<p class="add-name-chosen">${esc(tr("Gekozen:"))} <b>${esc(chosen.label)}</b></p>` : "") + (list || `<p class="note">${esc(tr("Niets gevonden. Typ een eigen naam in het veld hieronder."))}</p>`);
+  box.querySelectorAll("[data-name]").forEach(b => b.onclick = () => { input.value = b.dataset.name; renderAddNameList(); prefillKnown(); });
 }
 // Fill the add form with the usual sets/reps when you pick a known exercise.
 function prefillKnown(){
@@ -2983,7 +3015,7 @@ function renderExercises(){
   $("editToggle").setAttribute("aria-pressed", editing);
   $("editToggle").textContent = editing ? "Klaar" : "Aanpassen";
   $("addPanel").hidden = !editing;
-  if (editing){ fillAddSelect(); renderAddProg(); }
+  if (editing){ renderAddNameList(); renderAddProg(); }
   $("finishBtn").hidden = editing || !items.length;
   $("focusToggle").hidden = editing || !items.length;
   $("shuffleBtn").hidden = editing || items.length < 2;
@@ -8311,6 +8343,8 @@ $("shuffleBtn").onclick = () => {
 };
 $("addForm").addEventListener("submit", addExercise);
 $("addName").addEventListener("change", prefillKnown);
+let addNameTimer;
+$("addName").addEventListener("input", () => { clearTimeout(addNameTimer); addNameTimer = setTimeout(renderAddNameList, 150); });
 $("resetDay").onclick = () => {
   const copy = Object.assign({}, layouts); delete copy[dayKey(scheme(), view.day)];
   layouts = copy; saveLayouts(); renderExercises(); toast("Standaardvolgorde hersteld");
