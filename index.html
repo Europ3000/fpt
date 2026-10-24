@@ -2251,11 +2251,91 @@ let view = Object.assign({scheme:"ppl", day:0}, lsGet(LS_VIEW, {}));
 const LS_PREFS = "ppl.prefs";
 let prefs = Object.assign({ notes: {}, body: {}, custom: [], deloadStart: "", deloadSnooze: "" }, lsGet(LS_PREFS, {}));
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist().catch(() => {}); } catch {}
-let prefsRef = null, savingPrefs = Promise.resolve(), prefsBooting = true;
+let prefsRef = null, prefsBooting = true;
 function savePrefs(){
   if (!prefsBooting) prefs.savedAt = Date.now();   // start-up tidying must not count as a newer edit
   lsSet(LS_PREFS, prefs);
-  if (prefsRef){ const snap = prefs; savingPrefs = savingPrefs.then(() => prefsRef.set(snap)).catch(() => {}); }
+  if (prefsRef) syncDoc("prefs", prefsRef, () => prefs, v => { adoptInto(prefs, v || {}); lsSet(LS_PREFS, prefs); });
+}
+
+// ---------- Sync without overwriting: a three-way merge against the copy last seen in your account ----------
+// `synced.docs` holds, per document, what this device last read from or wrote to your account. Before every write
+// the app reads the account copy again and keeps the changes of both sides since then, so a device that stood open
+// for hours never writes an old copy over what another device (or Garmin, Strava) added in the meantime.
+const SYNC_LS = "fpt.synced";   // not "ppl.": a back-up must never bring an old copy of this back
+let synced = lsGet(SYNC_LS, null);   // { uid, docs: { prefs, records, layout, "log/<date>" } }
+const saveSynced = () => lsSet(SYNC_LS, synced);
+const isObj = x => !!x && typeof x === "object" && !Array.isArray(x);
+const clone = x => x === undefined ? x : JSON.parse(JSON.stringify(x));
+// Equal content, whatever the key order (the database hands keys back in its own order).
+function deepEq(a, b){
+  if (a === b) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object" || Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) return a.length === b.length && a.every((x, i) => deepEq(x, b[i]));
+  const ka = Object.keys(a).filter(k => a[k] !== undefined), kb = Object.keys(b).filter(k => b[k] !== undefined);
+  return ka.length === kb.length && ka.every(k => deepEq(a[k], b[k]));
+}
+// b = the common copy, l = this device, r = the other side. What only one side changed is kept;
+// lists of sets, cardio, schemes and names are merged item by item; a value both sides changed goes to this device.
+function merge3(b, l, r){
+  if (deepEq(l, b)) return r;
+  if (deepEq(r, b) || deepEq(l, r)) return l;
+  if (isObj(l) && isObj(r)){
+    const bo = isObj(b) ? b : {}, out = {};
+    new Set(Object.keys(r).concat(Object.keys(l))).forEach(k => { const v = merge3(bo[k], l[k], r[k]); if (v !== undefined) out[k] = v; });
+    return out;
+  }
+  if (Array.isArray(l) && Array.isArray(r)){
+    const bl = Array.isArray(b) ? b : [], all = bl.concat(l, r);
+    const id = all.every(x => typeof x === "string") ? x => x : all.every(x => isObj(x) && x.t != null) ? x => x.t : all.every(x => isObj(x) && x.id != null) ? x => x.id : null;
+    if (id){
+      const map = xs => new Map(xs.map(x => [id(x), x])), B = map(bl), L = map(l), R = map(r), out = [];
+      R.forEach((x, k) => { const v = merge3(B.get(k), L.get(k), x); if (v !== undefined) out.push(v); });
+      L.forEach((x, k) => { if (!R.has(k)){ const v = merge3(B.get(k), x, undefined); if (v !== undefined) out.push(v); } });
+      return all.every(x => isObj(x) && x.t != null) ? out.sort((x, y) => x.t < y.t ? -1 : 1) : out;
+    }
+  }
+  return l;
+}
+// Take over a merged copy in place, so code that holds a part of prefs (e.g. a linked app) keeps working on the live object.
+function adoptInto(t, s){
+  Object.keys(t).forEach(k => { if (!(k in s)) delete t[k]; });
+  Object.keys(s).forEach(k => { if (isObj(t[k]) && isObj(s[k])) adoptInto(t[k], s[k]); else t[k] = s[k]; });
+}
+// Write one document: read the account copy, merge, write when it differs, then take over what came from elsewhere.
+// Several saves in a row while one is underway become one write.
+const syncQ = {};
+function syncDoc(id, ref, get, put){
+  const q = syncQ[id] = syncQ[id] || { run: Promise.resolve(), waiting: false };
+  if (q.waiting) return q.run;
+  q.waiting = true;
+  return q.run = q.run.then(async () => {
+    q.waiting = false;
+    if (!synced) return;
+    const mine = clone(get()), snap = await ref.get(), theirs = snap.exists ? snap.data() : undefined;
+    const merged = merge3(synced.docs[id], mine, theirs);
+    if (merged === undefined){ if (theirs !== undefined) await ref.delete(); }
+    else if (!deepEq(merged, theirs)) await ref.set(merged);
+    if (merged === undefined) delete synced.docs[id]; else synced.docs[id] = clone(merged);
+    saveSynced();
+    if (!deepEq(merged, mine)){ put(merge3(mine, clone(get()), merged)); syncRender(); }   // edits made during the wait stay
+  }).catch(() => {
+    setStore(false, "Je account is even niet bereikbaar. Alles staat veilig op dit toestel en gaat mee bij de volgende synchronisatie.");
+  });
+}
+let syncRenderTimer;
+function syncRender(){
+  clearTimeout(syncRenderTimer);
+  syncRenderTimer = setTimeout(() => {
+    // not while you are typing: the next render shows it
+    if (document.activeElement && document.activeElement.matches("input,textarea,select") || editDate) return;
+    render(); if (page === "stats") renderStats();
+  }, 300);
+}
+const waitForSync = () => Promise.all(Object.values(syncQ).map(q => q.run));
+function saveRecords(){
+  lsSet(LS_RECORDS, records);
+  if (recordsRef) syncDoc("records", recordsRef, () => ({ lifts: records }), v => { records = (v && v.lifts) || {}; lsSet(LS_RECORDS, records); });
 }
 const allSchemes = () => SCHEMES.concat(prefs.custom || []);
 const isCustom = s => (prefs.custom || []).some(c => c.id === s.id);
@@ -2263,7 +2343,6 @@ let layouts = lsGet(LS_LAYOUTS, {});          // { "ppl:0": [[name, sets, reps, 
 let log = lsGet(LS_LOG, {});                  // { "2026-10-21": {date, days:[label], ex:{key:{name, order, sets:[{w, t}]}}} }
 let editing = false, page = "train";
 let recordsRef = null, layoutRef = null, logCol = null;   // db refs once available
-let saving = Promise.resolve(), savingLayout = Promise.resolve(), savingLog = Promise.resolve();
 
 const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); };
 const longDate = date => { try { return new Date(date + "T12:00").toLocaleDateString(LOC(),{weekday:"long",day:"numeric",month:"long",year:"numeric"}); } catch { return date; } };
@@ -2285,10 +2364,8 @@ function logSet(name, w, r, timed){
 
 function saveSession(date){
   lsSet(LS_LOG, log);
-  if (!logCol) return;
-  const s = log[date], ref = logCol.doc(date);
-  savingLog = savingLog.then(() => s ? ref.set(s) : ref.delete()).catch(() => {
-    setStore(false, "Je account is even niet bereikbaar. Je logboek staat veilig op dit toestel.");
+  if (logCol) syncDoc("log/" + date, logCol.doc(date), () => log[date], v => {
+    log = Object.assign({}, log); if (v) log[date] = v; else delete log[date]; lsSet(LS_LOG, log);
   });
 }
 
@@ -2742,12 +2819,7 @@ function exercisesFor(s, i){ return layouts[dayKey(s, i)] || s.days[i].ex; }
 
 function saveLayouts(){
   lsSet(LS_LAYOUTS, layouts);
-  if (layoutRef){
-    const snapshot = layouts;
-    savingLayout = savingLayout.then(() => layoutRef.set({ days: snapshot })).catch(() => {
-      setStore(false, "Je account is even niet bereikbaar. Je volgorde staat veilig op dit toestel.");
-    });
-  }
+  if (layoutRef) syncDoc("layout", layoutRef, () => ({ days: layouts }), v => { layouts = (v && v.days) || {}; lsSet(LS_LAYOUTS, layouts); });
 }
 
 // Change one day's list; fn gets a copy and returns the new list.
@@ -3283,8 +3355,7 @@ function renderExercises(){
         records = Object.assign({}, records);
         if (!left.length && !keepBest) delete records[k];
         else records[k] = Object.assign({}, prevRec, { best: Math.max(logBest, keepBest), last: lastSet ? lastSet.w : prevRec.last, date: lastSet ? lastSet.t : prevRec.date });
-        lsSet(LS_RECORDS, records);
-        if (recordsRef){ const snap = records; saving = saving.then(() => recordsRef.set({ lifts: snap })).catch(() => {}); }
+        saveRecords();
         renderExercises();
       }
     };
@@ -8687,21 +8758,24 @@ function autoCloseWorkout(){
 }
 
 // ---------- Undo: a snapshot of everything you can change, restored with one tap ----------
-function takeSnapshot(){ return { log, records, skips, endedAt, layouts, prefs: JSON.parse(JSON.stringify(prefs)), view: Object.assign({}, view) }; }
-function restoreSnapshot(sn){
-  const cur = log, changed = [...new Set(Object.keys(cur).concat(Object.keys(sn.log)))].filter(d => cur[d] !== sn.log[d]);
-  log = sn.log; changed.forEach(d => saveSession(d)); lsSet(LS_LOG, log);
-  records = sn.records; lsSet(LS_RECORDS, records);
-  if (recordsRef){ const snap = records; saving = saving.then(() => recordsRef.set({ lifts: snap })).catch(() => {}); }
+function takeSnapshot(){ return clone({ log, records, skips, endedAt, layouts, prefs, view }); }
+// Undo only what the action changed (from `sn` to `after`): what came in since then, from another device,
+// Garmin or Strava, stays. Merged with the state right after the action as the common copy.
+function restoreSnapshot(sn, after){
+  const back = k => merge3(after[k], sn[k], k === "prefs" ? clone(prefs) : { log, records, layouts }[k]) || {};
+  const cur = log, nlog = back("log");
+  log = nlog; lsSet(LS_LOG, log);
+  new Set(Object.keys(cur).concat(Object.keys(nlog))).forEach(d => { if (!deepEq(cur[d], nlog[d])) saveSession(d); });
+  records = back("records"); saveRecords();
+  layouts = back("layouts"); saveLayouts();
+  const np = back("prefs"); adoptInto(prefs, np); savePrefs();
   skips = sn.skips; lsSet(LS_SKIPS, skips);
   endedAt = sn.endedAt; lsSet(LS_ENDED, endedAt);
-  layouts = sn.layouts; saveLayouts();
-  prefs = sn.prefs; savePrefs();
   view = sn.view; lsSet(LS_VIEW, view);
   $("finishPanel").hidden = true;
   render(); if (page === "stats") renderStats();
 }
-const undoToast = (msg, sn) => toast(msg, () => { restoreSnapshot(sn); toast("Ongedaan gemaakt"); });
+const undoToast = (msg, sn) => { const after = takeSnapshot(); toast(msg, () => { restoreSnapshot(sn, after); toast("Ongedaan gemaakt"); }); };
 
 function saveWeight(name, raw, repsRaw, mode){
   const reps = parseInt(repsRaw, 10);
@@ -8720,16 +8794,10 @@ function saveWeight(name, raw, repsRaw, mode){
   const k = keyOf(name), prev = records[k];
   const isBest = !prev || w > prev.best;
   records = Object.assign({}, records, { [k]: { best: prev ? Math.max(prev.best, w) : w, last: w, date: new Date().toISOString(), name } });
-  lsSet(LS_RECORDS, records);
+  saveRecords();
   const setNo = logSet(name, w, reps > 0 ? reps : undefined);
   renderExercises();
   toast((isBest && prev ? `Nieuw record! ${fw(w)}` : `Set ${setNo} opgeslagen: ${fw(w)}`) + (reps > 0 ? ` × ${reps}` : ""));
-  if (recordsRef){
-    const snapshot = records;
-    saving = saving.then(() => recordsRef.set({ lifts: snapshot })).catch(err => {
-      setStore(false, "Je account is even niet bereikbaar. Opgeslagen op dit toestel; bij je volgende set wordt het gesynchroniseerd.");
-    });
-  }
   return setNo;
 }
 
@@ -8845,6 +8913,7 @@ function importBackup(file){
       if (!items.length) throw new Error("bad");
       items.forEach(([k, v]) => { JSON.parse(v); });
       items.forEach(([k, v]) => localStorage.setItem(k, v));
+      localStorage.removeItem(SYNC_LS);   // the back-up is added to your account, it does not count as deleting what it lacks
       toast("Back-up teruggezet. De app laadt opnieuw.");
       setTimeout(() => location.reload(), 900);
     } catch { toast("Dit is geen geldige FPT-back-up."); }
@@ -9425,9 +9494,9 @@ function wellOf(r){
   return o;
 }
 async function icuWell(L, full){
-  const W = Object.assign({}, prefs.well), B = Object.assign({}, prefs.body);
-  const from = addDays(today(), full || !Object.keys(W).length ? -400 : -10);   // the first time a year back, for the year chart
+  const from = addDays(today(), full || !Object.keys(prefs.well || {}).length ? -400 : -10);   // the first time a year back, for the year chart
   const list = await icuGet(L, `/wellness?oldest=${from}&newest=${today()}`), rows = Array.isArray(list) ? list : [];
+  const W = Object.assign({}, prefs.well), B = Object.assign({}, prefs.body);   // after the wait: what you typed meanwhile stays
   let n = 0;
   L.wellAt = Date.now(); L.wellDays = rows.filter(r => Object.keys(wellOf(r)).length || r.weight > 0).length;
   rows.forEach(r => {
@@ -9595,77 +9664,95 @@ async function claudeStore(){
   return { db, uid };
 }
 // Merge this device with your account: records, prefs, your own exercise order and the session log.
+// The first sync of a device (or of another account) unites both copies. After that it is a three-way merge with
+// the copy last seen in the account, so what you deleted on one device stays deleted and nothing newer is lost.
+// Prefs as they were merged before there was a common copy: the newest save wins, the lists are united.
+function unitePrefs(rp){
+  const ids = new Set((rp.custom || []).map(c => c.id));
+  const localNewer = (prefs.savedAt || 0) > (rp.savedAt || 0);
+  const [old, neu] = localNewer ? [rp, prefs] : [prefs, rp];
+  return clone(Object.assign({}, old, neu, {
+    progStart: Object.assign({}, old.progStart, neu.progStart),
+    goals: neu.goals || old.goals || [],
+    notes: Object.assign({}, old.notes, neu.notes),
+    body: Object.assign({}, old.body, neu.body),
+    well: Object.assign({}, old.well, neu.well),
+    dev: Object.assign({}, old.dev, neu.dev),
+    custom: (rp.custom || []).concat((prefs.custom || []).filter(c => !ids.has(c.id))),
+    deloadStart: [prefs.deloadStart || "", rp.deloadStart || ""].sort().pop(),
+    deloadSnooze: [prefs.deloadSnooze || "", rp.deloadSnooze || ""].sort().pop()
+  }));
+}
+let connecting = false, connectedAt = 0;
 async function connectStore(){
+  if (connecting) return;
+  connecting = true;
   try {
     const got = STANDALONE ? (await cloudStore()) || { msg: "Je gegevens staan op dit toestel. Log in bij Instellingen → Account om ze op al je toestellen te hebben." } : await claudeStore();
     if (got.msg){ prefsBooting = false; setStore(false, got.msg); pullLinks(); return; }
     const { db, uid } = got;
     setStore(false, "Synchroniseren…");
-    const ref = db.doc("data/users/" + uid + "/records");
-    const snap = await ref.get();
-    const remote = snap.exists ? (snap.data().lifts || {}) : {};
-    const merged = merge(remote, records);
-    const changed = JSON.stringify(merged) !== JSON.stringify(remote);
-    records = merged; lsSet(LS_RECORDS, records); renderExercises();
-    recordsRef = ref;
-    if (changed && Object.keys(merged).length) saving = ref.set({ lifts: merged }).catch(() => {});
+    await waitForSync();
+    const known = synced && synced.uid === uid ? synced.docs : null, docs = {};
+    // Write the merged copy where the account differs, and keep it as the common copy.
+    const put = async (id, ref, merged, theirs) => {
+      if (merged === undefined){ if (theirs !== undefined) await ref.delete(); return; }
+      if (!deepEq(merged, theirs)) await ref.set(merged);
+      docs[id] = clone(merged);
+    };
 
-    // Notes, body weight, own schemes, deload: merge account and device copies.
+    const ref = db.doc("data/users/" + uid + "/records");
+    const snap = await ref.get(), theirR = snap.exists ? snap.data() : undefined;
+    const mR = known ? merge3(known.records, { lifts: records }, theirR) : { lifts: merge((theirR && theirR.lifts) || {}, records) };
+    records = (mR && mR.lifts) || {}; lsSet(LS_RECORDS, records); renderExercises();
+    await put("records", ref, { lifts: records }, theirR);
+    recordsRef = ref;
+
+    // Notes, body weight, own schemes, goals, profile, linked apps …
     const pref = db.doc("data/users/" + uid + "/prefs");
-    const psnap = await pref.get();
-    if (psnap.exists){
-      const rp = psnap.data();
-      const ids = new Set((rp.custom || []).map(c => c.id));
-      const localNewer = (prefs.savedAt || 0) > (rp.savedAt || 0);
-      const [old, neu] = localNewer ? [rp, prefs] : [prefs, rp];
-      prefs = Object.assign({}, old, neu, {
-        progStart: Object.assign({}, old.progStart, neu.progStart),
-        goals: neu.goals || old.goals || [],
-        notes: Object.assign({}, old.notes, neu.notes),
-        body: Object.assign({}, old.body, neu.body),
-        well: Object.assign({}, old.well, neu.well),
-        dev: Object.assign({}, old.dev, neu.dev),
-        custom: (rp.custom || []).concat((prefs.custom || []).filter(c => !ids.has(c.id))),
-        deloadStart: [prefs.deloadStart || "", rp.deloadStart || ""].sort().pop(),
-        deloadSnooze: [prefs.deloadSnooze || "", rp.deloadSnooze || ""].sort().pop()
-      });
+    const psnap = await pref.get(), rp = psnap.exists ? psnap.data() : undefined;
+    if (rp){
+      adoptInto(prefs, known ? merge3(known.prefs, clone(prefs), rp) || {} : unitePrefs(rp));
       lsSet(LS_PREFS, prefs);
       // a new device takes over the language chosen in your account
       if (LOCALES[rp.lang] && rp.lang !== lang && localStorage.getItem("ppl.lang") === null) setLang(rp.lang);
     }
-    prefsRef = pref; prefsBooting = false;
+    prefsBooting = false;
     if (devRestore()){ focusOn = lsGet("ppl.focus", true); renderSettings(); renderExercises(); }
     setupModules(); applyTheme();
-    if (JSON.stringify(prefs) !== JSON.stringify(psnap.exists ? psnap.data() : {})) savePrefs();
-    if (Object.keys(log).length || (psnap.exists)) { if (!$("welcome").hidden) closeWelcome(); }
+    await put("prefs", pref, clone(prefs), rp);
+    prefsRef = pref;
+    if (Object.keys(log).length || rp) { if (!$("welcome").hidden) closeWelcome(); }
 
-    // Your own exercise order / added exercises: account copy wins per day, local-only days are kept and uploaded.
+    // Your own exercise order / added exercises per day.
     const lref = db.doc("data/users/" + uid + "/layout");
-    const lsnap = await lref.get();
-    const remoteDays = lsnap.exists ? (lsnap.data().days || {}) : {};
-    const mergedDays = Object.assign({}, layouts, remoteDays);
-    const daysChanged = carryOverOldSchemes(mergedDays) || Object.keys(mergedDays).length !== Object.keys(remoteDays).length;
-    layouts = mergedDays; lsSet(LS_LAYOUTS, layouts); renderExercises();
+    const lsnap = await lref.get(), theirL = lsnap.exists ? lsnap.data() : undefined;
+    const mL = known ? merge3(known.layout, { days: layouts }, theirL) : { days: Object.assign({}, layouts, theirL && theirL.days) };
+    layouts = Object.assign({}, mL && mL.days); carryOverOldSchemes(layouts); lsSet(LS_LAYOUTS, layouts); renderExercises();
+    await put("layout", lref, { days: layouts }, theirL);
     layoutRef = lref;
-    if (daysChanged) savingLayout = lref.set({ days: mergedDays }).catch(() => {});
 
-    // Session log: one document per date; union with anything logged on this device.
+    // Session log: one document per date.
     const lcol = db.doc("data/users/" + uid + "/log").collection("sessions");
-    const remoteLog = {};
+    const remoteLog = {}, knownLog = {};
     (await lcol.limit(1000).get()).docs.forEach(d => { remoteLog[d.id] = d.data(); });
-    log = mergeLog(remoteLog, log); lsSet(LS_LOG, log);
+    if (known) Object.keys(known).filter(k => k.startsWith("log/")).forEach(k => { knownLog[k.slice(4)] = known[k]; });
+    log = Object.assign({}, known ? merge3(knownLog, log, remoteLog) : mergeLog(remoteLog, log)); lsSet(LS_LOG, log);
+    await Promise.all([...new Set(Object.keys(log).concat(Object.keys(remoteLog)))].map(d => put("log/" + d, lcol.doc(d), log[d], remoteLog[d])));
     logCol = lcol;
-    Object.keys(log).forEach(date => { if (JSON.stringify(log[date]) !== JSON.stringify(remoteLog[date])) saveSession(date); });
-    renderExercises(); if (page === "stats") renderStats();
+    synced = { uid, docs }; saveSynced(); connectedAt = Date.now();
+
     if (Object.keys(log).length && !$("welcome").hidden) closeWelcome();
-    render();
+    render(); if (page === "stats") renderStats();
     setStore(true, "Opgeslagen in je account. Je gegevens staan op al je toestellen.");
     if (STANDALONE){ renderAccount(); pullLinks(); }
   } catch (e) {
     prefsBooting = false;
     setStore(false, STANDALONE ? (sbSession ? "Synchroniseren lukt nu niet (geen verbinding?). Je gegevens staan veilig op dit toestel." : "Je gegevens staan op dit toestel. Maak af en toe een back-up via Instellingen.") : "Alleen op dit toestel opgeslagen.");
-  }
+  } finally { connecting = false; }
 }
+// Back to the app after a while: first fetch what other devices changed.
+document.addEventListener("visibilitychange", () => { if (!document.hidden && logCol && Date.now() - connectedAt > 60000) connectStore(); });
 connectStore();
 </script>
 </body>
