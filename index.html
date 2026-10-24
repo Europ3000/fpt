@@ -1719,23 +1719,23 @@ h1,h2,h3{overflow-wrap:anywhere}
   <div class="welcome-card wl">
     <div class="wl-top"><span class="wl-count" id="wlCount">1 / 5</span><button class="reset" type="button" id="welcomeSkip">Overslaan</button></div>
     <div class="wl-view"><div class="wl-track" id="wlTrack">
-      <section class="wl-slide wl-langs">
+      <section class="wl-slide wl-langs" data-wl="lang">
         <div class="wl-globe" aria-hidden="true">🌐</div>
         <h2 id="wlLangTitle" translate="no"></h2>
         <div class="wl-langgrid" id="wlLangs" role="group" translate="no"></div>
       </section>
-      <section class="wl-slide wl-hero">
+      <section class="wl-slide wl-hero" data-wl="hero">
         <div class="wl-logo" id="wlLogo"></div>
         <h2 id="welcomeTitle">Welkom bij <span>Fitness Progress Tracker</span></h2>
         <p>Je persoonlijke trainingscoach: schema's, slimme voorstellen en al je vooruitgang in één app.</p>
       </section>
-      <section class="wl-slide">
+      <section class="wl-slide" data-wl="trainen">
         <p class="wl-kicker">1 · Trainen</p>
         <h2>Eén oefening tegelijk</h2>
         <div class="wl-demo demo-stage" id="wlDemo"></div>
         <p>Volg het voorbeeld, doe je set en tik op <b>✓</b>. Het grijze voorstel staat al klaar en de rusttimer start vanzelf.</p>
       </section>
-      <section class="wl-slide">
+      <section class="wl-slide" data-wl="vooruitgang">
         <p class="wl-kicker">2 · Vooruitgang</p>
         <h2>Elke week een beetje sterker</h2>
         <div class="wl-mock" aria-hidden="true">
@@ -1746,7 +1746,7 @@ h1,h2,h3{overflow-wrap:anywhere}
         </div>
         <p>De app berekent je volgende gewicht en reps, en zegt het wanneer een lichtere week je sneller vooruit helpt.</p>
       </section>
-      <section class="wl-slide">
+      <section class="wl-slide" data-wl="inzicht">
         <p class="wl-kicker">3 · Inzicht</p>
         <h2>Zie wat je bereikt</h2>
         <div class="wl-bars" aria-hidden="true"><i style="--h:34%"></i><i style="--h:52%"></i><i style="--h:46%"></i><i style="--h:68%"></i><i style="--h:60%"></i><i style="--h:84%"></i><i style="--h:100%"></i></div>
@@ -1757,7 +1757,7 @@ h1,h2,h3{overflow-wrap:anywhere}
         </ul>
         <p class="note">Je gegevens zijn alleen voor jou en blijven op je eigen toestel of in je eigen account.</p>
       </section>
-      <section class="wl-slide wl-about">
+      <section class="wl-slide wl-about" data-wl="about">
         <p class="wl-kicker">Over jou</p>
         <h2>Wanneer ben je jarig, hoe lang en hoe zwaar?</h2>
         <p>De app rekent hiermee je energie, krachtniveau en tips uit. Je leeftijd telt op je verjaardag vanzelf één jaar bij. Wijzigen kan later in Instellingen.</p>
@@ -1767,19 +1767,19 @@ h1,h2,h3{overflow-wrap:anywhere}
           <label>Gewicht<span class="g-in"><input id="wWeight" inputmode="decimal" autocomplete="off" placeholder="78"><b id="wWUnit">kg</b></span></label>
         </div>
       </section>
-      <section class="wl-slide wl-goal">
+      <section class="wl-slide wl-goal" data-wl="goal">
         <p class="wl-kicker">Je doel</p>
         <h2>Waar train je voor?</h2>
         <p>De app past herhalingen, rust en voorstellen aan je doel aan. Je kan het later wijzigen in Instellingen.</p>
         <div class="goal-pick" id="wlGoals"></div>
       </section>
-      <section class="wl-slide wl-days">
+      <section class="wl-slide wl-days" data-wl="days">
         <p class="wl-kicker">Je week</p>
         <h2>Hoeveel dagen per week wil je trainen?</h2>
         <p>De app zet je weekplanning klaar en raadt een schema aan dat daarbij past. Wijzigen kan later in Instellingen.</p>
         <div class="days-pick" id="wlDays"></div>
       </section>
-      <section class="wl-slide">
+      <section class="wl-slide" data-wl="start">
         <p class="wl-kicker">4 · Start</p>
         <h2>Kies je schema</h2>
         <p>Je kan dit later altijd wijzigen of een eigen schema maken.</p>
@@ -4117,7 +4117,11 @@ function renderLangSlide(){
   $("wlLangs").innerHTML = LANGS.map(([c, n]) => `<button type="button" class="wl-langbtn" data-l="${c}" lang="${c}" dir="${c === "ar" ? "rtl" : "ltr"}" aria-pressed="${c === lang}">${esc(n)}</button>`).join("");
   $("wlLangs").querySelectorAll("[data-l]").forEach(b => b.onclick = () => { setLang(b.dataset.l); renderLangSlide(); wlGo(1); $("wlNext").focus({ preventScroll: true }); });
 }
-function showWelcome(){
+// First open: skip the pitch slides (hero, trainen, vooruitgang, inzicht) and go straight to your profile.
+// "Uitleg opnieuw tonen" in Instellingen: show that pitch again, skip language/days/scheme (already set).
+const WL_SKIP_FIRST = ["hero", "trainen", "vooruitgang", "inzicht"], WL_SKIP_REPLAY = ["lang", "days", "start"];
+const wlSlides = () => [...document.querySelectorAll(".wl-slide")].filter(sl => !sl.hidden);
+function showWelcome(replay){
   const wireDays = () => $("wlDays").querySelectorAll("[data-days]").forEach(b => b.onclick = () => { setDaysPerWeek(+b.dataset.days); $("wlDays").innerHTML = dayButtons(); wireDays(); welcomeSchemeList(); wlGo(wlAt + 1); });
   $("wlDays").innerHTML = dayButtons(); wireDays();
   $("wlGoals").innerHTML = goalButtons();
@@ -4131,13 +4135,15 @@ function showWelcome(){
   const pr = prefs.profile || {}, kg0 = latestBw();
   $("wBirth").value = pr.birth || ""; $("wAgeNote").textContent = ageNote(pr); $("wHeight").value = pr.height || ""; $("wWeight").value = kg0 ? fmt(toU(kg0)) : ""; $("wWUnit").textContent = U();
   $("wlLogo").innerHTML = document.querySelector(".brand .logo").outerHTML;
-  $("wlDots").innerHTML = [...document.querySelectorAll(".wl-slide")].map(() => "<i></i>").join("");
+  const skip = replay ? WL_SKIP_REPLAY : WL_SKIP_FIRST;
+  document.querySelectorAll(".wl-slide").forEach(sl => { sl.hidden = skip.includes(sl.dataset.wl); });
+  $("wlDots").innerHTML = wlSlides().map(() => "<i></i>").join("");
   $("welcome").hidden = false;
   mountDemo($("wlDemo"), "Bench Press", "push");
   wlGo(0);
 }
 function wlGo(i){
-  const slides = [...document.querySelectorAll(".wl-slide")], n = slides.length;
+  const slides = wlSlides(), n = slides.length;
   wlAt = Math.max(0, Math.min(n - 1, i));
   $("wlTrack").parentElement.scrollLeft = 0; // focus moving inside a slide must not shift the strip
   $("wlTrack").style.transform = `translateX(${(document.documentElement.dir === "rtl" ? 1 : -1) * wlAt * 100}%)`;
@@ -4146,7 +4152,7 @@ function wlGo(i){
   $("wlCount").textContent = `${wlAt + 1} / ${n}`;
   $("wlBack").hidden = !wlAt;
   $("wlNext").hidden = wlAt === n - 1;
-  $("wlNext").textContent = wlAt === 1 ? "Laten we beginnen" : "Volgende";
+  $("wlNext").textContent = slides[wlAt].dataset.wl === "hero" ? "Laten we beginnen" : "Volgende";
 }
 function closeWelcome(){ $("welcome").hidden = true; if (!lsGet("ppl.welcomed", false) || !(prefs.dev || {})["ppl.welcomed"]) devSet("ppl.welcomed", true); }
 // "Over jou": the answers go through the same saving as the profile in Instellingen.
@@ -8199,7 +8205,7 @@ $("viewToday").onclick = () => showPage("today");
 $("settingsBtn").onclick = () => { const st = $("settings"); closeFriends(); st.hidden = !st.hidden; $("settingsBtn").setAttribute("aria-expanded", !st.hidden); renderSettings(); renderProfile(); renderGoalChoice(); renderDaysChoice(); renderLinks(); if (!st.hidden) refreshLinks(); if (!st.hidden) window.scrollTo(0, 0); };
 $("settingsClose").onclick = () => { $("settings").hidden = true; $("settingsBtn").setAttribute("aria-expanded", false); };
 $("settingsSummary").onclick = () => openSummary();
-$("showWelcomeBtn").onclick = () => { $("settings").hidden = true; showWelcome(); };
+$("showWelcomeBtn").onclick = () => { $("settings").hidden = true; showWelcome(true); };
 $("segStyle").onclick = e => { const b = e.target.closest("button"); if (!b) return; devSet(LS_STYLE, b.dataset.v); applyTheme(); renderSettings(); };
 $("segTheme").onclick = e => { const b = e.target.closest("button"); if (!b) return; devSet(LS_THEME, b.dataset.v); applyTheme(); renderSettings(); };
 $("segBig").onclick = e => { const b = e.target.closest("button"); if (!b) return; devSet(LS_BIG, b.dataset.v === "on"); applyTheme(); renderSettings(); };
