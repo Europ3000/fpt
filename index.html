@@ -13,6 +13,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FPT">
 <title>Fitness Progress Tracker</title>
+<!-- Your style and theme before the first paint, so the page does not flash in Retro first (applyTheme does the rest). -->
+<script>(() => { const h = document.documentElement; let s = "plain", t = "system";
+  try { s = JSON.parse(localStorage.getItem("ppl.style")) || s; t = JSON.parse(localStorage.getItem("ppl.theme")) || t; } catch {}
+  h.setAttribute("data-style", ["retro", "plain", "future"].includes(s) ? s : "plain");
+  if (t !== "system") h.setAttribute("data-theme", t); })();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,600..900,0..100,0..1&family=Inter:wght@400;500;600;700;800&family=Barlow+Condensed:ital,wght@0,700;1,700;1,800&family=Press+Start+2P&family=Orbitron:wght@600;800&display=swap">
