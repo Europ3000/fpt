@@ -1,4 +1,5 @@
-// Strava for FPT: swaps the login code for tokens, keeps those tokens on the server and uploads finished workouts.
+// Strava for FPT: swaps the login code for tokens, keeps those tokens on the server, uploads finished workouts
+// and hands the app your activities (also those Garmin Connect passes on to Strava) for the log.
 // Secrets (Edge Functions → Secrets): STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET.
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are present in every Edge Function by default.
 // Turn "Verify JWT" off for this function: it checks the user itself, and "config" works without a login.
@@ -88,6 +89,34 @@ Deno.serve(async (req) => {
       if (r.status === 401) return out({ error: "unlinked" }, 409);
       if (!r.ok) return out({ error: "strava", detail: j.message || r.status }, 502);
       return out({ id: j.id });
+    }
+    // Your activities since `after` (unix seconds), e.g. runs that Garmin Connect passed on to Strava.
+    // Needs the scope activity:read_all; an older link without it answers "scope".
+    if (b.action === "activities") {
+      const t = await fresh(uid);
+      if (!t) return out({ error: "unlinked" }, 409);
+      const H = { Authorization: "Bearer " + t.access_token };
+      const after = Math.max(0, Math.floor(Number(b.after) || 0));
+      const r = await fetch(`https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=30`, { headers: H });
+      const list = await r.json().catch(() => []);
+      if (r.status === 401 || r.status === 403) return out({ error: "scope" }, 409);
+      if (!r.ok || !Array.isArray(list)) return out({ error: "strava", detail: r.status }, 502);
+      const skip = new Set((Array.isArray(b.skip) ? b.skip : []).map(String));
+      const acts = [];
+      for (const a of list.filter((x) => !skip.has(String(x.id))).slice(0, 15)) {
+        // The list leaves out calories and the device: those come with the activity itself.
+        const d = await fetch(`https://www.strava.com/api/v3/activities/${a.id}`, { headers: H }).then((x) => x.ok ? x.json() : a).catch(() => a);
+        acts.push({
+          id: String(a.id), name: d.name || "", sport_type: d.sport_type || d.type || "", trainer: !!d.trainer,
+          start_date: d.start_date, start_date_local: d.start_date_local,
+          moving_time: d.moving_time || 0, elapsed_time: d.elapsed_time || 0, distance: d.distance || 0,
+          elevation: d.total_elevation_gain || 0, average_speed: d.average_speed || 0, max_speed: d.max_speed || 0,
+          average_heartrate: d.average_heartrate || 0, max_heartrate: d.max_heartrate || 0,
+          average_cadence: d.average_cadence || 0, average_watts: d.average_watts || 0,
+          calories: d.calories || d.kilojoules || 0, device_name: d.device_name || "", external_id: d.external_id || "",
+        });
+      }
+      return out({ activities: acts });
     }
     return out({ error: "action" }, 400);
   } catch (e) {

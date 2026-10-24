@@ -22,8 +22,12 @@ Phone-first training app (Dutch source text, translated in the page to 10 more l
 - Linked apps (Delen → Gekoppelde apps): Strava runs through the Edge Function
   `supabase/functions/strava` (secrets STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET, "Verify JWT" off) and the
   table `fpt_links` from `supabase/links.sql` (RLS on, no policies: only the function reaches it). The app
-  only keeps `prefs.links.strava = {name, auto, sent}`. Garmin Connect needs partner approval from Garmin;
-  Health Connect (Samsung Health) and Apple Health need the native apps (Capacitor). Until then: .tcx file.
+  only keeps `prefs.links.strava = {name, auto, sent, read, pull, got, from}`. Strava works both ways: the
+  function's `activities` action (scope `activity:read_all`) hands back new activities, and `stravaPull`
+  puts each one in the log as a cardio entry (`src`, `sid`, plus `hrmax`, `elev`, `cad`, `name`, `dev`) under
+  the matching cardio scheme day (a run under Lopen). Garmin Connect needs partner approval from Garmin, so
+  Garmin activities come in via Strava (Garmin Connect → Strava → FPT) or as a .fit/.tcx/.gpx/.zip file
+  (`importFile`). Health Connect (Samsung Health) and Apple Health need the native apps (Capacitor).
 
 ## Translations
 
