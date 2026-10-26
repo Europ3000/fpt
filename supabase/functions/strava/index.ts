@@ -9,7 +9,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const CID = Deno.env.get("STRAVA_CLIENT_ID") ?? "";
 const SECRET = Deno.env.get("STRAVA_CLIENT_SECRET") ?? "";
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-const ORIGINS = (Deno.env.get("FPT_ORIGINS") ?? "https://europ3000.github.io").split(",").map((o) => o.trim()).filter(Boolean);
+const ORIGINS = (Deno.env.get("FPT_ORIGINS") ?? "https://fptfit.app,https://europ3000.github.io").split(",").map((o) => o.trim()).filter(Boolean);
 const cors = (origin: string) => ({
   "Access-Control-Allow-Origin": ORIGINS.includes(origin) ? origin : ORIGINS[0],
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",

@@ -16,6 +16,11 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).parent      # src/: source page and logo
 OUT = ROOT.parent                          # repository root: the published site
 SB = "https://vcbyebuhmefyydevjsur.supabase.co"
+# The app's own domain. Empty: GitHub's address (europ3000.github.io/fpt). Set it once the domain is registered and
+# its DNS points to GitHub Pages: the build then writes CNAME and GitHub serves the site there (the old address redirects).
+DOMAIN = ""
+# Where the app is moving to: the old address shows "FPT heeft een nieuw adres" as soon as that address serves FPT.
+MOVE_TO = "https://fptfit.app/"
 short_hash = lambda text: hashlib.sha256(text.encode("utf-8")).hexdigest()[:10]
 csp_hash = lambda js: "'sha256-" + base64.b64encode(hashlib.sha256(js.encode("utf-8")).digest()).decode() + "'"
 
@@ -58,7 +63,7 @@ style_end = body_part.index("</style>") + len("</style>")
 style, body = body_part[:style_end], body_part[style_end:]
 theme_js = head_part[head_part.index("<script>") + len("<script>"):head_part.index("</script>")]
 
-boot_js = """window.FPT_STANDALONE = true;
+boot_js = """window.FPT_STANDALONE = true;%s
 window.FPT_I18N = %s;
 window.FPT_I18N_FILES = %s;
 (() => {
@@ -74,7 +79,8 @@ window.FPT_I18N_FILES = %s;
   if (!l) l = (navigator.languages || [navigator.language || ""]).map(x => String(x).slice(0, 2).toLowerCase()).find(x => x === "nl" || FPT_I18N_FILES[x]) || "nl";
   window.FPT_LANG_FILE = FPT_I18N_FILES[l] || "";
   if (FPT_LANG_FILE){ const k = document.createElement("link"); k.rel = "preload"; k.as = "script"; k.href = FPT_LANG_FILE; document.head.appendChild(k); }
-})();""" % (json.dumps({"langs": i18n["langs"]}), json.dumps(lang_files))
+})();""" % (("\nwindow.FPT_HOME = %s;" % json.dumps(f"https://{DOMAIN}/") if DOMAIN else "") + ("\nwindow.FPT_MOVE_TO = %s;" % json.dumps(MOVE_TO) if MOVE_TO else ""),
+              json.dumps({"langs": i18n["langs"]}), json.dumps(lang_files))
 # At the end of the page: the language (if any) and then the app, in that order.
 load_js = """[window.FPT_LANG_FILE, %s].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });""" % json.dumps(app_src)
 
@@ -85,7 +91,7 @@ csp = "; ".join([
     "font-src 'self'",
     "img-src 'self' data: blob:",
     "media-src 'self' data: blob:",
-    f"connect-src 'self' {SB} https://intervals.icu",
+    f"connect-src 'self' {SB} https://intervals.icu" + (" " + MOVE_TO.rstrip("/") if MOVE_TO else ""),
     "worker-src 'self'",
     "manifest-src 'self'",
     "object-src 'none'",
@@ -165,6 +171,13 @@ for size, name in [(32, "favicon-32.png"), (192, "icon-192.png"), (512, "icon-51
     round_logo.resize((size, size), Image.LANCZOS).save(OUT / name, optimize=True)
 Image.open(icons / "fpt-maskable.png").convert("RGBA").resize((512, 512), Image.LANCZOS).save(OUT / "icon-maskable-512.png", optimize=True)
 Image.open(icons / "fpt-apple.png").convert("RGB").resize((180, 180), Image.LANCZOS).save(OUT / "apple-touch-icon.png", optimize=True)
+
+# Own domain for GitHub Pages; the Play Store check (Digital Asset Links) must sit at the root of that domain.
+if DOMAIN: (OUT / "CNAME").write_text(DOMAIN + "\n", encoding="utf-8")
+elif (OUT / "CNAME").exists(): (OUT / "CNAME").unlink()
+if (ROOT / "store" / "assetlinks.json").exists():
+    (OUT / ".well-known").mkdir(exist_ok=True)
+    shutil.copyfile(ROOT / "store" / "assetlinks.json", OUT / ".well-known" / "assetlinks.json")
 
 version = time.strftime("%Y%m%d%H%M%S")
 shell = ["./", app_src, "manifest.webmanifest", "favicon-32.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"]

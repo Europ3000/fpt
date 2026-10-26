@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-moB11x5xNkb+JKgp6kfgewsw1OD2FMJm9LJhjDSuIFY=' 'sha256-YdxkSHvaymc9DUpxI9TEx0Y/NwiUHzCojLp0ncuq0X8='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-4A40VqbXTJYBHgXVFV3yrajKzfK+tO+pOVbPay8UBLc=' 'sha256-q7tHyYSsH0hVyyxcQQUCsunS94s86YebOy7EcsWxlA0='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#16a34a">
@@ -16,10 +16,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FPT">
 <meta name="application-name" content="FPT">
-<link rel="preload" as="script" href="app.js?v=1cefa02407">
+<link rel="preload" as="script" href="app.js?v=3a4060658f">
 <script>window.FPT_STANDALONE = true;
+window.FPT_MOVE_TO = "https://fptfit.app/";
 window.FPT_I18N = {"langs": ["en", "fr", "es", "de", "it", "pt", "ru", "zh", "ar", "hi"]};
-window.FPT_I18N_FILES = {"en": "i18n/en.js?v=3fc489ca68", "fr": "i18n/fr.js?v=7bc71d3906", "es": "i18n/es.js?v=36aa2b20fd", "de": "i18n/de.js?v=c26f7be9a9", "it": "i18n/it.js?v=4db74c63d8", "pt": "i18n/pt.js?v=cf9095c07a", "ru": "i18n/ru.js?v=7dabdc671b", "zh": "i18n/zh.js?v=878e5d4280", "ar": "i18n/ar.js?v=b6b804ec51", "hi": "i18n/hi.js?v=9db4d08a4f"};
+window.FPT_I18N_FILES = {"en": "i18n/en.js?v=db1bdf8e6f", "fr": "i18n/fr.js?v=8ed9111393", "es": "i18n/es.js?v=35a16a6fe3", "de": "i18n/de.js?v=b0b24b0424", "it": "i18n/it.js?v=9541a91601", "pt": "i18n/pt.js?v=d511a820e2", "ru": "i18n/ru.js?v=267a75e174", "zh": "i18n/zh.js?v=8cb1df4027", "ar": "i18n/ar.js?v=41d0e37f9b", "hi": "i18n/hi.js?v=650d424904"};
 (() => {
   // Not inside someone else's page (clickjacking): break out, or show nothing.
   if (top !== self){ try { top.location.replace(location.href); } catch {} document.documentElement.style.display = "none"; }
@@ -650,6 +651,9 @@ body.rest-each #restBar{display:none}
 .tips:empty{display:none}
 .tips .tips-h{list-style:none;margin-left:-1.1rem;font-size:.7rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ember)}
 .tip-card{background:var(--teal-soft);border-color:transparent}
+.move-card{background:var(--ember-soft);border-color:var(--ember)}
+.move-card h2,.move-card p{margin:0}
+.move-host{font-weight:800;font-size:1.15rem}
 .tip-card p{margin:0;font-size:.95rem}
 .sum-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:12px}
 .sum-list li{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:12px;border-radius:12px;background:color-mix(in srgb,var(--teal) 8%,var(--card));border:1px solid var(--line)}
@@ -1434,7 +1438,8 @@ h1,h2,h3{overflow-wrap:anywhere}
       <button class="view-btn" id="viewPlan" type="button" role="tab" aria-selected="false">Planning</button>
     </div>
     <nav class="mod-jump" id="statsJump" aria-label="Ga naar een blok" hidden></nav>
-  </header>
+   </header>
+  <section class="panel move-card" id="moveCard" hidden></section>
 
   <section class="panel settings" id="settings" hidden>
     <h2>Instellingen</h2>
@@ -1943,6 +1948,6 @@ h1,h2,h3{overflow-wrap:anywhere}
     <button type="button" id="restStop">Stop</button>
   </div>
 </div>
-<script>[window.FPT_LANG_FILE, "app.js?v=1cefa02407"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
+<script>[window.FPT_LANG_FILE, "app.js?v=3a4060658f"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
 </body>
 </html>

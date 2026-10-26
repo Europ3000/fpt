@@ -24,6 +24,20 @@ Phone-first training app (Dutch source text, translated in the page to 10 more l
 - The claude.ai artifact https://claude.ai/artifact/YALR6JNP2gzcr65ixxeyfA is retired (since 2026-10-23):
   its last version only points to the app. Do not republish it; work on the GitHub app only.
 
+## Own domain: fptfit.app (move in progress since 2026-10-26)
+
+- `build.py`: `DOMAIN` (empty = europ3000.github.io/fpt) and `MOVE_TO = "https://fptfit.app/"`. With `DOMAIN`
+  set the build writes `CNAME`, sets `window.FPT_HOME` (used for share links and the story images:
+  `APP_HOME` / `APP_HOST`), and GitHub redirects the old address.
+- The old address shows "FPT heeft een nieuw adres" (`#moveCard`) once `MOVE_TO` serves FPT (its manifest, read
+  with CORS, so a registrar's parking page does not count). "Verhuizen met je gegevens" opens
+  `fptfit.app/#move=<packed back-up>`; the new address asks before `restoreItems` takes it over. Only `ppl.*`
+  keys travel; the login does not (log in again, the sync then unites both copies).
+- Old devices keep the old app from their service-worker cache after the redirect (a redirected `sw.js` cannot
+  update), which is what keeps the move card working there.
+- Store packages: Android package name `app.fptfit.twa`; `src/store/assetlinks.json` (when present) is published
+  as `/.well-known/assetlinks.json` (`_config.yml` includes `.well-known`).
+
 ## Account and sync (Supabase)
 
 - The stand-alone app (`window.FPT_STANDALONE`) logs in with Google or an email link and syncs with

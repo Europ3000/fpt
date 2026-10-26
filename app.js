@@ -236,6 +236,7 @@ const $ = id => document.getElementById(id);
 // The stand-alone version (own website, no Claude) sets window.FPT_STANDALONE: data stays on the device,
 // with a backup file instead of account sync, and it installs as an app with its own icon.
 const STANDALONE = !!window.FPT_STANDALONE;
+const APP_HOME = window.FPT_HOME || "https://europ3000.github.io/fpt/", APP_HOST = APP_HOME.replace(/^https?:\/\//, "").replace(/\/$/, "");
 const keyOf = name => name.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || "x" + [...name].map(c => c.codePointAt(0).toString(36)).join("");
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = n => (Math.round(n*100)/100).toString().replace(".", DEC());
@@ -3439,7 +3440,7 @@ const STORY_STYLES = {
     stripes(H - 230, phase(t, .3, 1.3));
     x.globalAlpha = easeOut(phase(t, .5, 1.5));
     x.fillStyle = INK; x.font = "900 54px Fraunces"; x.fillText("Fitness Progress Tracker", W / 2, H - 120);
-    x.fillStyle = MUTED; x.font = "500 32px Inter"; x.fillText("europ3000.github.io/fpt", W / 2, H - 70);
+    x.fillStyle = MUTED; x.font = "500 32px Inter"; x.fillText(APP_HOST, W / 2, H - 70);
     x.globalAlpha = 1;
   } },
   plain: { name: "Standaard", sub: "Strak en sportief", draw(x, t, d, A){
@@ -3494,7 +3495,7 @@ const STORY_STYLES = {
     }
     x.globalAlpha = easeOut(phase(t, .5, 1.5)); x.textAlign = al;
     x.fillStyle = INK; x.font = "italic 800 64px 'Barlow Condensed'"; x.fillText("FITNESS PROGRESS TRACKER", lx, H - 130);
-    x.fillStyle = MUTED; x.font = "600 32px Inter"; x.fillText("europ3000.github.io/fpt", lx, H - 80);
+    x.fillStyle = MUTED; x.font = "600 32px Inter"; x.fillText(APP_HOST, lx, H - 80);
     x.globalAlpha = 1;
   } },
   future: { name: "Future", sub: "Neon", draw(x, t, d, A){
@@ -3564,7 +3565,7 @@ const STORY_STYLES = {
     const sy = (t * 420) % H; x.fillStyle = "rgba(34,211,238,.07)"; x.fillRect(0, sy, W, 60);
     x.globalAlpha = easeOut(phase(t, .5, 1.5));
     x.fillStyle = INK; glow(VI, 22); x.font = "800 44px Orbitron"; fitFont(x, "FITNESS PROGRESS TRACKER", "800 {s}px Orbitron", 44, W - 140); x.fillText("FITNESS PROGRESS TRACKER", W / 2, H - 120); x.shadowBlur = 0;
-    x.fillStyle = MUTED; x.font = "500 32px Inter"; x.fillText("europ3000.github.io/fpt", W / 2, H - 70);
+    x.fillStyle = MUTED; x.font = "500 32px Inter"; x.fillText(APP_HOST, W / 2, H - 70);
     x.globalAlpha = 1;
   } },
   arcade: { name: "Arcade", sub: "8-bit", draw(x, t, d, A){
@@ -7068,8 +7069,7 @@ $("logFilter").onclick = e => { const b = e.target.closest("button"); if (!b) re
   $("logFilter").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); renderStats(); };
 // ---------- Stand-alone: backup file and offline app ----------
 function exportBackup(){
-  const data = { app: "FPT", version: 1, date: new Date().toISOString(), items: {} };
-  for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (k && k.startsWith("ppl.")) data.items[k] = localStorage.getItem(k); }
+  const data = backupData();
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
   a.download = `fpt-backup-${today()}.json`;
@@ -7078,22 +7078,29 @@ function exportBackup(){
   lsSet("ppl.lastBackup", today());
   toast("Back-up gedownload. Bewaar het bestand op een veilige plek.");
 }
+// A back-up (file or move link): only this app's own keys, as text; anything else in it is ignored.
+function restoreItems(d){
+  if (!d || d.app !== "FPT" || !d.items || typeof d.items !== "object") return false;
+  const items = Object.entries(d.items).filter(([k, v]) => /^ppl\.[\w.-]{1,40}$/.test(k) && typeof v === "string" && v.length < 5e6);
+  if (!items.length) return false;
+  try { items.forEach(([k, v]) => { JSON.parse(v); }); } catch { return false; }
+  items.forEach(([k, v]) => localStorage.setItem(k, v));
+  localStorage.removeItem(SYNC_LS);   // the back-up is added to your account, it does not count as deleting what it lacks
+  return true;
+}
+function backupData(){
+  const data = { app: "FPT", version: 1, date: new Date().toISOString(), items: {} };
+  for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (k && k.startsWith("ppl.")) data.items[k] = localStorage.getItem(k); }
+  return data;
+}
 function importBackup(file){
   if (file.size > 20e6) return void toast("Dit is geen geldige FPT-back-up.");
   const r = new FileReader();
   r.onload = () => {
-    try {
-      const d = JSON.parse(r.result);
-      if (d.app !== "FPT" || !d.items || typeof d.items !== "object") throw new Error("bad");
-      // Only this app's own keys, as text; anything else in the file is ignored.
-      const items = Object.entries(d.items).filter(([k, v]) => /^ppl\.[\w.-]{1,40}$/.test(k) && typeof v === "string" && v.length < 5e6);
-      if (!items.length) throw new Error("bad");
-      items.forEach(([k, v]) => { JSON.parse(v); });
-      items.forEach(([k, v]) => localStorage.setItem(k, v));
-      localStorage.removeItem(SYNC_LS);   // the back-up is added to your account, it does not count as deleting what it lacks
-      toast("Back-up teruggezet. De app laadt opnieuw.");
-      setTimeout(() => location.reload(), 900);
-    } catch { toast("Dit is geen geldige FPT-back-up."); }
+    let ok = false; try { ok = restoreItems(JSON.parse(r.result)); } catch {}
+    if (!ok) return void toast("Dit is geen geldige FPT-back-up.");
+    toast("Back-up teruggezet. De app laadt opnieuw.");
+    setTimeout(() => location.reload(), 900);
   };
   r.readAsText(file);
 }
@@ -7185,7 +7192,7 @@ $("resetDay").onclick = () => {
 
 // ---------- Friends: share schemes and goals by link; per friend an eye decides what they see ----------
 // Nothing goes to a server: the shared data travels inside the link (after the #), in WhatsApp or a text message.
-const SHARE_BASE = "https://europ3000.github.io/fpt/";
+const SHARE_BASE = APP_HOME;
 const EYE_ON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
 const EYE_OFF = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a9.6 9.6 0 0 0 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>`;
 const goalKey = g => [g.name, g.type, g.date || ""].join("|");
@@ -7214,12 +7221,12 @@ async function packShare(obj){
   }
   return "j" + b64u(raw);
 }
-async function unpackShare(str){
+async function unpackShare(str, max = 3e5){
   let b = unb64u(str.slice(1));
   if (str[0] === "z"){
-    // read at most 300 KB, so a crafted link cannot blow up
+    // read at most `max` (300 KB for a shared link), so a crafted link cannot blow up
     const r = new Blob([b]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader(), parts = []; let n = 0;
-    for (;;){ const { done, value } = await r.read(); if (done) break; n += value.length; if (n > 3e5){ r.cancel(); throw new Error("big"); } parts.push(value); }
+    for (;;){ const { done, value } = await r.read(); if (done) break; n += value.length; if (n > max){ r.cancel(); throw new Error("big"); } parts.push(value); }
     b = new Uint8Array(n); let o = 0; parts.forEach(x => { b.set(x, o); o += x.length; });
   } else if (str[0] !== "j") throw new Error("bad");
   return JSON.parse(new TextDecoder().decode(b), (k, x) => k === "__proto__" ? undefined : x);
@@ -7301,6 +7308,34 @@ $("friendsClose").onclick = closeFriends;
   prefs.fromFriends = [data].concat((prefs.fromFriends || []).filter(x => x.from !== data.from)).slice(0, 20); savePrefs();
   if ($("welcome").hidden) openFriends(); else friendsBadge();
   toast(`${data.from} deelt schema's en doelen met je.`);
+})();
+
+// ---------- New address: the old one offers to move, the new one takes your data over ----------
+// Your data lives per web address, so it travels inside the link (after the #: it never reaches a server).
+// build.py sets FPT_MOVE_TO; the card only shows once the new address really serves FPT (not a registrar's parking page).
+const MOVE_TO = window.FPT_MOVE_TO || "";
+if (STANDALONE && MOVE_TO && new URL(MOVE_TO).origin !== location.origin){
+  fetch(MOVE_TO + "manifest.webmanifest", { cache: "no-store" }).then(r => r.json()).then(m => {
+    if (m.name !== "Fitness Progress Tracker") return;
+    const box = $("moveCard");
+    box.innerHTML = `<h2>FPT heeft een nieuw adres</h2><p class="move-host" translate="no">${esc(new URL(MOVE_TO).host)}</p>
+      <p>Open de app voortaan op het nieuwe adres. Tik op de knop: je gegevens van dit toestel gaan mee.</p>
+      <button class="save" type="button" id="moveBtn">Verhuizen met je gegevens</button>
+      <p class="note">Installeerde je FPT als app? Installeer hem daarna opnieuw vanaf het nieuwe adres en verwijder de oude.</p>`;
+    box.hidden = false;
+    $("moveBtn").onclick = async () => { location.href = MOVE_TO + "#move=" + await packShare(backupData()); };
+  }).catch(() => {});
+}
+(async () => {
+  const m = /^#move=([A-Za-z0-9_-]{2,8000000})$/.exec(location.hash); if (!m) return;
+  try { history.replaceState(null, "", location.pathname + location.search); } catch {}
+  let d = null; try { d = await unpackShare(m[1], 20e6); } catch {}
+  if (!d || d.app !== "FPT") return void toast("Deze verhuislink kan niet gelezen worden.");
+  // a link can come from anyone: always ask before it replaces what is here
+  if (!confirm(tr(Object.keys(log).length ? "Je gegevens van het oude adres overnemen? Wat nu op dit adres staat, wordt vervangen." : "Je gegevens van het oude adres overnemen?"))) return;
+  if (!restoreItems(d)) return void toast("Deze verhuislink kan niet gelezen worden.");
+  toast("Je gegevens zijn verhuisd. De app laadt opnieuw.");
+  setTimeout(() => location.reload(), 900);
 })();
 
 // Opening the app on a new day: jump to the next day of your scheme.
