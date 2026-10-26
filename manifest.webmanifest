@@ -35,5 +35,42 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot-phone.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Vandaag: je volgende training, tip en week"
+    },
+    {
+      "src": "screenshot-phone-2.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Training: voorstel voor gewicht en reps"
+    },
+    {
+      "src": "screenshot-phone-3.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Analytics: sets per spiergroep"
+    },
+    {
+      "src": "screenshot-wide.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Analytics op een pc"
+    },
+    {
+      "src": "screenshot-wide-2.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Training op een pc"
+    }
   ]
 }

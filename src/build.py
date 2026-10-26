@@ -146,14 +146,16 @@ manifest = {
         {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
     ]
 }
-# Optional: screenshots in src/screenshots/ (a phone one, about 1080x1920, and a wide one, about 1920x1080)
-# give the richer install window in Chrome and Edge, on phones and on PCs.
-shots = [("screenshot-phone.png", "narrow", "Vandaag: je volgende training en je week"), ("screenshot-wide.png", "wide", "FPT op een pc")]
-for name, form, label in shots:
-    if (ROOT / "screenshots" / name).exists():
-        shutil.copyfile(ROOT / "screenshots" / name, OUT / name)
-        w, h = Image.open(OUT / name).size
-        manifest.setdefault("screenshots", []).append({"src": name, "sizes": f"{w}x{h}", "type": "image/png", "form_factor": form, "label": label})
+# Screenshots (tools/screenshots.py) give the richer install window in Chrome and Edge, on phones and on PCs,
+# and are the store screenshots. "wide" in the name: PC (16:9), otherwise phone (9:16).
+LABELS = {"screenshot-phone.png": "Vandaag: je volgende training, tip en week", "screenshot-phone-2.png": "Training: voorstel voor gewicht en reps",
+          "screenshot-phone-3.png": "Analytics: sets per spiergroep", "screenshot-wide.png": "Analytics op een pc", "screenshot-wide-2.png": "Training op een pc"}
+for old in OUT.glob("screenshot-*.png"): old.unlink()
+for shot in sorted((ROOT / "screenshots").glob("screenshot-*.png"), key=lambda p: p.stem):
+    shutil.copyfile(shot, OUT / shot.name)
+    w, h = Image.open(shot).size
+    manifest.setdefault("screenshots", []).append({"src": shot.name, "sizes": f"{w}x{h}", "type": "image/png",
+        "form_factor": "wide" if "wide" in shot.name else "narrow", "label": LABELS.get(shot.name, "FPT")})
 (OUT / "manifest.webmanifest").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
 
 # Round badge (made by tools/make_icons.py): round for "any", full-bleed for maskable launchers and iOS.
