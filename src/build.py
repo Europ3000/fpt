@@ -18,7 +18,7 @@ OUT = ROOT.parent                          # repository root: the published site
 SB = "https://vcbyebuhmefyydevjsur.supabase.co"
 # The app's own domain. Empty: GitHub's address (europ3000.github.io/fpt). Set it once the domain is registered and
 # its DNS points to GitHub Pages: the build then writes CNAME and GitHub serves the site there (the old address redirects).
-DOMAIN = ""
+DOMAIN = "fptfit.app"
 # Where the app is moving to: the old address shows "FPT heeft een nieuw adres" as soon as that address serves FPT.
 MOVE_TO = "https://fptfit.app/"
 short_hash = lambda text: hashlib.sha256(text.encode("utf-8")).hexdigest()[:10]

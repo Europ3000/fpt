@@ -3,11 +3,11 @@
 Persoonlijke fitness-app: schema's (push/pull, core, cardio, mobiliteit, yoga), voorstellen voor gewicht en reps, rusttimer en je vooruitgang.
 Werkt op elke smartphone (Android en iPhone), tablet en pc, ook zonder internet.
 
-- **Als website:** open https://europ3000.github.io/fpt/ in elke browser.
+- **Als website:** open https://fptfit.app/ in elke browser.
 - **Als app op je telefoon:** Android (Chrome, Samsung Internet): Instellingen → App installeren in FPT, of het menu van je browser → App installeren. iPhone/iPad: Safari → Deel → Zet op beginscherm.
 - **Als app op je pc:** Windows, macOS, Linux, ChromeOS: open de pagina in Chrome of Edge en klik op het installeer-icoon in de adresbalk (of Instellingen → App installeren in FPT). Mac met Safari: Archief → Voeg toe aan Dock. FPT opent dan in een eigen venster en staat bij je andere programma's.
 
-**App:** https://europ3000.github.io/fpt/
+**App:** https://fptfit.app/
 
 ## Opbouw
 

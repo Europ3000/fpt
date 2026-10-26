@@ -4,7 +4,8 @@ Phone-first training app (Dutch source text, translated in the page to 10 more l
 
 - `src/training-log.html` is the whole app (HTML + CSS + JS in one file).
 - `py src/build.py` (or `python src/build.py`) builds the stand-alone PWA into the repo root. GitHub Pages
-  serves the root: https://europ3000.github.io/fpt/. The build splits the page so it loads fast:
+  serves the root at https://fptfit.app/ (own domain, `CNAME`; the old https://europ3000.github.io/fpt/
+  redirects there). The build splits the page so it loads fast:
   `index.html` (markup + CSS), `app.js` (the main script), `i18n/<lang>.js` (one per language, loaded only
   when used; Dutch needs none), `fonts/` (self-hosted, from `src/fonts/`), `sw.js`, `manifest.webmanifest`
   and the icons. Files are referenced as `app.js?v=<hash>`, so a changed file gets a new URL.
@@ -24,7 +25,7 @@ Phone-first training app (Dutch source text, translated in the page to 10 more l
 - The claude.ai artifact https://claude.ai/artifact/YALR6JNP2gzcr65ixxeyfA is retired (since 2026-10-23):
   its last version only points to the app. Do not republish it; work on the GitHub app only.
 
-## Own domain: fptfit.app (move in progress since 2026-10-26)
+## Own domain: fptfit.app (live since 2026-10-26)
 
 - `build.py`: `DOMAIN` (empty = europ3000.github.io/fpt) and `MOVE_TO = "https://fptfit.app/"`. With `DOMAIN`
   set the build writes `CNAME`, sets `window.FPT_HOME` (used for share links and the story images:
@@ -54,7 +55,7 @@ Phone-first training app (Dutch source text, translated in the page to 10 more l
 - The Strava function only answers the app's own origin (`https://europ3000.github.io`; optional secret
   `FPT_ORIGINS` to add more, comma-separated). Redeploy it after changing `index.ts`.
 - In the Supabase dashboard: Authentication → URL Configuration, Site URL and the only redirect URL
-  `https://europ3000.github.io/fpt/` (plus `http://localhost:8765/` for testing if wanted).
+  `https://fptfit.app/`; keep `https://europ3000.github.io/fpt/` as an extra redirect URL for old devices.
 - Linked apps (Delen → Gekoppelde apps): Strava runs through the Edge Function
   `supabase/functions/strava` (secrets STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET, "Verify JWT" off) and the
   table `fpt_links` from `supabase/links.sql` (RLS on, no policies: only the function reaches it). The app
