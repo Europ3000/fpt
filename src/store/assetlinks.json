@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.fptfit.twa",
+      "sha256_cert_fingerprints": [
+        "60:11:75:F9:BA:18:6C:EB:E1:9A:9A:01:81:52:DF:9E:85:12:FF:97:3B:03:91:39:46:A9:9E:11:40:04:6E:E0"
+      ]
+    }
+  }
+]
