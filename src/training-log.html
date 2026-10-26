@@ -1705,7 +1705,6 @@ h1,h2,h3{overflow-wrap:anywhere}
           <button class="mod-toggle" type="button" aria-expanded="true"><h2>Programma's</h2><span class="chev" aria-hidden="true">▾</span></button>
           <button class="plus-btn hd-btn" id="orderScheme" type="button" aria-label="Volgorde aanpassen" title="Volgorde aanpassen" aria-expanded="false">⇅</button>
           <button class="plus-btn hd-btn" id="ownScheme" type="button" aria-label="Iets nieuws maken" title="Nieuw schema, groepsles, kineprogramma of meditatie" aria-expanded="false">+</button>
-          <span class="mod-order"><button class="mod-order-btn mod-order-toggle" type="button" aria-label="Volgorde aanpassen" title="Volgorde aanpassen"><span aria-hidden="true">⌃</span><span aria-hidden="true">⌄</span></button><button class="mod-order-btn mod-up" type="button" aria-label="Omhoog" title="Omhoog" hidden>▲</button><button class="mod-order-btn mod-down" type="button" aria-label="Omlaag" title="Omlaag" hidden>▼</button></span>
         </div>
         <div class="mod-body">
   <div class="cat-pick" id="catPick" hidden></div>
@@ -6940,7 +6939,7 @@ function renderDayTools(){
   const full = estMinutes(base);
   const opts = (estMinutes(sh) < full ? [[30, "Kort", estMinutes(sh)]] : []).concat([[0, "Volledig", full]], lg.length > base.length && estMinutes(lg) > full ? [[LONG_MIN, "Lang", estMinutes(lg)]] : []);
   $("dayTools").hidden = editing || !all.length;
-  $("durBtn").hidden = editing || !all.length;
+  $("durBtn").hidden = editing;
   $("durBtn").setAttribute("aria-pressed", durOpen); $("durBtn").setAttribute("aria-expanded", durOpen);
   $("dayTools").innerHTML = `
     ${durOpen ? `<div class="dt-group" role="group" aria-label="Duur"><span class="dt-label">Duur</span>
