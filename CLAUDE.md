@@ -51,6 +51,12 @@ Phone-first training app (Dutch source text, translated in the page to 10 more l
 - Login links: the app only takes a session from the URL hash without asking when this device asked for a
   login (`fpt.sbWait`); otherwise it asks "Inloggen als …?" (stops someone slipping you their own session).
   Strava's OAuth `state` is random and checked (`fpt.stravaState`).
+- Deleting an account (Google Play requires it): Instellingen → Account → Account verwijderen calls the Edge
+  Function `supabase/functions/account` (`deleteAccount`): Strava deauthorize, rows in `fpt_links`/`fpt_store`, then
+  `auth.admin.deleteUser`. Local data stays; `wipeDevice` (Back-up en gegevens → Wissen) removes all `ppl.*`/`fpt.*`.
+- Privacy policy: `src/privacy.html` (Dutch + English, no scripts), copied to https://fptfit.app/privacy.html; linked
+  under Back-up en gegevens. Contact privacy@fptfit.app (mail forwarding at the registrar). Keep it in line with what the
+  app stores when you add features.
 - `supabase/limits.sql` (run once): key/value size limits and at most 20 000 rows per user.
 - The Strava function only answers the app's own origin (`https://europ3000.github.io`; optional secret
   `FPT_ORIGINS` to add more, comma-separated). Redeploy it after changing `index.ts`.

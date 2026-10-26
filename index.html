@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-GABWy/mI7ZCWLvIE0k6xNsKV4lLGrt5N8GStJcUpAxo=' 'sha256-q7tHyYSsH0hVyyxcQQUCsunS94s86YebOy7EcsWxlA0='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-OSyu+3PLN8Pd4K8iZsbLXcmnHHRDmfeyp84UEMUuVqc=' 'sha256-AaRC6F4ytLBRTxfI2SmGpevZ2sZdY4VsuPNC6JSLyB8='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#16a34a">
@@ -16,12 +16,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FPT">
 <meta name="application-name" content="FPT">
-<link rel="preload" as="script" href="app.js?v=3a4060658f">
+<link rel="preload" as="script" href="app.js?v=0ff8fd9347">
 <script>window.FPT_STANDALONE = true;
 window.FPT_HOME = "https://fptfit.app/";
 window.FPT_MOVE_TO = "https://fptfit.app/";
 window.FPT_I18N = {"langs": ["en", "fr", "es", "de", "it", "pt", "ru", "zh", "ar", "hi"]};
-window.FPT_I18N_FILES = {"en": "i18n/en.js?v=db1bdf8e6f", "fr": "i18n/fr.js?v=8ed9111393", "es": "i18n/es.js?v=35a16a6fe3", "de": "i18n/de.js?v=b0b24b0424", "it": "i18n/it.js?v=9541a91601", "pt": "i18n/pt.js?v=d511a820e2", "ru": "i18n/ru.js?v=267a75e174", "zh": "i18n/zh.js?v=8cb1df4027", "ar": "i18n/ar.js?v=41d0e37f9b", "hi": "i18n/hi.js?v=650d424904"};
+window.FPT_I18N_FILES = {"en": "i18n/en.js?v=56b01eb4f2", "fr": "i18n/fr.js?v=f29ff165a2", "es": "i18n/es.js?v=1698603af6", "de": "i18n/de.js?v=d9a0ae0af3", "it": "i18n/it.js?v=922b882a1d", "pt": "i18n/pt.js?v=e551c8c8b6", "ru": "i18n/ru.js?v=6dce9b570f", "zh": "i18n/zh.js?v=7b3014831b", "ar": "i18n/ar.js?v=c9deecf8eb", "hi": "i18n/hi.js?v=640124d01f"};
 (() => {
   // Not inside someone else's page (clickjacking): break out, or show nothing.
   if (top !== self){ try { top.location.replace(location.href); } catch {} document.documentElement.style.display = "none"; }
@@ -1351,6 +1351,9 @@ button.cal-d{font:inherit;font-size:.85rem;padding:5px 0;background:none;cursor:
 :root[data-style] #musBars .mb.high .mb-fill{background:#f08a24}
 .acct{margin:10px 0 14px;display:grid;gap:6px}
 .acct-h{font-weight:700;margin:0}
+.danger-btn{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
+.acct-del{justify-self:start;font:inherit;font-size:.85rem;font-weight:600;background:none;border:0;color:var(--bad);text-decoration:underline;cursor:pointer;padding:8px 0;min-height:32px}
+#privacyNote a{color:var(--ink);font-weight:600}
 .acct .note{margin:0}
 .acct-form{display:flex;gap:8px;flex-wrap:wrap}
 .acct-form input{font:inherit;flex:1 1 180px;min-width:0;padding:11px 12px;border-radius:11px;border:1.5px solid var(--line);background:var(--card);color:var(--ink)}
@@ -1467,6 +1470,8 @@ h1,h2,h3{overflow-wrap:anywhere}
       <div class="store"><span class="dot" id="storeDot"></span><span id="storeText">Verbinden met je opgeslagen gegevens…</span></div>
     <div class="acct" id="acctBox" hidden></div>
     <div class="set-row" id="backupRow" hidden><span>Back-up</span><div class="bk-btns"><button class="ghost" type="button" id="backupDl">Downloaden</button><label class="ghost file-btn">Terugzetten<input type="file" id="backupFile" accept="application/json,.json" hidden></label></div></div>
+    <div class="set-row" id="wipeRow" hidden><span>Gegevens op dit toestel</span><button class="ghost danger-btn" type="button" id="wipeBtn">Wissen</button></div>
+    <p class="note" id="privacyNote" hidden><a href="privacy.html" target="_blank" rel="noopener">Privacybeleid</a> · wat FPT bewaart, waar, en hoe je alles verwijdert.</p>
     <p class="note" id="backupNote" hidden>Je gegevens staan alleen op dit toestel, in deze browser. Download af en toe een back-up (bv. naar Google Drive) zodat je niets verliest als je van telefoon wisselt.</p>
     </div>
     <div class="entry-row"><button class="ghost wide sum-btn" type="button" id="settingsSummary">Samenvatting</button></div>
@@ -1949,6 +1954,6 @@ h1,h2,h3{overflow-wrap:anywhere}
     <button type="button" id="restStop">Stop</button>
   </div>
 </div>
-<script>[window.FPT_LANG_FILE, "app.js?v=3a4060658f"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
+<script>[window.FPT_LANG_FILE, "app.js?v=0ff8fd9347"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
 </body>
 </html>

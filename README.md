@@ -41,7 +41,8 @@ Wat jij doet:
 2. Maak de app aan (Nederlands, gratis) en upload het `.aab`-bestand eerst naar **Interne test**.
    Een nieuw persoonlijk account moet eerst 14 dagen een gesloten test doen met minstens 12 testers voor de app openbaar mag.
 3. Google ondertekent de app opnieuw met een eigen sleutel (Play App Signing). Kopieer bij **Testen en releasen → App-integriteit → App-ondertekening** de SHA-256 van de *app-ondertekeningssleutel* en geef die door: die komt dan bij in `src/store/assetlinks.json`. Anders toont de app bovenaan een kleine browserbalk.
-4. Winkelvermelding: icoon (`icon-512.png`), telefoonscreenshots (`src/screenshots/screenshot-phone*.png`), een privacybeleid-URL en het formulier Gegevensveiligheid.
+4. Winkelvermelding: icoon (`icon-512.png`), telefoonscreenshots (`src/screenshots/screenshot-phone*.png`), privacybeleid: https://fptfit.app/privacy.html, en het formulier Gegevensveiligheid.
+5. Gegevensveiligheid → account verwijderen: in de app via Instellingen → Account → Account verwijderen; als weblink: https://fptfit.app/privacy.html#verwijderen
 
 Een update: verhoog de versiecode en onderteken met dezelfde sleutel (op pwabuilder.com: "Use mine" met `signing.keystore`).
 
@@ -50,4 +51,4 @@ Een update: verhoog de versiecode en onderteken met dezelfde sleutel (op pwabuil
 1. Maak een ontwikkelaarsaccount aan in Partner Center: https://partner.microsoft.com/dashboard (voor particulieren gratis).
 2. Reserveer de naam van de app (bv. "Fitness Progress Tracker").
 3. Kopieer bij **Product-identiteit**: *Package/Identity/Name*, *Package/Identity/Publisher* (begint met `CN=`) en *Package/Properties/PublisherDisplayName*. Daarmee wordt het MSIX-pakket gemaakt.
-4. Upload het pakket met de pc-screenshots (`src/screenshots/screenshot-wide*.png`) en een privacybeleid-URL.
+4. Upload het pakket met de pc-screenshots (`src/screenshots/screenshot-wide*.png`) en het privacybeleid: https://fptfit.app/privacy.html

@@ -7105,7 +7105,8 @@ function importBackup(file){
   r.readAsText(file);
 }
 if (STANDALONE){
-  $("backupRow").hidden = false; $("backupNote").hidden = false;
+  $("backupRow").hidden = false; $("backupNote").hidden = false; $("wipeRow").hidden = false; $("privacyNote").hidden = false;
+  $("wipeBtn").onclick = wipeDevice;
   $("backupDl").onclick = exportBackup;
   $("backupFile").addEventListener("change", e => { const f = e.target.files[0]; if (f) importBackup(f); e.target.value = ""; });
   if ("serviceWorker" in navigator){
@@ -7402,8 +7403,10 @@ function renderAccount(){
   box.hidden = false;
   if (sbSession){
     box.innerHTML = `<p class="acct-h">Account</p><p class="note">Ingelogd als <b translate="no">${esc(sbSession.user.email || "")}</b>. Je trainingen worden gesynchroniseerd tussen al je toestellen.</p>
-      <div class="entry-row"><button class="ghost wide" type="button" id="acctSync">Nu synchroniseren</button><button class="ghost wide" type="button" id="acctOut">Uitloggen</button></div>`;
+      <div class="entry-row"><button class="ghost wide" type="button" id="acctSync">Nu synchroniseren</button><button class="ghost wide" type="button" id="acctOut">Uitloggen</button></div>
+      <button class="acct-del" type="button" id="acctDel">Account verwijderen</button>`;
     $("acctSync").onclick = () => connectStore();
+    $("acctDel").onclick = deleteAccount;
     $("acctOut").onclick = () => {
       sbSave(null); recordsRef = prefsRef = layoutRef = logCol = null;
       setStore(false, "Uitgelogd. Je gegevens blijven op dit toestel staan."); renderAccount();
@@ -7448,6 +7451,27 @@ function renderAccount(){
       catch (err) { toast(err.status === 429 ? "Je vroeg te veel codes aan. Probeer het over een uur opnieuw." : "Versturen lukt niet. Controleer je e-mailadres en je verbinding."); }
     };
   }
+}
+// Your account and everything in it, for good (supabase/functions/account). What is on this device stays, unless you wipe it.
+async function deleteAccount(){
+  if (!sbSession || !confirm(tr("Je account en alle gegevens in je account definitief verwijderen? Dit kan niet ongedaan worden. Wat op dit toestel staat, blijft staan."))) return;
+  const b = $("acctDel"); if (b) b.disabled = true;
+  try { await sbFn("account", { action: "delete" }); }
+  catch { if (b) b.disabled = false; toast("Verwijderen lukte niet. Controleer je verbinding en probeer opnieuw."); return; }
+  sbSave(null); recordsRef = prefsRef = layoutRef = logCol = null;
+  try { localStorage.removeItem(SYNC_LS); } catch {}
+  delete links().strava; savePrefs();
+  setStore(false, "Je account is verwijderd. Je gegevens staan nog op dit toestel."); renderAccount(); renderLinks();
+  toast("Je account is verwijderd.");
+}
+// Everything FPT keeps in this browser: trainings, settings, your login. Your account (if any) is not touched.
+function wipeDevice(){
+  if (!confirm(tr(sbSession ? "Alle gegevens van FPT op dit toestel wissen en uitloggen? Je account en wat erin staat, blijven bestaan." : "Alle gegevens van FPT op dit toestel wissen? Dit kan niet ongedaan worden. Download eerst een back-up als je ze wilt bewaren."))) return;
+  const keys = []; for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (k && /^(ppl|fpt)\./.test(k)) keys.push(k); }
+  keys.forEach(k => localStorage.removeItem(k));
+  try { sessionStorage.clear(); } catch {}
+  toast("Alles op dit toestel is gewist. De app laadt opnieuw.");
+  setTimeout(() => location.reload(), 900);
 }
 // Back from the sign-in link in the mail: the session is in the address after the #.
 function sbFromHash(){

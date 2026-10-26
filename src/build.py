@@ -172,6 +172,9 @@ for size, name in [(32, "favicon-32.png"), (192, "icon-192.png"), (512, "icon-51
 Image.open(icons / "fpt-maskable.png").convert("RGBA").resize((512, 512), Image.LANCZOS).save(OUT / "icon-maskable-512.png", optimize=True)
 Image.open(icons / "fpt-apple.png").convert("RGB").resize((180, 180), Image.LANCZOS).save(OUT / "apple-touch-icon.png", optimize=True)
 
+# The privacy policy (stores require a URL for it): a page of its own, no scripts.
+shutil.copyfile(ROOT / "privacy.html", OUT / "privacy.html")
+
 # Own domain for GitHub Pages; the Play Store check (Digital Asset Links) must sit at the root of that domain.
 if DOMAIN: (OUT / "CNAME").write_text(DOMAIN + "\n", encoding="utf-8")
 elif (OUT / "CNAME").exists(): (OUT / "CNAME").unlink()
