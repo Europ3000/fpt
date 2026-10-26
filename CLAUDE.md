@@ -3,9 +3,23 @@
 Phone-first training app (Dutch source text, translated in the page to 10 more languages).
 
 - `src/training-log.html` is the whole app (HTML + CSS + JS in one file).
-- `py src/build.py` (or `python src/build.py`) builds the stand-alone PWA into the repo root:
-  `index.html`, `manifest.webmanifest`, `sw.js` and the icons. GitHub Pages serves the root:
-  https://europ3000.github.io/fpt/
+- `py src/build.py` (or `python src/build.py`) builds the stand-alone PWA into the repo root. GitHub Pages
+  serves the root: https://europ3000.github.io/fpt/. The build splits the page so it loads fast:
+  `index.html` (markup + CSS), `app.js` (the main script), `i18n/<lang>.js` (one per language, loaded only
+  when used; Dutch needs none), `fonts/` (self-hosted, from `src/fonts/`), `sw.js`, `manifest.webmanifest`
+  and the icons. Files are referenced as `app.js?v=<hash>`, so a changed file gets a new URL.
+- `sw.js` serves the app from its cache (instant start, works offline). A new build changes `sw.js`; the new
+  version installs in the background and the app shows "Er is een nieuwe versie van FPT. Vernieuwen".
+  When testing locally, reload twice (or use DevTools → Application → Update on reload).
+- CSP: no `'unsafe-inline'` for scripts. Only the three inline scripts written by `build.py` run (by hash).
+  Never add `onclick="…"`-style attributes or new inline `<script>` blocks; use `.onclick = …` /
+  `addEventListener` in the main script.
+- Fonts: `py src/tools/fetch_fonts.py` downloads the Google Fonts named in the `<link>` of
+  `training-log.html` into `src/fonts/` (run again after changing that link).
+- Install as an app: Chrome/Edge/Samsung Internet (Android, Windows, macOS, Linux, ChromeOS) via the
+  Installeren button in Instellingen (`beforeinstallprompt`); iPhone/iPad via Safari → Zet op beginscherm;
+  Mac Safari via Archief → Voeg toe aan Dock. On PC the column is 720 px wide and the mouse wheel scrolls
+  the sideways rows.
 - Commit the source and the built files together and push to `main`.
 - The claude.ai artifact https://claude.ai/artifact/YALR6JNP2gzcr65ixxeyfA is retired (since 2026-10-23):
   its last version only points to the app. Do not republish it; work on the GitHub app only.
@@ -19,6 +33,14 @@ Phone-first training app (Dutch source text, translated in the page to 10 more l
   `records`, `prefs`, `layout`, `log/sessions/<date>`. The sync code (`connectStore`, `sbDoc`) uses the
   same document API as the old claude.ai store, so the merge logic is shared.
 - `build.py` adds the Supabase URL to the CSP `connect-src`.
+- Login links: the app only takes a session from the URL hash without asking when this device asked for a
+  login (`fpt.sbWait`); otherwise it asks "Inloggen als …?" (stops someone slipping you their own session).
+  Strava's OAuth `state` is random and checked (`fpt.stravaState`).
+- `supabase/limits.sql` (run once): key/value size limits and at most 20 000 rows per user.
+- The Strava function only answers the app's own origin (`https://europ3000.github.io`; optional secret
+  `FPT_ORIGINS` to add more, comma-separated). Redeploy it after changing `index.ts`.
+- In the Supabase dashboard: Authentication → URL Configuration, Site URL and the only redirect URL
+  `https://europ3000.github.io/fpt/` (plus `http://localhost:8765/` for testing if wanted).
 - Linked apps (Delen → Gekoppelde apps): Strava runs through the Edge Function
   `supabase/functions/strava` (secrets STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET, "Verify JWT" off) and the
   table `fpt_links` from `supabase/links.sql` (RLS on, no policies: only the function reaches it). The app

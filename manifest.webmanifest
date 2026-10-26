@@ -1,4 +1,5 @@
 {
+  "id": "./",
   "name": "Fitness Progress Tracker",
   "short_name": "FPT",
   "description": "Schema's, voorstellen voor gewicht en reps, rusttimer en je vooruitgang.",
@@ -8,6 +9,13 @@
   "background_color": "#f3e8d2",
   "theme_color": "#16a34a",
   "lang": "nl",
+  "dir": "ltr",
+  "categories": [
+    "health",
+    "fitness",
+    "sports"
+  ],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "icon-192.png",

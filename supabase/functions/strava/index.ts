@@ -3,13 +3,19 @@
 // Secrets (Edge Functions → Secrets): STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET.
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are present in every Edge Function by default.
 // Turn "Verify JWT" off for this function: it checks the user itself, and "config" works without a login.
+// Only the app's own site may call it from a browser (optional secret FPT_ORIGINS: a comma-separated list, e.g. to add a test site).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const CID = Deno.env.get("STRAVA_CLIENT_ID") ?? "";
 const SECRET = Deno.env.get("STRAVA_CLIENT_SECRET") ?? "";
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Access-Control-Allow-Methods": "POST, OPTIONS" };
-const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+const ORIGINS = (Deno.env.get("FPT_ORIGINS") ?? "https://europ3000.github.io").split(",").map((o) => o.trim()).filter(Boolean);
+const cors = (origin: string) => ({
+  "Access-Control-Allow-Origin": ORIGINS.includes(origin) ? origin : ORIGINS[0],
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Vary": "Origin",
+});
 
 type Tok = { access_token: string; refresh_token: string; expires_at: number; athlete?: string };
 
@@ -42,7 +48,11 @@ async function fresh(uid: string) {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get("Origin") ?? "", CORS = cors(origin);
+  const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+  if (origin && !ORIGINS.includes(origin)) return out({ error: "origin" }, 403);
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method !== "POST") return out({ error: "method" }, 405);
   const b = await req.json().catch(() => ({}));
   if (b.action === "config") return out({ client_id: CID && SECRET ? CID : null });
 
@@ -120,6 +130,7 @@ Deno.serve(async (req) => {
     }
     return out({ error: "action" }, 400);
   } catch (e) {
-    return out({ error: "strava", detail: String(e) }, 502);
+    console.error(e);   // details only in the function's logs, not to the caller
+    return out({ error: "strava" }, 502);
   }
 });
