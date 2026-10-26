@@ -2435,11 +2435,14 @@ function renderBodyWeight(){
 // ---------- Lichaam: one chart for your weight and the Garmin numbers, per week, month or year ----------
 // [key, name, unit, kind]: "bars" draws bars (a year shows the average day of each week), "sum" bars with weekly totals.
 const PHYS = [
-  ["w", "Gewicht"], ["bf", "Lichaamsvet", "%"], ["mm", "Skeletspiermassa"], ["bm", "Botmassa"], ["wat", "Lichaamswater", "%"], ["hr", "Hartslag", "bpm"], ["st", "Stress"], ["bb", "Body Battery"], ["sl", "Slaapscore"],
+  ["w", "Gewicht"], ["bf", "Lichaamsvet", "%"], ["mm", "Spier en bot"], ["bm", "Botmassa"], ["wat", "Lichaamswater", "%"], ["hr", "Hartslag", "bpm"], ["rs", "Herstelscore", "%"], ["st", "Stress"], ["bb", "Body Battery"], ["sl", "Slaapscore"],
   ["stp", "Stappen", "", "bars"], ["hrv", "HRV-status", "ms"], ["im", "Minuten intensieve training", "min", "sum"],
   ["fl", "Verdiepingen", "", "bars"], ["vo2", "VO2 max"], ["fa", "Fitnessleeftijd", "jaar"], ["spo2", "Pulse Ox", "%"], ["acc", "Acclimatisatie", "%"]
 ];
 const PHYS_BY = Object.fromEntries(PHYS.map(p => [p[0], p]));
+// Merged into one: bone mass shows under "Spier en bot" (skeletal muscle), stress and Body Battery are part of the "Herstelscore".
+const PHYS_PART = new Set(["bm", "st", "bb"]);
+const PHYS_SHOWN = PHYS.filter(p => !PHYS_PART.has(p[0]));
 const MASS = new Set(["w", "mm", "bm"]);   // in kg or lb
 // Least squares line through the days between from and to: slope per day, the value on any date, and a word for it.
 function linFit(daily, from, to){
@@ -2466,8 +2469,20 @@ function fitAge(vo2){
   return Math.round(Math.min(90, Math.max(20, a)));
 }
 // Values per date. Intensity minutes and fitness age are estimated (from your trainings, from VO2 max) when Garmin has none.
+// Recovery score 0–100 of one day: sleep (counts double), Body Battery and stress (low stress = good) together.
+// 8 hours of sleep is 100, 3 hours about 20. Stress is Garmin's 0–100, or the 1–4 feeling of intervals.icu.
+function recScore(o){
+  const parts = [];
+  const sleep = o.ss != null ? Math.min(100, Math.max(0, 20 + (o.ss / 3600 - 3) * 16)) : o.sl;
+  if (sleep != null){ parts.push(sleep, sleep); }
+  if (o.bb != null) parts.push(Math.min(100, Math.max(0, o.bb)));
+  const s = o.st != null ? o.st : o.sq;
+  if (s != null) parts.push(s <= 4 ? 100 - (Math.max(1, s) - 1) / 3 * 100 : Math.min(100, Math.max(0, 100 - s)));
+  return parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null;
+}
 function physDaily(k){
   const out = {}, W = prefs.well || {};
+  if (k === "rs"){ Object.entries(W).forEach(([d, o]) => { const v = recScore(o); if (v != null) out[d] = v; }); return out; }
   if (k === "w"){ Object.entries(prefs.body || {}).forEach(([d, kg]) => { out[d] = toU(kg); }); return out; }
   Object.entries(W).forEach(([d, o]) => { if (o[k] != null) out[d] = MASS.has(k) ? toU(o[k]) : o[k]; });
   if (Object.keys(out).length) return out;
@@ -2487,7 +2502,10 @@ function physFmt(k, v, bare){
 }
 
 let bc = { p: "w", ref: "" };   // period: w, m or y; ref: a date inside it (empty = today)
-function bcRange(p = bc.p, ref = bc.ref || today()){
+function bcRange(p = bc.p, ref = bc.ref){
+  // the week you open: the last 7 days, so a Monday does not show one single point; "Vandaag" and the arrows give Monday–Sunday
+  if (p === "w" && !ref) return [addDays(today(), -6), today()];
+  ref = ref || today();
   const d = new Date(ref + "T12:00");
   if (p === "w"){ const a = weekOf(ref); return [a, addDays(a, 6)]; }
   if (p === "m") return [dayIso(new Date(d.getFullYear(), d.getMonth(), 1, 12)), dayIso(new Date(d.getFullYear(), d.getMonth() + 1, 0, 12))];
@@ -2500,7 +2518,7 @@ function bcShift(n){
   else d.setFullYear(d.getFullYear() + n);
   bc.ref = dayIso(d) > today() ? "" : dayIso(d);
 }
-const bcMetric = () => PHYS_BY[prefs.bodyMetric] ? prefs.bodyMetric : "w";
+const bcMetric = () => PHYS_BY[prefs.bodyMetric] && !PHYS_PART.has(prefs.bodyMetric) ? prefs.bodyMetric : "w";
 // Points of one period: days, or in a year one point per week (average, or the total for intensity minutes).
 function bcPoints(k, a, b, daily = physDaily(k)){
   const ds = Object.keys(daily).filter(d => d >= a && d <= b).sort();
@@ -2512,7 +2530,7 @@ function bcPoints(k, a, b, daily = physDaily(k)){
 function renderBodyChart(){
   const k = bcMetric(), [a, b] = bcRange(), daily = physDaily(k), pts = bcPoints(k, a, b, daily), all = Object.keys(daily).sort();
   const sel = $("bcMetric");
-  if (sel.options.length !== PHYS.length) sel.innerHTML = PHYS.map(p => `<option value="${p[0]}">${esc(p[1])}</option>`).join("");
+  if (sel.options.length !== PHYS_SHOWN.length) sel.innerHTML = PHYS_SHOWN.map(p => `<option value="${p[0]}">${esc(p[1])}</option>`).join("");
   sel.value = k;
   $("bcPeriod").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x.dataset.v === bc.p));
   const d0 = new Date(a + "T12:00"), sameYear = d0.getFullYear() === new Date().getFullYear();
@@ -2521,7 +2539,7 @@ function renderBodyChart(){
     : `${shortDate(a)} – ${shortDate(b)}${sameYear ? "" : " " + new Date(b + "T12:00").getFullYear()}`;
   $("bcPrev").disabled = !all.length || all[0] >= a;
   $("bcNext").disabled = b >= today();
-  $("bcToday").disabled = a <= today() && today() <= b;
+  $("bcToday").disabled = bc.p === "w" ? !!bc.ref && weekOf(bc.ref) === weekOf(today()) : a <= today() && today() <= b;
   const tg = k === "w" ? bodyGoal() : null, fc = a <= today() && today() <= b ? forecast(k, daily) : null;
   const drawn = drawBody($("bwChart"), pts, { k, a, b, daily, fc, targets: tg ? bodyGoals().filter(t => t === tg || !bodyGoalDone(t)).map(t => Math.round(toU(t.v) * 10) / 10) : [] });
   $("bcLegend").innerHTML = (drawn.ma ? `<span><i class="lg-ma"></i>${esc("Gemiddelde van 7 dagen")}</span>` : "")
@@ -2639,7 +2657,7 @@ function renderBodyStats(k, a, b, daily){
     row("Hoogste", esc(physFmt(k, daily[hi])), relDate(hi));
     if (vals.length > 1) row("Verschil in deze periode", esc(sign(vals[vals.length - 1] - vals[0])), `${shortDate(ds[0])} → ${shortDate(ds[ds.length - 1])}`);
     // the period before, same length
-    const [pa, pb] = bcRange(bc.p, addDays(a, -1)), prev = Object.keys(daily).filter(d => d >= pa && d <= pb).map(d => daily[d]);
+    const [pa, pb] = bc.p === "w" && !bc.ref ? [addDays(a, -7), addDays(a, -1)] : bcRange(bc.p, addDays(a, -1)), prev = Object.keys(daily).filter(d => d >= pa && d <= pb).map(d => daily[d]);
     if (prev.length) row(bc.p === "w" ? "Tegenover vorige week" : bc.p === "m" ? "Tegenover vorige maand" : "Tegenover vorig jaar", esc(sign(avg - prev.reduce((s, v) => s + v, 0) / prev.length)), "gemiddelde");
     // 7-day moving average at the end of the period (today in the current one)
     const e = b < today() ? b : today(), last7 = []; for (let i = 0; i < 7; i++){ const v = daily[addDays(e, -i)]; if (v != null) last7.push(v); }
@@ -2662,9 +2680,12 @@ function renderBodyStats(k, a, b, daily){
 function renderPhys(){
   const W = prefs.well || {}, tiles = [], cur = bcMetric();
   const latest = daily => { const d = Object.keys(daily).sort().pop(); return d ? [d, daily[d]] : null; };
-  PHYS.slice(1).forEach(([k, name]) => {
+  PHYS_SHOWN.slice(1).forEach(([k, name]) => {
     const daily = physDaily(k), l = latest(daily);
     let val = l ? physFmt(k, l[1]) : "—", sub = l ? relDate(l[0]) : "Nog geen gegevens";
+    if (k === "mm" && !l){ const b = latest(physDaily("bm")); if (b){ val = physFmt("bm", b[1]); sub = `botmassa · ${relDate(b[0])}`; } }
+    else if (k === "mm"){ const b = W[l[0]] && W[l[0]].bm; if (b != null) sub = `bot ${physFmt("bm", toU(b))} · ${relDate(l[0])}`; }
+    if (l && k === "rs"){ const o = W[l[0]] || {}; const bits = [o.ss != null ? `${fmt(Math.round(o.ss / 360) / 10)} u slaap` : "", o.bb != null ? `Body Battery ${fmt(Math.round(o.bb))}` : "", (o.st != null || o.sq != null) ? `stress ${physFmt("st", o.st != null ? o.st : o.sq)}` : ""].filter(Boolean); sub = `${bits.join(" · ") || "slaap, stress en Body Battery"} · ${relDate(l[0])}`; }
     if (l && k === "hr") sub = `in rust · ${relDate(l[0])}`;
     if (l && k === "sl" && W[l[0]] && W[l[0]].ss) sub = `${Math.floor(W[l[0]].ss / 3600)} u ${Math.round(W[l[0]].ss % 3600 / 60)} min · ${relDate(l[0])}`;
     if (l && k === "hrv"){
@@ -2691,7 +2712,7 @@ function renderPhys(){
     prefs.bodyMetric = t.dataset.ph; savePrefs(); renderBodyChart(); renderPhys();
     $("bcMetric").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
   });
-  const I = (prefs.links || {}).intervals, none = ["mm", "bm", "wat", "bb", "acc"].filter(k => !Object.values(W).some(o => o[k] != null));
+  const I = (prefs.links || {}).intervals, none = ["mm", "wat", "bb", "acc"].filter(k => !Object.values(W).some(o => o[k] != null));
   $("physNote").textContent = !I ? "Deze cijfers komen van je Garmin via intervals.icu. Koppel het bij Delen → Gekoppelde apps."
     : none.length ? "Skeletspiermassa, botmassa, lichaamswater, Body Battery en acclimatisatie stuurt intervals.icu niet door van Garmin. Staan ze bij intervals.icu in een eigen wellness-veld (bv. BodyBattery, ingevuld met een hulpmiddel zoals garmin-intervals-bridge), dan komen ze hier ook." : "";
   $("physNote").hidden = !$("physNote").textContent;
@@ -2705,7 +2726,7 @@ $("bcMetric").onchange = () => { prefs.bodyMetric = $("bcMetric").value; savePre
 $("bcPeriod").onclick = e => { const x = e.target.closest("button"); if (!x || x.dataset.v === bc.p) return; bc.p = x.dataset.v; renderBodyChart(); };
 $("bcPrev").onclick = () => { bcShift(-1); renderBodyChart(); };
 $("bcNext").onclick = () => { bcShift(1); renderBodyChart(); };
-$("bcToday").onclick = () => { bc.ref = ""; renderBodyChart(); };
+$("bcToday").onclick = () => { bc.ref = bc.p === "w" ? today() : ""; renderBodyChart(); };
 [["physBox", "physOpen"], ["statBox", "statOpen"]].forEach(([id, key]) => $(id).addEventListener("toggle", () => { if (!!prefs[key] !== $(id).open){ prefs[key] = $(id).open; savePrefs(); } }));
 
 // ---------- Own schemes, welcome ----------
@@ -2901,6 +2922,14 @@ function renderSettings(){
 // ---------- Recovery per muscle ----------
 const BIG_MUSCLES = ["Borst", "Lats", "Bovenrug", "Quadriceps", "Hamstrings", "Billen", "Onderrug"];
 const RECOVERY_SHOWN = ["Borst", "Voorkant schouders", "Zijkant schouders", "Achterkant schouders", "Triceps", "Biceps", "Lats", "Bovenrug", "Onderrug", "Quadriceps", "Hamstrings", "Billen", "Kuiten", "Buikspieren"];
+// How fast you recover now, from the recovery score of your latest night (sleep, stress, Body Battery):
+// a great night ×1.1, 3 hours of sleep about ×0.7. Without Garmin numbers ×1.
+function recoverySpeed(){
+  const W = prefs.well || {}, d = [today(), addDays(today(), -1)].find(x => W[x] && recScore(W[x]) != null);
+  if (!d) return { f: 1, score: null };
+  const score = recScore(W[d]);
+  return { f: 0.6 + score / 200, score, o: W[d] };
+}
 // Hours since the muscle was last trained, against the hours it needs (bigger muscles and more sets need longer).
 function recoveryMap(){
   const last = {};
@@ -2916,11 +2945,11 @@ function recoveryMap(){
     strong.forEach(g => add(g, n));
     new Set(m[1].map(muscleGroup)).forEach(g => { if (!strong.has(g)) add(g, n / 2); });
   }));
-  const out = {}, now = Date.now();
+  const out = {}, now = Date.now(), speed = recoverySpeed().f;
   RECOVERY_SHOWN.forEach(g => {
     const o = last[g];
     if (!o){ out[g] = 100; return; }
-    const need = (BIG_MUSCLES.includes(g) ? 60 : 42) * (0.6 + Math.min(o.sets, 12) / 12 * 0.6);
+    const need = (BIG_MUSCLES.includes(g) ? 60 : 42) * (0.6 + Math.min(o.sets, 12) / 12 * 0.6) / speed;
     out[g] = Math.max(0, Math.min(100, Math.round((now - o.t) / 36e5 / need * 100)));
   });
   return out;
@@ -2933,11 +2962,13 @@ function dayReadiness(s, i, rec){
 }
 const recClass = v => v >= 90 ? "good" : v >= 60 ? "warn" : "bad";
 function renderRecovery(){
-  const rec = recoveryMap(), s = scheme();
+  const rec = recoveryMap(), s = scheme(), sp = recoverySpeed();
+  const spNote = sp.score == null ? "" : `<p class="note">Herstelscore ${sp.score}% (slaap, stress en Body Battery): ${sp.f < .95 ? "je herstelt trager." : sp.f > 1.05 ? "je herstelt sneller." : "je herstelt normaal."}</p>`;
   const days = s.days.map((d, i) => ({ i, name: d.name, v: dayReadiness(s, i, rec) }));
   const best = days.slice().sort((a, b) => b.v - a.v)[0];
   $("recoveryBody").innerHTML = `
     <div class="rec-chips">${RECOVERY_SHOWN.map(g => `<span class="rchip ${recClass(rec[g])}"><b>${rec[g]}%</b> ${esc(g)}</span>`).join("")}</div>
+    ${spNote}
     ${s.days.length > 1 ? `<div class="rec-days">${days.map(d => `<button type="button" class="rday ${recClass(d.v)}${d.i === view.day ? " on" : ""}" data-i="${d.i}"><b>${esc(d.name)}</b><span>${d.v}% hersteld</span></button>`).join("")}</div>
       <p class="note">Best hersteld voor vandaag: <b>${esc(best.name)}</b> (${best.v}%). Groen = klaar (90%+), oranje = bijna, rood = nog vermoeid. Een schatting op basis van je sets en de tijd sinds je training.</p>`
       : `<p class="note">Groen = klaar (90%+), oranje = bijna, rood = nog vermoeid. Een schatting op basis van je sets en de tijd sinds je training.</p>`}`;
@@ -5612,10 +5643,27 @@ function dmSolve(P, front){
   if (farLeg) [J.K2, J.A2] = leg(J.H2, P.tb, P.sb, P.foot2, P.kb2 || kb, ts);
   else if (front) [J.K2, J.A2] = leg(J.H2, P.th !== undefined ? mirA(P.th) : undefined, P.sh !== undefined ? mirA(P.sh) : undefined, P.foot ? mirP(P.foot) : undefined, -kb, ts);
   else { J.K2 = J.K1; J.A2 = J.A1; }
-  const fd = P.fd !== undefined ? P.fd : 0, fd2 = P.fd2 !== undefined ? P.fd2 : fd;
-  J.T1 = dmAdd(J.A1, dmDir(front ? 90 + (P.x < J.A1[0] ? -60 : -60) : fd), front ? 4 : 8);
-  J.T2 = dmAdd(J.A2, dmDir(front ? 90 : fd2), front ? 4 : 8);
+  // Feet: fr is the ankle angle (foot against shin: 90 = right angle, 0 = toes pointed along the shin), fd an absolute
+  // direction. Without either the foot stands flat when it is on the floor and hangs relaxed in the air. Whatever
+  // the pose asks, the ankle stays within its range (-10 to 120), so a foot never turns round.
+  const foot = (K, A, fr, fd) => {
+    const s = Math.atan2(A[1] - K[1], A[0] - K[0]) * 180 / Math.PI, g = Math.max(0, Math.min(1, (A[1] - 93) / 10));
+    let r = fr !== undefined ? fr : fd !== undefined ? s - fd : g * s + (1 - g) * 65;
+    r = 55 + Math.max(-65, Math.min(65, ((r - 55) % 360 + 540) % 360 - 180));
+    let f = s - r;
+    // the toes stop at the floor (as far as the ankle allows)
+    if (A[1] + 8 * Math.sin(f * Math.PI / 180) > 107.5 && A[1] < 107.5){
+      // turn towards the nearer way out; a foot pointing straight down gives in less, so it never flips sides
+      const a = Math.asin((107.5 - A[1]) / 8) * 180 / Math.PI, d = x => ((x - f) % 360 + 540) % 360 - 180;
+      const to = Math.abs(d(a)) < Math.abs(d(180 - a)) ? a : 180 - a, w = Math.max(0, Math.min(1, (Math.abs(d(90)) - 15) / 30));
+      f += d(to) * w;
+      f = s - (55 + Math.max(-65, Math.min(65, ((s - f - 55) % 360 + 540) % 360 - 180)));
+    }
+    return dmAdd(A, dmDir(f), 8);
+  };
+  const far2 = P.fr2 !== undefined || P.fd2 !== undefined;
   if (front){ J.T1 = [J.A1[0] + 4, J.A1[1] + 2]; J.T2 = [J.A2[0] - 4, J.A2[1] + 2]; }
+  else { J.T1 = foot(J.K1, J.A1, P.fr, P.fd); J.T2 = foot(J.K2, J.A2, far2 ? P.fr2 : P.fr, far2 ? P.fd2 : P.fd); }
   J.cv = P.cv || 0;
   J.P = P;
   return J;
@@ -5824,8 +5872,8 @@ const DEMOS = {
     { eq: "db1", back: () => DG.bench(46, 108, 82), hl: ["t", "ua"], ph: ["Elleboog naar je heup trekken", "Laten zakken"], tm: [1, 2] }),
   csRow: dmPair({ x: 70, y: 80, t: -38, foot: [56, 105], hand: [96, 98] }, { x: 70, y: 80, t: -38, foot: [56, 105], hand: [84, 76] },
     { eq: "db", back: J => DG.back(J, 4, -8) + `<line x1="74" y1="88" x2="74" y2="108" class="dm-frame"/>`, hl: ["t", "ua"], ph: ["Naar je ribben roeien", "Laten zakken"], tm: [1, 2] }),
-  invRow: dmPair({ x: 75.5, y: 93, t: -12, foot: [30, 103], fd: -80, hand: [104, 54] }, { x: 71, y: 80, t: -29, foot: [30, 103], fd: -80, hand: [104, 54], eb: -1 },
-    { back: () => DG.bar(104, 54), hl: ["t", "ua"], ph: ["Borst naar de stang trekken", "Laten zakken"], tm: [1, 2] }),
+  invRow: dmPair({ x: 84.5, y: 93, t: 192, foot: [130, 103], fr: 90, hand: [56, 54] }, { x: 89, y: 80, t: 209, foot: [130, 103], fr: 90, hand: [56, 54] },
+    { back: () => `<line x1="22" y1="54" x2="56" y2="54" class="dm-frame"/><line x1="22" y1="54" x2="22" y2="108" class="dm-frame"/><circle cx="56" cy="54" r="2.6" class="dm-handle"/>`, hl: ["t", "ua"], ph: ["Borst naar de stang trekken", "Laten zakken"], tm: [1, 2] }),
   curl: dmPair(Object.assign({}, DS, { ua: 92, fa: 86 }), Object.assign({}, DS, { ua: 96, fa: -58 }),
     { eq: "bb", hl: ["ua"], ph: ["Omhoog krullen", "Langzaam laten zakken"], tm: [1, 2] }),
   curlDb: null, curlCable: null,
@@ -5863,11 +5911,11 @@ const DEMOS = {
     { mat: [20, 130], hl: ["th"], ph: ["Heupen omhoog", "Laten zakken"], tm: [1, 2] }),
   lunge: dmPair({ x: 77, y: 63, t: -90, foot: [100, 105], foot2: [52, 100], fd2: 30, hr: [1, 36] }, { x: 76, y: 80, t: -90, foot: [100, 105], foot2: [52, 100], fd2: 30, hr: [1, 36] },
     { eq: "db", hl: ["th"], ph: ["Achterste knie naar de vloer", "Omhoog duwen"], tm: [2, 1] }),
-  bulgarian: dmPair({ x: 74, y: 62, t: -88, foot: [98, 105], foot2: [44, 80], fd2: 20, hr: [1, 36] }, { x: 74, y: 80, t: -84, foot: [98, 105], foot2: [44, 80], fd2: 20, hr: [1, 36] },
+  bulgarian: dmPair({ x: 74, y: 62, t: -88, foot: [98, 105], foot2: [44, 80], fr2: 10, hr: [1, 36] }, { x: 74, y: 80, t: -84, foot: [98, 105], foot2: [44, 80], fr2: 10, hr: [1, 36] },
     { eq: "db", back: () => DG.bench(22, 52, 84), hl: ["th"], ph: ["Zakken op je voorste been", "Omhoog duwen"], tm: [2, 1] }),
   stepUp: dmPair({ x: 82, y: 64, t: -86, foot: [100, 80], foot2: [74, 105], hr: [1, 36] }, { x: 98, y: 36, t: -90, foot: [100, 80], foot2: [104, 80], hr: [1, 36] },
     { eq: "db", back: () => DG.rect(86, 84, 34, 24), hl: ["th"], ph: ["Opstappen via de hiel", "Gecontroleerd afstappen"], tm: [1, 2] }),
-  legPress: dmPair({ x: 60, y: 84, t: -140, foot: [80, 64], kb: -1, ua: 70, fa: 10 }, { x: 60, y: 84, t: -140, foot: [94, 52], kb: -1, ua: 70, fa: 10 },
+  legPress: dmPair({ x: 60, y: 84, t: -140, foot: [80, 64], fd: -133, kb: -1, ua: 70, fa: 10 }, { x: 60, y: 84, t: -140, foot: [94, 52], fd: -133, kb: -1, ua: 70, fa: 10 },
     { back: J => DG.back(J, 6, 7.5) + DG.rect(40, 92, 30, 5), front_: J => { const a = dmAdd(J.A1, dmDir(48), -2); return DG.line(dmAdd(a, dmDir(-42 + 90), 13), dmAdd(a, dmDir(-42 + 90), -13), 6); }, hl: ["th"], ph: ["Wegduwen", "Gecontroleerd terug"], tm: [1, 2] }),
   legExt: dmPair(Object.assign({}, DSEAT, { foot: undefined, th: 0, sh: 90, ua: 96, fa: 96 }), Object.assign({}, DSEAT, { foot: undefined, th: 0, sh: 4, ua: 96, fa: 96 }),
     { back: J => DG.back(J, 4, 7.5) + dmSeatGear(J), front_: J => DG.handle(dmAdd(J.A1, [0, -1])), hl: ["th"], ph: ["Benen strekken", "Laten zakken"], tm: [1, 2] }),
@@ -5885,8 +5933,8 @@ const DEMOS = {
     { front: true, back: () => DG.rect(60, 88, 40, 5), hl: ["th"], ph: ["Knieën naar elkaar knijpen", "Gecontroleerd open"], tm: [1, 2] }),
   nordic: dmPair({ x: 58, y: 80, t: -86, th: 95, sh: 180, fd: 180, ua: 70, fa: -30 }, { x: 77, y: 92, t: -30, th: 150, sh: 180, fd: 180, ua: 40, fa: -10 },
     { mat: [20, 120], back: () => DG.rect(24, 98, 14, 8), hl: ["th"], ph: ["Langzaam voorover laten vallen", "Terug omhoog"], tm: [3, 1.2] }),
-  backExt: dmPair({ x: 72, y: 68, t: 78, th: 135, sh: 135, fd: 45, hr: [4, 10] }, { x: 72, y: 68, t: -45, th: 135, sh: 135, fd: 45, hr: [4, 10] },
-    { back: () => DG.line([60, 80], [80, 60], 6) + `<line x1="70" y1="72" x2="70" y2="108" class="dm-frame"/>` + DG.rect(30, 98, 12, 6), hl: ["t"], ph: ["Romp omhoog tot één lijn", "Gecontroleerd zakken"], tm: [1, 2] }),
+  backExt: dmPair({ x: 72, y: 60, t: 72, th: 135, sh: 135, fd: 45, hr: [4, 10] }, { x: 72, y: 60, t: -45, th: 135, sh: 135, fd: 45, hr: [4, 10] },
+    { back: () => DG.line([60, 72], [80, 52], 6) + `<line x1="70" y1="64" x2="70" y2="108" class="dm-frame"/>` + DG.rect(30, 90, 12, 6), hl: ["t"], ph: ["Romp omhoog tot één lijn", "Gecontroleerd zakken"], tm: [1, 2] }),
   plank: dmPair({ x: 76, y: 95, t: -7, th: 172, sh: 172, fd: 50, hand: [126, 105] }, { x: 76, y: 94, t: -8, th: 171, sh: 171, fd: 50, hand: [126, 105] },
     { mat: [20, 134], hl: ["t"], ph: ["Vasthouden: lichaam in één lijn", "Rustig doorademen"], tm: [2.5, 2.5] }),
   sidePlank: dmPair({ x: 74, y: 90, t: -18, th: 162, sh: 162, fd: 60, hand: [124, 105], hand2: [110, 14] }, { x: 74, y: 88, t: -19, th: 161, sh: 161, fd: 60, hand: [124, 105], hand2: [110, 14] },
@@ -5915,7 +5963,7 @@ const DEMOS = {
     { mat: [10, 140], hl: ["t"], ph: ["Arm en tegenovergesteld been strekken", "Terug en wisselen"], tm: [1.5, 1.5] }),
   shoulderTap: dmPair(Object.assign({}, DPRONE, { ua: 92, fa: 92 }), Object.assign({}, DPRONE, { ua: 150, fa: -40, ub: 92, fb: 92 }),
     { mat: [20, 132], hl: ["t"], ph: ["Tik je andere schouder aan", "Terug en wisselen"], tm: [.8, .8] }),
-  climber: dmPair(Object.assign({}, DPRONE, { ua: 92, fa: 92, th: 156.4, sh: 156.4, tb: 66, sb: 160 }), Object.assign({}, DPRONE, { ua: 92, fa: 92, th: 66, sh: 160, tb: 156.4, sb: 156.4 }),
+  climber: dmPair(Object.assign({}, DPRONE, { ua: 92, fa: 92, th: undefined, sh: undefined, foot: [29.5, 101.2], foot2: [64, 98] }), Object.assign({}, DPRONE, { ua: 92, fa: 92, th: undefined, sh: undefined, foot: [64, 98], foot2: [29.5, 101.2] }),
     { mat: [20, 132], hl: ["t"], ph: ["Knieën om beurten naar je borst", "Tempo hoog, heupen laag"], tm: [.45, .45] }),
   russian: dmPair({ x: 80, y: 96, t: -90, foot: [96, 104], ts: .5, hand: [100, 70], hand2: [92, 72] }, { x: 80, y: 96, t: -90, foot: [96, 104], ts: .5, hand: [68, 72], hand2: [60, 70] },
     { front: true, eq: "db1", hl: ["t"], ph: ["Draaien naar links en rechts", "Rug recht, buik aan"], tm: [1, 1] }),
@@ -5928,10 +5976,10 @@ const DEMOS = {
   cableCrunch: dmPair({ x: 64, y: 80, t: -64, th: 90, sh: 180, fd: 180, hr: [-2, -11], eb: -1 }, { x: 64, y: 80, t: 8, th: 90, sh: 180, fd: 180, hr: [-2, -11], eb: -1 },
     { eq: "handle", anchor: [104, -14], back: () => DG.tower(112), hl: ["t"], ph: ["Ellebogen naar je knieën krullen", "Gecontroleerd terug"], tm: [1, 2] }),
   burpee: { k: [
-      { x: 80, y: 56, t: -90, ua: -96, fa: -92, th: 90, sh: 92 },
-      { x: 74, y: 88, t: -40, ua: 85, fa: 85, th: -15, sh: 105 },
-      { x: 72.6, y: 82.4, t: -23.6, ua: 90, fa: 90, th: 156.4, sh: 156.4, fd: 50 },
-      { x: 74, y: 88, t: -40, ua: 85, fa: 85, th: -15, sh: 105 }],
+      { x: 80, y: 56, t: -90, ua: -96, fa: -92, foot: [79, 103] },
+      { x: 74, y: 88, t: -40, hand: [106, 106], foot: [91, 105] },
+      { x: 72.6, y: 82.4, t: -23.6, hand: [102, 106], foot: [29.5, 101.2], fd: 50 },
+      { x: 74, y: 88, t: -40, hand: [106, 106], foot: [91, 105] }],
     loop: true, tm: [.5, .6, .6, .5], mat: [20, 132], hl: ["th", "t"], ph: ["Hurken", "Benen naar achter", "Terug in hurkzit", "Opspringen"] },
 };
 DEMOS.benchDb = Object.assign({}, DEMOS.bench, { eq: "db" });
@@ -5948,7 +5996,7 @@ Object.assign(DEMOS, {
   pecStretch: dmHold(Object.assign({}, DS, { x: 84, foot: [88, 105], ua: 182, fa: -88, t: -84 }), { back: () => `<rect x="54" y="-18" width="6" height="126" class="dm-wall"/>`, hl: ["t"] }, { t: 2 }),
   crossBody: dmHold({ x: 80, y: 59, t: -90, foot: [86, 105], ua: 178, fa: 180, hand2: [102, 30] }, { front: true, hl: ["ua"] }, { ua: -2 }),
   tricepsStretch: dmHold(Object.assign({}, DS, { ua: -108, fa: 112 }), { hl: ["ua"] }, { ua: -3 }),
-  threadNeedle: dmHold({ x: 62, y: 80, t: 4, n: 30, th: 90, sh: 180, fd: 180, ua: 160, fa: 176, ub: 90, fb: 90 }, { mat: [10, 140], hl: ["t"] }),
+  threadNeedle: dmHold({ x: 62, y: 80, t: 4, n: 30, th: 90, sh: 180, fd: 180, ua: 160, fa: 176, hand2: [100, 105] }, { mat: [10, 140], hl: ["t"] }),
   wristStretch: dmHold(Object.assign({}, DS, { ua: -2, fa: -2, hand2: [114, 26] }), { hl: ["fa"] }, { fa: -6 }),
   latStretch: dmHold({ x: 60, y: 80, t: 6, n: 20, th: 90, sh: 180, fd: 180, hand: [122, 70] }, { mat: [10, 110], back: () => DG.bench(112, 150, 72), hl: ["t"] }, { y: 2 }),
   bicepsStretch: dmHold(Object.assign({}, DS, { x: 86, foot: [90, 105], ua: 176, fa: 178 }), { back: () => DG.wall(42), hl: ["ua"] }, { t: 2 }),
@@ -5960,14 +6008,14 @@ Object.assign(DEMOS, {
   couch: dmHold({ x: 70, y: 82, t: -86, foot: [102, 105], foot2: [54, 82], fd2: 180, hr: [4, 34] }, { back: () => DG.wall(44), mat: [40, 120], hl: ["th2"] }, { t: -2 }),
   hamStretch: dmHold({ x: 50, y: 100, t: -32, th: 0, sh: 0, fd: -90, hand: [92, 96] }, { mat: [20, 120], hl: ["th"] }, { t: 3 }),
   figure4: dmHold({ x: 84, y: 101, t: 192, foot: [99, 80], foot2: [112, 104], hand: [88, 92] }, { mat: [20, 130], hl: ["th2"] }, { t: 0, x: 1 }),
-  butterfly: dmHold({ x: 80, y: 98, t: -90, th: 12, sh: 160, hand: [86, 104] }, { front: true, mat: [30, 130], hl: ["th"] }, { th: 3 }),
+  butterfly: dmHold({ x: 80, y: 98, t: -90, th: 8, sh: 174, hand: [86, 104] }, { front: true, mat: [30, 130], hl: ["th"] }, { th: 3 }),
   calfStretch: dmHold({ x: 84, y: 64, t: -76, foot: [100, 105], foot2: [56, 105], hand: [124, 30] }, { back: () => DG.wall(126), hl: ["sh2"] }, { x: 1 }),
   deepSquat: dmHold({ x: 70, y: 94, t: -72, foot: [80, 105], hr: [14, 12] }, { mat: [40, 120], hl: ["th"] }, { y: 1 }),
   pigeon: dmHold({ x: 66, y: 96, t: -84, th: 14, sh: 170, fd: 170, tb: 178, sb: 178, hand: [77, 99] }, { mat: [10, 140], hl: ["th"] }, { t: 3 }),
   worldsGreatest: dmHold({ x: 74, y: 86, t: -36, foot: [104, 105], foot2: [44, 102], fd2: 20, hand: [102, 104], hand2: [70, 2] }, { mat: [30, 130], hl: ["th2"] }, { t: -2 }),
-  hip9090: dmPair({ x: 80, y: 100, t: -90, foot: [112, 104], foot2: [60, 92], ts: .7, hand: [102, 100] }, { x: 80, y: 100, t: -90, foot: [100, 92], foot2: [48, 104], ts: .7, hand: [102, 100] },
+  hip9090: dmPair({ x: 80, y: 100, t: -90, foot: [112, 104], foot2: [62, 101], kb2: 1, ts: .7, hand: [102, 100] }, { x: 80, y: 100, t: -90, foot: [98, 101], foot2: [48, 104], kb2: 1, ts: .7, hand: [102, 100] },
     { front: true, mat: [30, 130], hl: ["th"], ph: ["Knieën naar de andere kant draaien", "En terug"], tm: [2, 2] }),
-  legSwing: dmPair(Object.assign({}, DS, { foot: undefined, th: 38, sh: 46, foot2: [80, 105], hand2: [64, 50], ua: 160, fa: 140 }), Object.assign({}, DS, { foot: undefined, th: 132, sh: 124, foot2: [80, 105], hand2: [64, 50], ua: 20, fa: 30 }),
+  legSwing: dmPair(Object.assign({}, DS, { foot: undefined, th: 38, sh: 46, foot2: [80, 105], hand2: [64, 50], ua: 125, fa: 110 }), Object.assign({}, DS, { foot: undefined, th: 132, sh: 140, foot2: [80, 105], hand2: [64, 50], ua: 50, fa: 35 }),
     { back: () => DG.wall(54), hl: ["th"], ph: ["Been naar voor zwaaien", "Been naar achter zwaaien"], tm: [.8, .8] }),
   armCircles: { k: [{ x: 80, y: 59, t: -90, foot: [84, 105], ua: -10, fa: -10 }, { x: 80, y: 59, t: -90, foot: [84, 105], ua: 4, fa: 4 }, { x: 80, y: 59, t: -90, foot: [84, 105], ua: 12, fa: 12 }, { x: 80, y: 59, t: -90, foot: [84, 105], ua: 2, fa: 2 }],
     loop: true, front: true, tm: [.4, .4, .4, .4], hl: ["ua"], ph: ["Kleine cirkels", "Kleine cirkels", "Kleine cirkels", "Kleine cirkels"] },
@@ -5975,7 +6023,7 @@ Object.assign(DEMOS, {
     { front: true, hl: ["ua"], ph: ["Armen omhoog schuiven tegen de muur", "Terug in een W"], tm: [2, 2] }),
   downDog: dmHold({ x: 66, y: 62, t: 40, n: 20, foot: [44, 104], fd: -10, hand: [116, 104] }, { mat: [20, 140], hl: ["th"] }, { y: -1.5 }),
   cobra: dmHold({ x: 64, y: 100, t: -30, n: -15, th: 180, sh: 180, fd: 180, hand: [96, 104] }, { mat: [10, 140], hl: ["t"] }, { t: -3 }),
-  lowLunge: dmHold({ x: 72, y: 86, t: -92, foot: [102, 105], foot2: [50, 104], fd2: 180, ua: -94, fa: -92 }, { mat: [30, 130], hl: ["th2"] }, { t: -3 }),
+  lowLunge: dmHold({ x: 72, y: 86, t: -92, foot: [102, 105], foot2: [33, 105], fd2: 180, ua: -94, fa: -92 }, { mat: [30, 130], hl: ["th2"] }, { t: -3 }),
   warrior1: dmHold({ x: 76, y: 74, t: -90, foot: [104, 105], foot2: [40, 105], fd2: -20, ua: -94, fa: -92 }, { hl: ["th"] }, { y: 1 }),
   warrior2: dmHold({ x: 80, y: 72, t: -90, foot: [122, 105], foot2: [34, 105], kb: -1, kb2: -1, ua: 0, fa: 0 }, { front: true, hl: ["th"] }, { y: 1 }),
   warrior3: dmHold({ x: 80, y: 59, t: 0, foot: [80, 105], tb: 180, sb: 180, ua: 0, fa: 0 }, { hl: ["th2", "t"] }, { t: -1.5 }),
@@ -5990,21 +6038,21 @@ Object.assign(DEMOS, {
   puppy: dmHold({ x: 62, y: 80, t: 26, n: 10, th: 90, sh: 180, fd: 180, hand: [128, 104] }, { mat: [20, 140], hl: ["t"] }, { t: 2 }),
   supineTwist: dmHold({ x: 84, y: 101, t: 180, th: -40, sh: 60, ua: -60, fa: -60 }, { mat: [20, 140], hl: ["t"] }, { th: 3 }),
   happyBaby: dmHold({ x: 84, y: 101, t: 180, th: -128, sh: -86, hand: [66, 62] }, { mat: [20, 140], hl: ["th"] }, { th: -3 }),
-  legsUpWall: dmHold({ x: 100, y: 101, t: 180, th: -90, sh: -90, fd: 0, ua: 150, fa: 170 }, { mat: [20, 120], back: () => DG.wall(108), hl: ["th"] }, { th: 1 }),
+  legsUpWall: dmHold({ x: 100, y: 101, t: 180, th: -90, sh: -90, ua: 174, fa: 172 }, { mat: [20, 120], back: () => DG.wall(108), hl: ["th"] }, { th: 1 }),
   savasana: dmHold({ x: 84, y: 102, t: 180, th: 0, sh: 0, fd: -80, ua: 8, fa: 4 }, { mat: [20, 140], hl: [], ph: ["Volledig ontspannen", "Rustig ademen"] }, { y: -.6 }),
   sunSal: { k: [
       { x: 80, y: 59, t: -90, ua: -96, fa: -92, foot: [80, 105] },
-      { x: 76, y: 60, t: 80, n: 0, ua: 90, fa: 90, foot: [80, 105] },
-      { x: 72.6, y: 82.4, t: -23.6, ua: 90, fa: 90, th: 156.4, sh: 156.4, fd: 50 },
-      { x: 66, y: 100, t: -30, n: -15, hand: [96, 104], th: 180, sh: 180, fd: 180 },
-      { x: 66, y: 62, t: 40, n: 20, hand: [116, 104], th: 138, sh: 138, fd: -10 }],
+      { x: 74, y: 60, t: 28, n: 10, hand: [110, 104], foot: [80, 105] },
+      { x: 72.6, y: 82.4, t: -23.6, hand: [102, 106], foot: [29.5, 101.2], fd: 50 },
+      { x: 66, y: 100, t: -30, n: -15, hand: [96, 104], foot: [19, 101], fd: 180 },
+      { x: 66, y: 62, t: 40, n: 20, hand: [116, 104], foot: [44, 104], fd: -10 }],
     loop: true, tm: [2, 2, 2, 2, 2], mat: [20, 140], hl: ["t"], ph: ["Armen omhoog", "Voorover vouwen", "Plank", "Cobra", "Neerwaartse hond"] },
 });
 
 // ---------- cardio: cycles ----------
 const dmRun = (o, a = 1) => ({ k: [
-    { x: 80, y: 58, t: -82, th: 90 - 40 * a, sh: 100 + 10 * a, tb: 90 + 35 * a, sb: 90 + 85 * a, ua: 90 + 40 * a, fa: 60 * a, ub: 90 - 40 * a, fb: -20 * a, fd: 0 },
-    { x: 80, y: 60, t: -82, th: 90 + 35 * a, sh: 90 + 85 * a, tb: 90 - 40 * a, sb: 100 + 10 * a, ua: 90 - 40 * a, fa: -20 * a, ub: 90 + 40 * a, fb: 60 * a, fd: 0 }],
+    { x: 80, y: 58, t: -82, th: 90 - 40 * a, sh: 100 + 10 * a, tb: 90 + 35 * a, sb: 90 + 85 * a, ua: 90 + 40 * a, fa: 60 * a, ub: 90 - 40 * a, fb: -20 * a, fr: 95, fr2: 35 },
+    { x: 80, y: 60, t: -82, th: 90 + 35 * a, sh: 90 + 85 * a, tb: 90 - 40 * a, sb: 100 + 10 * a, ua: 90 - 40 * a, fa: -20 * a, ub: 90 + 40 * a, fb: 60 * a, fr: 35, fr2: 95 }],
   tm: [.38 / a, .38 / a], hl: ["th"], ph: ["Ritmisch lopen", "Ritmisch lopen"], ...o });
 const dmCrank = (cx, cy, r, base, arms) => ({ fn: p => {
     const a = p * 360, f1 = [cx + r * Math.cos(a * Math.PI / 180), cy + r * Math.sin(a * Math.PI / 180)], f2 = [cx - r * Math.cos(a * Math.PI / 180), cy - r * Math.sin(a * Math.PI / 180)];
@@ -6021,7 +6069,7 @@ Object.assign(DEMOS, {
   elliptical: Object.assign(dmCrank(80, 98, 7, { x: 78, y: 52, t: -88, hand: [98, 40], kb: -1 }, 8), { back: () => `<line x1="40" y1="106" x2="128" y2="106" class="dm-frame"/><line x1="112" y1="106" x2="104" y2="26" class="dm-frame"/>` }),
   stairs: dmPair({ x: 80, y: 50, t: -84, foot: [92, 80], foot2: [78, 98], fd: 0, ua: 110, fa: 70 }, { x: 82, y: 46, t: -84, foot: [94, 76], foot2: [82, 94], fd: 0, ua: 70, fa: 0 },
     { back: () => `<path d="M60 108V98H78V88H96V78H114V68H132V108Z" class="dm-pad"/>`, hl: ["th"], ph: ["Trede per trede", "Rechtop blijven"], tm: [.55, .55] }),
-  rower: dmPair({ x: 82, y: 94, t: -58, foot: [114, 92], fd: -70, hand: [114, 80] }, { x: 62, y: 94, t: -108, foot: [114, 92], fd: -70, hand: [80, 72] },
+  rower: dmPair({ x: 80, y: 94, t: -66, foot: [114, 92], fd: -70, hand: [112, 80] }, { x: 62, y: 94, t: -108, foot: [114, 92], fd: -70, hand: [80, 72] },
     { eq: "handle", anchor: [124, 82], back: () => `<line x1="20" y1="102" x2="128" y2="102" class="dm-frame"/><circle cx="128" cy="86" r="11" class="dm-cable"/>`, front_: J => DG.rect(J.H[0] - 10, 98, 20, 4), hl: ["th", "t"], ph: ["Benen, romp, armen: krachtig trekken", "Armen, romp, benen: rustig terug"], tm: [.8, 1.6] }),
   skierg: dmPair(Object.assign({}, DS, { foot: [82, 105], hand: [100, -2] }), { x: 70, y: 66, t: -40, foot: [82, 105], hand: [92, 82] },
     { eq: "handle", anchor: [112, -14], back: () => DG.tower(118), hl: ["t", "ua"], ph: ["Krachtig naar beneden trekken", "Terug omhoog reiken"], tm: [.6, 1] }),
@@ -6093,15 +6141,57 @@ function demoKey(name, type){
 }
 
 // ---------- runtime ----------
+// Make the key poses of a side-view pattern fit together, so every in-between is a movement a body can make. A far
+// limb that only some poses move is filled in on the others, feet get an ankle angle, and between two poses a limb
+// follows its hand/foot target when both poses set one (a hand stays on the floor), else its joints: shoulder,
+// elbow, hip and knee each turn within their own range, so a limb never swings round the impossible way.
+const DM_LIMBS = [["ua", "fa", ["hand", "hr"], "S1", "E1", "W1"], ["ub", "fb", ["hand2", "hr2"], "S2", "E2", "W2"],
+  ["th", "sh", ["foot"], "H1", "K1", "A1"], ["tb", "sb", ["foot2"], "H2", "K2", "A2"]];
+// [world key, parent key, joint key, lowest value, sign]: shoulder from -70 (arm past overhead) to 290 (arm behind the
+// back), elbow and knee from a bit the wrong way to fully bent, hip from -60 (knee to chest) to 300 (leg far behind).
+const DM_JOINTS = [["ua", "t", "js1", -70], ["fa", "ua", "je1", -110, -1], ["ub", "t", "js2", -70], ["fb", "ub", "je2", -110, -1],
+  ["th", "t", "jh1", -60], ["sh", "th", "jk1", -100], ["tb", "t", "jh2", -60], ["sb", "tb", "jk2", -100]];
+const dmAng = (a, b) => Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
+function dmPrep(pat){
+  if (pat.fn || pat.kj) return;
+  const K = pat.k.map(P => Object.assign({}, P)), keys = L => [L[0], L[1]].concat(L[2]), set = (P, L) => keys(L).some(k => P[k] !== undefined);
+  if (pat.front){ pat.kj = K; return; }
+  [[0, 1], [2, 3]].forEach(([n, f]) => {
+    if (K.some(P => set(P, DM_LIMBS[f]))) K.forEach(P => { if (!set(P, DM_LIMBS[f])) keys(DM_LIMBS[n]).forEach((k, i) => { if (P[k] !== undefined) P[keys(DM_LIMBS[f])[i]] = P[k]; }); });
+  });
+  const feet = K.some(P => ["fd", "fd2", "fr", "fr2"].some(k => P[k] !== undefined)), wrap = (x, lo) => lo + ((x - lo) % 360 + 360) % 360;
+  const rel = (Kn, A, T) => ((dmAng(Kn, A) - dmAng(A, T)) % 360 + 540) % 360 - 180;
+  pat.ik = K.map(P => DM_LIMBS.map(L => L[2].some(k => P[k] !== undefined)));
+  pat.kj = K.map(P => {
+    const J = dmSolve(P, false), Q = Object.assign({}, P);
+    if (feet){ Q.fr = rel(J.K1, J.A1, J.T1); Q.fr2 = rel(J.K2, J.A2, J.T2); delete Q.fd; delete Q.fd2; }
+    DM_LIMBS.forEach(L => { if (set(P, L)){ Q[L[0]] = dmAng(J[L[3]], J[L[4]]); Q[L[1]] = dmAng(J[L[4]], J[L[5]]); } });
+    DM_JOINTS.forEach(([w, p, j, lo, sg]) => { if (Q[w] !== undefined) Q[j] = wrap(sg ? Q[p] - Q[w] : Q[w] - Q[p], lo); });
+    DM_JOINTS.forEach(([w]) => delete Q[w]);
+    return Q;
+  });
+}
+// The pose a fraction u of the way from key pose a to key pose b.
+function dmTween(pat, a, b, u){
+  dmPrep(pat);
+  const A = Object.assign({}, pat.kj[a]), B = Object.assign({}, pat.kj[b]);
+  if (pat.ik) DM_LIMBS.forEach((L, i) => {
+    const drop = pat.ik[a][i] && pat.ik[b][i] ? DM_JOINTS.filter(j => j[0] === L[0] || j[0] === L[1]).map(j => j[2]) : L[2];
+    drop.forEach(k => { delete A[k]; delete B[k]; });
+  });
+  const P = dmLerp(A, B, u);
+  DM_JOINTS.forEach(([w, p, j, , sg]) => { if (P[j] !== undefined) P[w] = sg ? P[p] - P[j] : P[p] + P[j]; });
+  return P;
+}
 function demoPose(pat, sec){
   if (pat.fn){ const p = (sec / pat.period) % 1; return { P: pat.fn(p), ph: 0 }; }
   const n = pat.k.length, segs = pat.loop ? n : 2, tm = pat.tm, hold = .3;
   const total = tm.slice(0, segs).reduce((a, b) => a + b + hold, 0);
   let x = sec % total, i = 0;
   while (x > tm[i] + hold){ x -= tm[i] + hold; i++; }
-  const from = pat.loop ? pat.k[i] : pat.k[i === 0 ? 0 : 1], to = pat.loop ? pat.k[(i + 1) % n] : pat.k[i === 0 ? 1 : 0];
+  const from = pat.loop ? i : i === 0 ? 0 : 1, to = pat.loop ? (i + 1) % n : i === 0 ? 1 : 0;
   const u = Math.min(1, x / tm[i]), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
-  return { P: dmLerp(from, to, e), ph: i };
+  return { P: dmTween(pat, from, to, e), ph: i };
 }
 function demoSvg(pat, P, path = "", over = ""){
   const J = dmSolve(P, !!pat.front);
@@ -6130,7 +6220,7 @@ function demoFit(d){
   const pat = d.pat, n = pat.fn ? 8 : pat.k.length, front = !!pat.front;
   let top = 108;
   for (let i = 0; i < n; i++){
-    const P = pat.fn ? pat.fn(i / n) : pat.k[i], J = dmSolve(P, front);
+    const P = pat.fn ? pat.fn(i / n) : dmTween(pat, i, i, 0), J = dmSolve(P, front);
     top = Math.min(top, J.head[1] - 9, J.W1[1] - 12, J.W2[1] - 12);
     (demoSvg(pat, P).match(/\b(?:y1|y2|y|cy)="-?[\d.]+"/g) || []).forEach(m => { top = Math.min(top, parseFloat(m.split('"')[1]) - 4); });
   }
@@ -6138,7 +6228,7 @@ function demoFit(d){
   d.svg.setAttribute("viewBox", `0 ${y0} 160 ${118 - y0}`);
   d.path = ""; d.track = null;
   if (pat.fn || pat.loop || pat.k.length !== 2) return;
-  const pts = []; for (let i = 0; i <= 12; i++) pts.push(dmSolve(dmLerp(pat.k[0], pat.k[1], i / 12), front));
+  const pts = []; for (let i = 0; i <= 12; i++) pts.push(dmSolve(dmTween(pat, 0, 1, i / 12), front));
   let best = null, far = 8;
   // with a weight follow the hand; without, the body part that moves most (hands count a bit less, so a lean
   // shows the shoulders rather than the swinging arms)

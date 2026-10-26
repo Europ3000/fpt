@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-OSyu+3PLN8Pd4K8iZsbLXcmnHHRDmfeyp84UEMUuVqc=' 'sha256-AaRC6F4ytLBRTxfI2SmGpevZ2sZdY4VsuPNC6JSLyB8='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-HCNFwNBeF25Kg2QPAkyVBg9fkC1DiVpT9/3xq2+byws=' 'sha256-LZFKLm91J15EhQlCpoK2M8/s7ItGpT+6+Feq4GJq/5g='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#16a34a">
@@ -16,12 +16,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FPT">
 <meta name="application-name" content="FPT">
-<link rel="preload" as="script" href="app.js?v=0ff8fd9347">
+<link rel="preload" as="script" href="app.js?v=670ba942da">
 <script>window.FPT_STANDALONE = true;
 window.FPT_HOME = "https://fptfit.app/";
 window.FPT_MOVE_TO = "https://fptfit.app/";
 window.FPT_I18N = {"langs": ["en", "fr", "es", "de", "it", "pt", "ru", "zh", "ar", "hi"]};
-window.FPT_I18N_FILES = {"en": "i18n/en.js?v=56b01eb4f2", "fr": "i18n/fr.js?v=f29ff165a2", "es": "i18n/es.js?v=1698603af6", "de": "i18n/de.js?v=d9a0ae0af3", "it": "i18n/it.js?v=922b882a1d", "pt": "i18n/pt.js?v=e551c8c8b6", "ru": "i18n/ru.js?v=6dce9b570f", "zh": "i18n/zh.js?v=7b3014831b", "ar": "i18n/ar.js?v=c9deecf8eb", "hi": "i18n/hi.js?v=640124d01f"};
+window.FPT_I18N_FILES = {"en": "i18n/en.js?v=e333e50ee5", "fr": "i18n/fr.js?v=ec58aa80ee", "es": "i18n/es.js?v=87eb79d6f8", "de": "i18n/de.js?v=4a58fdb5e7", "it": "i18n/it.js?v=19a1e8f0ae", "pt": "i18n/pt.js?v=710709d452", "ru": "i18n/ru.js?v=8dc641a660", "zh": "i18n/zh.js?v=8b241ea896", "ar": "i18n/ar.js?v=be5e0b25dc", "hi": "i18n/hi.js?v=9e26d4a898"};
 (() => {
   // Not inside someone else's page (clickjacking): break out, or show nothing.
   if (top !== self){ try { top.location.replace(location.href); } catch {} document.documentElement.style.display = "none"; }
@@ -1405,6 +1405,51 @@ h1,h2,h3{overflow-wrap:anywhere}
   .ex-body > .entry-row .save{white-space:normal;min-width:0;line-height:1.15}
   .ex-body > .entry-row .ghost{padding:0 8px}
 }
+/* ---------- Sport (the default style): calm, app-like finish ---------- */
+.vb-ico{display:none}
+/* Type: heavy, tight headings in normal case; small spaced labels above blocks; big numbers that line up. */
+:root[data-style="plain"]{--display:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--radius:20px}
+:root[data-style="plain"] :is(h1,h2,h3,.hello h2,.welcome-card h2,.wl-slide h2,.panel h2){font-family:var(--display);font-style:normal;font-weight:800;text-transform:none;letter-spacing:-.025em}
+:root[data-style="plain"] h1{font-size:1.38rem;line-height:1.05}
+:root[data-style="plain"] .panel h2{font-size:1.12rem}
+:root[data-style="plain"] .hello h2{font-size:1.9rem;line-height:1.05;letter-spacing:-.035em}
+:root[data-style="plain"] :is(.tile strong,.rec strong,.rest-txt strong){font-family:var(--display);font-style:normal;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+:root[data-style="plain"] .label{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+/* Cards: a hairline edge and a soft, low shadow instead of a heavy blur. */
+:root[data-style="plain"] :is(.panel,.ex,.tile,.add){border:1px solid color-mix(in srgb,var(--line) 75%,transparent);border-radius:var(--radius);
+  box-shadow:0 1px 2px color-mix(in srgb,var(--ink) 5%,transparent),0 10px 28px -12px color-mix(in srgb,var(--ink) 18%,transparent)}
+:root[data-style="plain"] .tile{border-radius:16px}
+:root[data-style="plain"] .ex.done{box-shadow:0 0 0 2px var(--teal),0 10px 28px -12px color-mix(in srgb,var(--ink) 18%,transparent)}
+@media (prefers-color-scheme: dark){:root[data-style="plain"]:not([data-theme="light"]) :is(.panel,.ex,.tile,.add){border-color:rgba(255,255,255,.06);box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 12px 30px -14px rgba(0,0,0,.7)}}
+:root[data-style="plain"][data-theme="dark"] :is(.panel,.ex,.tile,.add){border-color:rgba(255,255,255,.06);box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 12px 30px -14px rgba(0,0,0,.7)}
+/* Buttons in normal case, a bit rounder */
+:root[data-style="plain"] :is(.save,.view-btn){text-transform:none;letter-spacing:-.005em}
+:root[data-style="plain"] .save{border-radius:16px;font-weight:700}
+:root[data-style="plain"] .top::after{height:3px}
+/* Phones: the four views move to a tab bar at the bottom, with icons, within reach of your thumb. */
+@media (max-width:760px){
+  :root[data-style="plain"]{--tabbar:64px}
+  :root[data-style="plain"] .top{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--paper)}
+  :root[data-style="plain"] body{padding-bottom:calc(var(--tabbar) + 36px + env(safe-area-inset-bottom,0px))}
+  :root[data-style="plain"] .top .views{position:fixed;left:0;right:0;bottom:0;z-index:19;height:auto;gap:2px;border-radius:0;
+    padding:6px max(10px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));
+    background:color-mix(in srgb,var(--card) 94%,transparent);border-top:1px solid var(--line);box-shadow:0 -8px 24px -12px color-mix(in srgb,var(--ink) 22%,transparent)}
+  @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
+    :root[data-style="plain"] .top .views{background:color-mix(in srgb,var(--card) 80%,transparent);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4)}
+  }
+  :root[data-style="plain"] .view-btn{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:52px;padding:4px 2px;border-radius:14px;
+    font-size:.7rem;font-weight:600;letter-spacing:0;white-space:nowrap;color:var(--muted);background:none;box-shadow:none}
+  :root[data-style="plain"] .view-btn span{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  :root[data-style="plain"] .vb-ico{display:block;width:44px;height:28px;padding:3px 11px;border-radius:999px;fill:none;stroke:currentColor;stroke-width:1.9;
+    stroke-linecap:round;stroke-linejoin:round;transition:background-color .2s,color .2s}
+  :root[data-style="plain"] .view-btn[aria-selected="true"]{background:none;color:var(--ink);box-shadow:none}
+  :root[data-style="plain"] .view-btn[aria-selected="true"] .vb-ico{background:var(--ember);color:var(--on-accent);stroke-width:2.1}
+  :root[data-style="plain"] .rest{bottom:calc(var(--tabbar) + env(safe-area-inset-bottom,0px));padding-bottom:10px}
+  :root[data-style="plain"] .toast{bottom:calc(var(--tabbar) + 18px + env(safe-area-inset-bottom,0px))}
+  :root[data-style="plain"] body.resting .toast{bottom:calc(var(--tabbar) + 96px + env(safe-area-inset-bottom,0px))}
+  :root[data-style="plain"] body.resting{padding-bottom:calc(var(--tabbar) + 120px + env(safe-area-inset-bottom,0px))}
+}
+@media (max-width:760px) and (prefers-reduced-motion:reduce){:root[data-style="plain"] .vb-ico{transition:none}}
 </style>
 </head>
 <body>
@@ -1436,10 +1481,10 @@ h1,h2,h3{overflow-wrap:anywhere}
       </div>
     </div>
     <div class="views" role="tablist" aria-label="Weergave">
-      <button class="view-btn" id="viewToday" type="button" role="tab" aria-selected="false">Vandaag</button>
-      <button class="view-btn" id="viewTrain" type="button" role="tab" aria-selected="true">Training</button>
-      <button class="view-btn" id="viewStats" type="button" role="tab" aria-selected="false">Analytics</button>
-      <button class="view-btn" id="viewPlan" type="button" role="tab" aria-selected="false">Planning</button>
+      <button class="view-btn" id="viewToday" type="button" role="tab" aria-selected="false"><svg class="vb-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/></svg><span>Vandaag</span></button>
+      <button class="view-btn" id="viewTrain" type="button" role="tab" aria-selected="true"><svg class="vb-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7v10M17 7v10M4 9.5v5M20 9.5v5M7 12h10"/></svg><span>Training</span></button>
+      <button class="view-btn" id="viewStats" type="button" role="tab" aria-selected="false"><svg class="vb-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-6M3 20h18"/></svg><span>Analytics</span></button>
+      <button class="view-btn" id="viewPlan" type="button" role="tab" aria-selected="false"><svg class="vb-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg><span>Planning</span></button>
     </div>
     <nav class="mod-jump" id="statsJump" aria-label="Ga naar een blok" hidden></nav>
    </header>
@@ -1954,6 +1999,6 @@ h1,h2,h3{overflow-wrap:anywhere}
     <button type="button" id="restStop">Stop</button>
   </div>
 </div>
-<script>[window.FPT_LANG_FILE, "app.js?v=0ff8fd9347"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
+<script>[window.FPT_LANG_FILE, "app.js?v=670ba942da"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
 </body>
 </html>
