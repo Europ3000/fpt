@@ -611,7 +611,7 @@ body.big .cm .field input{font-size:1.35rem}
 
 /* Quick workout, repeat, tips, strength, balance, search, calendar */
 .day-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.rest-chip{font:inherit;font-size:.85rem;font-weight:600;font-variant-numeric:tabular-nums;margin:6px 0 0;padding:6px 12px;border-radius:999px;border:1.5px solid var(--ember);background:transparent;color:var(--ember);cursor:pointer}
+.rest-chip{font:inherit;font-size:.72rem;font-weight:600;font-variant-numeric:tabular-nums;margin:0 0 0 auto;align-self:flex-start;padding:2px 8px;border-radius:999px;border:1.5px solid var(--ember);background:transparent;color:var(--ember);cursor:pointer}
 .rest-chip.run{background:var(--ember);color:var(--on-accent)}
 .rest-chip.over{background:var(--good,#4ade80);border-color:var(--good,#4ade80);color:#111}
 body.rest-each #restBar{display:none}
@@ -3274,7 +3274,8 @@ function renderExercisesNow(){
       : skipped ? `<span class="badge skip">Overgeslagen</span>`
       : `<span class="badge">${todaySets.length}/${planned}</span>`;
     const ssTag = ss ? `<span class="ss-tag">Superset ↓</span>` : ssUp ? `<span class="ss-tag">Superset ↑</span>` : "";
-    const head = `<span class="ex-title"><span class="ex-name"></span><span class="ex-nl"></span>${ssTag}</span>${badge}`;
+    const chip = restEach && !finished ? `<button type="button" class="rest-chip" data-rest data-name="${esc(name)}" data-sec="${restSeconds(rest)}" aria-label="Rusttimer starten of stoppen"></button>` : "";
+    const head = `<span class="ex-title"><span class="ex-name"></span><span class="ex-nl"></span>${ssTag}</span>${chip}${badge}`;
     const note = (prefs.notes || {})[k] || "";
 
     // One row per set: number, what you did last time, weight, reps, check.
@@ -3311,7 +3312,6 @@ function renderExercisesNow(){
       ${finished && !editing ? `<button class="ex-head" type="button" aria-expanded="${!collapsed}">${head}</button>` : `<div class="ex-head">${head}</div>`}
       <div class="ex-body">
         <div class="prescription"><span><b>${planned} × ${esc(reps)}${mode === "time" ? " sec" : ""}</b> · rust ${esc(rest)}${deloadActive() ? " · deload" : ""}${pw && pw.light ? " · lichte week" : ""}</span><span class="tag ${esc(type)}">${esc(({ mobility: "mobiliteit" })[type] || type)}</span></div>
-        ${restEach ? `<button type="button" class="rest-chip" data-rest data-name="${esc(name)}" data-sec="${restSeconds(rest)}" aria-label="Rusttimer starten of stoppen"></button>` : ""}
         ${orig ? `<p class="ex-swapped">Vervangt vandaag <b>${esc(orig)}</b> · <button type="button" class="link" data-unswap>Terugzetten</button></p>` : ""}
         ${note ? `<p class="ex-note"><b>Notitie:</b> <span></span></p>` : ""}
         ${miniTrend(progCache[k])}
@@ -3577,7 +3577,7 @@ function finishWorkout(){
   const undoSnap = takeSnapshot();
   stopRest();
   try { if (wakeLock) wakeLock.release(); } catch {}
-  wakeLock = null; training = false;
+  wakeLock = null; training = false; sessionOn = false;
   const all = exs.flatMap(([, e]) => e.sets);
   const times = all.map(x => new Date(x.t).getTime());
   const cardioMin = sessCardio.reduce((a, c) => a + (c.min || 0), 0);
@@ -3928,16 +3928,16 @@ let restEach = lsGet("ppl.restEach", false);
 document.body.classList.toggle("rest-each", restEach);
 // With the clock on, the exercise you are on gets a stopwatch that starts again at every new exercise;
 // the rest between sets counts down in the same chip.
-let watchName = "", watchAt = 0;
+let watchName = "", watchAt = 0, sessionOn = false;   // sessionOn: you tapped "Training"
 const mmss = s => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 function updateRestChips(){
-  const act = document.querySelector("#exercises .ex:not(.finished) .rest-chip"), live = inWorkout();
+  const act = document.querySelector("#exercises .ex:not(.finished) .rest-chip"), live = inWorkout() || sessionOn;
   if (!live || (act ? act.dataset.name : "") !== watchName){ watchName = live && act ? act.dataset.name : ""; watchAt = Date.now(); }
   document.querySelectorAll(".rest-chip").forEach(c => {
     const on = restName === c.dataset.name && !$("restBar").hidden, over = on && $("restBar").classList.contains("over");
     const watching = !on && live && c === act;
-    c.textContent = on ? "⏱ " + mmss(Math.max(0, Math.ceil((restEnd - Date.now()) / 1000))) + " · " + tr("rust")
-      : watching ? "⏱ " + mmss(Math.floor((Date.now() - watchAt) / 1000)) + " · " + tr("oefening") + " · " + tr("rust") + " " + mmss(+c.dataset.sec)
+    c.textContent = on ? "⏱ " + mmss(Math.max(0, Math.ceil((restEnd - Date.now()) / 1000)))
+      : watching ? "⏱ " + mmss(Math.floor((Date.now() - watchAt) / 1000))
       : "⏱ " + mmss(+c.dataset.sec);
     c.classList.toggle("run", on && !over); c.classList.toggle("over", over); c.classList.toggle("watch", watching);
   });
@@ -8897,7 +8897,7 @@ function merge(a, b){
 $("restPlus").onclick = () => { restEnd = Math.max(restEnd, Date.now()) + 30000; $("restBar").classList.remove("over"); if (!restTimer) restTimer = setInterval(tickRest, 250); tickRest(); };
 $("restStop").onclick = stopRest;
 $("finishBtn").onclick = finishWorkout;
-$("focusToggle").onclick = () => { focusOn = !focusOn; devSet("ppl.focus", focusOn); focusKey = null; stopRest(); renderExercises();
+$("focusToggle").onclick = () => { focusOn = !focusOn; devSet("ppl.focus", focusOn); focusKey = null; stopRest(); sessionOn = focusOn; watchAt = Date.now(); renderExercises();
   // look at the first exercise, not the top of the page
   const c = document.querySelector("#exercises .ex.focused") || document.querySelector("#exercises .ex:not(.finished)") || document.querySelector("#exercises .ex");
   if (c) window.scrollTo({ top: Math.max(0, c.getBoundingClientRect().top + window.scrollY - headerOffset()), behavior: "instant" }); };
@@ -9015,7 +9015,7 @@ $("chartAllToggle").addEventListener("click", () => { statsAll = !statsAll; rend
 let resizeTimer;
 try { document.fonts.ready.then(() => { fitTabs(); if (page === "train") renderSchemes(); }); } catch {}
 window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { fitTabs(); if (page === "train") renderSchemes(); if (page === "stats") renderStats(); }, 150); });
-$("editToggle").onclick =() => { editing = !editing; renderExercises(); };
+$("editToggle").onclick =() => { editing = !editing; renderDayTools(); renderExercises(); };
 // Shuffle: a new random order for the exercises you have not done yet; what you already did stays on top.
 $("durBtn").onclick = () => { durOpen = !durOpen; renderDayTools(); };
 $("restEachBtn").setAttribute("aria-pressed", restEach);
