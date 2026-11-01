@@ -7492,24 +7492,24 @@ showPage(inWorkout() ? "train" : "today");
 setStore(false, "Opgeslagen op dit toestel.");
 
 
-// ---------- Account for the stand-alone app: Supabase, log in by password, mail link, social account, passkey or SMS; your data per user ----------
+// ---------- Account for the stand-alone app: Supabase, log in by password, mail link, Google, Facebook or passkey; your data per user ----------
 // The publishable key is meant to be public; row level security in the database lets each user reach only their own rows.
 const SB_URL = "https://vcbyebuhmefyydevjsur.supabase.co", SB_KEY = "sb_publishable_cupM_aiMLcFREDDAlqQhCw_GUk45Cko", SB_LS = "fpt.sb";
 let sbOn = {};   // which login methods are switched on in Supabase (/auth/v1/settings); a method only shows once it is
-let sbSession = (() => { try { return JSON.parse(localStorage.getItem(SB_LS) || "null"); } catch { return null; } })(), sbMail = "", sbMailType = "email", sbPhone = "", sbNewPass = false;
+let sbSession = (() => { try { return JSON.parse(localStorage.getItem(SB_LS) || "null"); } catch { return null; } })(), sbMail = "", sbMailType = "email", sbNewPass = false;
 // Asking for a login (mail or Google) leaves a mark, so a link with someone else's session is not taken over unseen.
 const SB_WAIT = "fpt.sbWait", sbAsked = () => { try { localStorage.setItem(SB_WAIT, String(Date.now())); } catch {} };
 const sbSave = x => { sbSession = x; try { x ? localStorage.setItem(SB_LS, JSON.stringify(x)) : localStorage.removeItem(SB_LS); } catch {} };
 async function sbAuth(path, body, jwt, method = "POST"){
   const r = await fetch(SB_URL + "/auth/v1/" + path, { method, headers: { apikey: SB_KEY, "Content-Type": "application/json", ...(jwt ? { Authorization: "Bearer " + jwt } : {}) }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw Object.assign(new Error(j.msg || j.error_description || j.message || "auth"), { status: r.status, code: j.error_code });
+  if (!r.ok) throw Object.assign(new Error(j.msg || j.error_description || j.message || "auth"), { status: r.status, code: j.error_code || j.error });
   return j;
 }
-const sbKeep = j => sbSave({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || Math.floor(Date.now() / 1000) + (j.expires_in || 3600), user: { id: j.user.id, email: j.user.email || (j.user.phone ? "+" + j.user.phone : "") } });
+const sbKeep = j => sbSave({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || Math.floor(Date.now() / 1000) + (j.expires_in || 3600), user: { id: j.user.id, email: j.user.email } });
 // Logged in without leaving the app. After a password reset (type "recovery") the next step is choosing a new password.
 function sbDone(j, type){
-  sbKeep(j); sbMail = sbPhone = ""; sbNewPass = type === "recovery";
+  sbKeep(j); sbMail = ""; sbNewPass = type === "recovery";
   toast("Ingelogd. Je gegevens worden gesynchroniseerd."); renderAccount(); connectStore();
 }
 async function sbMailSend(email, path, body, type = "email"){
@@ -7534,11 +7534,35 @@ async function sbPasskeyAdd(){
     toast("Passkey toegevoegd. Hiermee log je voortaan in zonder wachtwoord.");
   } catch (err) { if (err.name !== "NotAllowedError") toast(err.name === "InvalidStateError" ? "Op dit toestel staat al een passkey." : "De passkey toevoegen lukte niet."); }
 }
+// You stay logged in until you log out yourself: no connection or a server error never ends a login, only Supabase saying it is gone.
+const SB_GONE = /^(refresh_token_not_found|refresh_token_already_used|session_not_found|session_expired|user_not_found|user_banned|invalid_grant)$/;
+const sbStored = () => { try { return JSON.parse(localStorage.getItem(SB_LS) || "null"); } catch { return null; } };
+let sbRefreshing = null;
+function sbRefresh(){
+  // A refresh token works once, so one refresh at a time over all tabs; the next tab takes what the first one got.
+  const stale = sbSession.refresh_token;
+  const run = async () => {
+    const x = sbStored();
+    if (x && x.refresh_token !== stale){ sbSession = x; return; }
+    const ask = () => sbAuth("token?grant_type=refresh_token", { refresh_token: stale });
+    // Connection lost halfway: Supabase may have swapped the token already, and for a few seconds it answers the old one again.
+    const j = await ask().catch(async e => { if (e.status) throw e; await new Promise(r => setTimeout(r, 1500)); return ask(); });
+    if (sbSession) sbKeep(j);
+  };
+  return navigator.locks ? navigator.locks.request("fpt.sbRefresh", run) : run();
+}
 async function sbToken(){
   if (!sbSession) return null;
   if (sbSession.expires_at - 60 > Date.now() / 1000) return sbSession.access_token;
-  try { sbKeep(await sbAuth("token?grant_type=refresh_token", { refresh_token: sbSession.refresh_token })); return sbSession.access_token; }
-  catch (e) { if (e.status === 400 || e.status === 401) sbSave(null); throw e; }
+  try { await (sbRefreshing = sbRefreshing || sbRefresh().finally(() => { sbRefreshing = null; })); return sbSession.access_token; }
+  catch (e) {
+    if (sbSession && SB_GONE.test(e.code)){
+      const msg = "Je login is niet meer geldig. Log opnieuw in bij Instellingen → Account.";
+      sbSave(null); recordsRef = prefsRef = layoutRef = logCol = null;
+      setStore(false, msg); toast(msg); renderAccount();
+    }
+    throw e;
+  }
 }
 async function sbRest(method, query, body){
   const t = await sbToken(); if (!t) throw new Error("login");
@@ -7568,8 +7592,6 @@ async function cloudStore(){
 // A new provider only needs a line here (with its Supabase name) and switching it on in the Supabase dashboard.
 const SB_SOCIAL = [
   ["google", "Doorgaan met Google", `<path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.2-2.1 3.5-5.1 3.5-8.7z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8l4-3.1z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9z"/>`],
-  ["apple", "Doorgaan met Apple", `<path fill="#000" d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.428-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.613 0 2.886.06 4.374 2.19-.13.09-2.383 1.37-2.383 4.19 0 3.26 2.854 4.42 2.955 4.45z"/>`],
-  ["azure", "Doorgaan met Microsoft", `<path fill="#F25022" d="M1 1h10v10H1z"/><path fill="#7FBA00" d="M13 1h10v10H13z"/><path fill="#00A4EF" d="M1 13h10v10H1z"/><path fill="#FFB900" d="M13 13h10v10H13z"/>`],
   ["facebook", "Doorgaan met Facebook", `<circle cx="12" cy="12" r="12" fill="#1877F2"/><path fill="#fff" d="M16.7 15.5l.5-3.5h-3.3V9.8c0-1 .5-1.9 2-1.9h1.5v-3s-1.4-.2-2.7-.2c-2.7 0-4.5 1.6-4.5 4.6V12H7.1v3.5h3.1V24h3.7v-8.5h2.8z"/>`]
 ];
 function renderAccount(){
@@ -7625,33 +7647,10 @@ function renderAccount(){
       try { sbDone(await sbAuth("verify", { type: sbMailType, email: sbMail, token }), sbMailType); }
       catch (err) { toast(err.status === 429 ? "Even wachten en dan opnieuw proberen." : "Die code klopt niet of is verlopen. Vraag een nieuwe aan."); }
     };
-  } else if (sbPhone === "ask"){
-    box.innerHTML = `<p class="acct-h">Account</p><p class="note">Je krijgt een sms met een code. Begin met je landcode, bijvoorbeeld +32.</p>
-      <form class="acct-form" id="acctPhoneForm"><input type="tel" id="acctPhone" autocomplete="tel" placeholder="+32 470 12 34 56" aria-label="Telefoonnummer" required><button class="save" type="submit">Stuur code</button></form>
-      <button class="ghost-sm acct-back" type="button" id="acctBack">Terug</button>`;
-    $("acctBack").onclick = () => { sbPhone = ""; renderAccount(); };
-    $("acctPhoneForm").onsubmit = async e => {
-      e.preventDefault();
-      const phone = $("acctPhone").value.replace(/[\s().-]/g, "");
-      if (!/^\+\d{8,15}$/.test(phone)){ toast("Vul je nummer in met landcode, bijvoorbeeld +32470123456."); return; }
-      try { await sbAuth("otp", { phone, create_user: true }); sbPhone = phone; renderAccount(); toast("Sms verstuurd."); }
-      catch (err) { toast(err.status === 429 ? "Je vroeg te veel codes aan. Probeer het over een uur opnieuw." : "Versturen lukt niet. Controleer je nummer en je verbinding."); }
-    };
-  } else if (sbPhone){
-    box.innerHTML = `<p class="acct-h">Account</p><p class="note">We stuurden een sms naar <b translate="no">${esc(sbPhone)}</b>. Vul de code hier in.</p>
-      <form class="acct-form" id="acctPhoneCode"><input id="acctCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456" aria-label="Code uit de sms" required><button class="save" type="submit">Inloggen</button></form>
-      <button class="ghost-sm acct-back" type="button" id="acctBack">Ander nummer</button>`;
-    $("acctBack").onclick = () => { sbPhone = "ask"; renderAccount(); };
-    $("acctPhoneCode").onsubmit = async e => {
-      e.preventDefault();
-      try { sbDone(await sbAuth("verify", { type: "sms", phone: sbPhone, token: $("acctCode").value.replace(/\s/g, "") })); }
-      catch (err) { toast(err.status === 429 ? "Even wachten en dan opnieuw proberen." : "Die code klopt niet of is verlopen. Vraag een nieuwe aan."); }
-    };
   } else {
     const btn = (attr, svg, text) => `<button class="g-btn" type="button" ${attr}><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">${svg}</svg><span>${text}</span></button>`;
     const quick = SB_SOCIAL.filter(s => sbOn[s[0]]).map(s => btn(`data-sb="${s[0]}"`, s[2], s[1])).join("")
-      + (sbPasskeys() ? btn(`id="acctKeyIn"`, `<path fill="#1f1f1f" d="M7 14a5 5 0 1 1 4.9-6H22v4h-2v3h-4v-3h-4.1A5 5 0 0 1 7 14zm0-3a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>`, "Inloggen met een passkey") : "")
-      + (sbOn.phone ? btn(`id="acctPhoneBtn"`, `<path fill="#1f1f1f" d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.2c1.1.4 2.3.6 3.6.6a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.2.2 2.4.6 3.6a1 1 0 0 1-.3 1z"/>`, "Doorgaan met je telefoonnummer") : "");
+      + (sbPasskeys() ? btn(`id="acctKeyIn"`, `<path fill="#1f1f1f" d="M7 14a5 5 0 1 1 4.9-6H22v4h-2v3h-4v-3h-4.1A5 5 0 0 1 7 14zm0-3a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>`, "Inloggen met een passkey") : "");
     box.innerHTML = `<p class="acct-h">Account</p><p class="note">Log in of maak een account om je trainingen op al je toestellen te bewaren.</p>${quick}${quick ? `<p class="note acct-or">Of met je e-mailadres:</p>` : ""}
       <form class="acct-form acct-stack" id="acctForm"><input type="email" id="acctMail" autocomplete="username" placeholder="jij@voorbeeld.be" aria-label="E-mailadres" required><input type="password" id="acctPass" autocomplete="current-password" placeholder="Wachtwoord" aria-label="Wachtwoord" required>
         <div class="entry-row"><button class="save" type="submit">Inloggen</button><button class="ghost wide" type="button" id="acctNew">Account maken</button></div></form>
@@ -7660,10 +7659,9 @@ function renderAccount(){
       <button class="ghost wide" type="button" id="acctLinkBtn">Stuur inloglink</button>`;
     box.querySelectorAll("[data-sb]").forEach(b => b.onclick = () => {
       sbAsked();
-      location.href = `${SB_URL}/auth/v1/authorize?provider=${b.dataset.sb}${b.dataset.sb === "azure" ? "&scopes=email" : ""}&redirect_to=${encodeURIComponent(location.origin + location.pathname)}`;
+      location.href = `${SB_URL}/auth/v1/authorize?provider=${b.dataset.sb}&redirect_to=${encodeURIComponent(location.origin + location.pathname)}`;
     });
     if ($("acctKeyIn")) $("acctKeyIn").onclick = sbPasskeyIn;
-    if ($("acctPhoneBtn")) $("acctPhoneBtn").onclick = () => { sbPhone = "ask"; renderAccount(); };
     const mail = () => $("acctMail").value.trim();
     $("acctForm").onsubmit = async e => {
       e.preventDefault();
@@ -7726,14 +7724,15 @@ function sbFromHash(){
   if (!claims.sub) return;
   let asked = 0; try { asked = +localStorage.getItem(SB_WAIT) || 0; localStorage.removeItem(SB_WAIT); } catch {}
   if (Date.now() - asked > 864e5 && !confirm(tr(`Inloggen als ${claims.email || "?"}? Doe dit alleen als je zelf om deze inloglink vroeg.`))) return;
-  sbSave({ access_token: at, refresh_token: rt, expires_at: +h.get("expires_at") || claims.exp || Math.floor(Date.now() / 1000) + 3600, user: { id: claims.sub, email: claims.email || claims.phone || "" } });
+  sbSave({ access_token: at, refresh_token: rt, expires_at: +h.get("expires_at") || claims.exp || Math.floor(Date.now() / 1000) + 3600, user: { id: claims.sub, email: claims.email || "" } });
   sbMail = ""; sbNewPass = h.get("type") === "recovery";   // back from "Wachtwoord vergeten?": choose a new one first
   setTimeout(() => toast("Ingelogd. Je gegevens worden gesynchroniseerd."), 600);
 }
 // Logged in from the link in another tab (e.g. Chrome next to the installed app): pick that session up here too.
 function sbAdopt(){
-  let x = null; try { x = JSON.parse(localStorage.getItem(SB_LS) || "null"); } catch {}
+  const x = sbStored();
   if (!x || (sbSession && sbSession.access_token === x.access_token)) return false;
+  if (sbSession && sbSession.user.id === x.user.id){ sbSession = x; return false; }   // the same login, refreshed in another tab
   sbSession = x; sbMail = ""; renderAccount(); connectStore();
   toast("Ingelogd. Je gegevens worden gesynchroniseerd.");
   return true;
@@ -7741,7 +7740,11 @@ function sbAdopt(){
 if (STANDALONE){
   sbFromHash(); renderAccount();
   fetch(SB_URL + "/auth/v1/settings", { headers: { apikey: SB_KEY } }).then(r => r.json()).then(j => { sbOn = { ...j.external, passkey: j.passkeys_enabled }; if (!sbNewPass) renderAccount(); }).catch(() => {});
-  window.addEventListener("storage", e => { if (e.key === SB_LS) sbAdopt(); });
+  window.addEventListener("storage", e => {
+    if (e.key !== SB_LS) return;
+    if (e.newValue) sbAdopt();
+    else if (sbSession){ sbSession = null; recordsRef = prefsRef = layoutRef = logCol = null; renderAccount(); }   // logged out in another tab
+  });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) sbAdopt(); });
 }
 // ---------- Linked apps: Strava (both ways; Garmin Connect through Strava); Health Connect (Samsung Health) and Apple Health need the phone apps ----------

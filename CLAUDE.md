@@ -45,11 +45,14 @@ Phone-first training app (Dutch source text, translated in the page to 10 more l
   https://vcbyebuhmefyydevjsur.supabase.co (EU). The publishable key in the source is public by design; row
   level security keeps each user to their own rows.
 - Login methods: email + password (`Wachtwoord vergeten?` mails a recovery link, then `sbNewPass` asks for a new
-  one) and email link are always shown. Google, Apple, Microsoft (`azure`), Facebook (`SB_SOCIAL`), SMS and
-  passkeys only show once `/auth/v1/settings` says they are on, so switching one on in the Supabase dashboard
-  (Authentication → Providers / Passkeys) is enough. Passkeys need Relying Party ID `fptfit.app`, are added
-  after logging in (Instellingen → Account → Passkey toevoegen) and call the `passkeys/*` REST paths directly;
-  supabase-js still marks that API experimental. Apple Sign In is needed for the App Store.
+  one) and email link are always shown. Google, Facebook (`SB_SOCIAL`) and passkeys only show once
+  `/auth/v1/settings` says they are on, so switching one on in the Supabase dashboard (Authentication →
+  Providers / Passkeys) is enough. Passkeys need Relying Party ID `fptfit.app`, are added after logging in
+  (Instellingen → Account → Passkey toevoegen) and call the `passkeys/*` REST paths directly; supabase-js still
+  marks that API experimental.
+- Staying logged in: the session stays in `localStorage` (`fpt.sb`) until you press Uitloggen. `sbToken` only ends it
+  when Supabase says the login is gone (`SB_GONE`), never on a lost connection or a server error. A refresh token
+  works once, so `sbRefresh` runs one refresh at a time over all tabs (Web Locks).
 - One table `public.fpt_store (user_id, key, value jsonb)`, created by `supabase/schema.sql`. Keys:
   `records`, `prefs`, `layout`, `log/sessions/<date>`. The sync code (`connectStore`, `sbDoc`) uses the
   same document API as the old claude.ai store, so the merge logic is shared.
