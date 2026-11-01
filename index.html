@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-HCNFwNBeF25Kg2QPAkyVBg9fkC1DiVpT9/3xq2+byws=' 'sha256-LZFKLm91J15EhQlCpoK2M8/s7ItGpT+6+Feq4GJq/5g='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-EEO6zygQ/Dxn+kwTNvXrWLGWkHUcetSJOCKN2x7DydM=' 'sha256-dr9u86JWhnuTs+s2kyxYkGu07SkF4E064h2V3t40cyE='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#16a34a">
@@ -16,12 +16,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FPT">
 <meta name="application-name" content="FPT">
-<link rel="preload" as="script" href="app.js?v=670ba942da">
+<link rel="preload" as="script" href="app.js?v=4b86759127">
 <script>window.FPT_STANDALONE = true;
 window.FPT_HOME = "https://fptfit.app/";
 window.FPT_MOVE_TO = "https://fptfit.app/";
 window.FPT_I18N = {"langs": ["en", "fr", "es", "de", "it", "pt", "ru", "zh", "ar", "hi"]};
-window.FPT_I18N_FILES = {"en": "i18n/en.js?v=e333e50ee5", "fr": "i18n/fr.js?v=ec58aa80ee", "es": "i18n/es.js?v=87eb79d6f8", "de": "i18n/de.js?v=4a58fdb5e7", "it": "i18n/it.js?v=19a1e8f0ae", "pt": "i18n/pt.js?v=710709d452", "ru": "i18n/ru.js?v=8dc641a660", "zh": "i18n/zh.js?v=8b241ea896", "ar": "i18n/ar.js?v=be5e0b25dc", "hi": "i18n/hi.js?v=9e26d4a898"};
+window.FPT_I18N_FILES = {"en": "i18n/en.js?v=620e2f807b", "fr": "i18n/fr.js?v=de0e96dcef", "es": "i18n/es.js?v=f3e03de086", "de": "i18n/de.js?v=b360a0caee", "it": "i18n/it.js?v=b532bb6370", "pt": "i18n/pt.js?v=a9e2e92dda", "ru": "i18n/ru.js?v=fab3f1d87b", "zh": "i18n/zh.js?v=508c1b1f38", "ar": "i18n/ar.js?v=873cfa5c45", "hi": "i18n/hi.js?v=3d297092ba"};
 (() => {
   // Not inside someone else's page (clickjacking): break out, or show nothing.
   if (top !== self){ try { top.location.replace(location.href); } catch {} document.documentElement.style.display = "none"; }
@@ -688,14 +688,14 @@ body.rest-each #restBar{display:none}
 .prof-grid label{display:flex;flex-direction:column;gap:4px;font-size:.78rem;font-weight:600;color:var(--muted);min-width:0}
 .prof-grid input{font:inherit;font-size:1rem;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:8px;padding:9px 8px;min-width:0;width:100%}
 .prof-grid .g-in b{font-size:.78rem}
-.waist-row{display:flex;align-items:center;gap:10px;margin-top:10px}
+.waist-row{display:flex;align-items:center;gap:10px}
 .waist-lab{font-size:.78rem;font-weight:600;color:var(--muted);flex:none}
 .waist-row .g-in{flex:1;min-width:0}
 .waist-row input{font:inherit;font-size:1rem;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:8px;padding:9px 8px;min-width:0;width:100%;max-width:110px}
 .seg-sm button{padding:6px 10px;font-size:.82rem}
 .ruler-btn{flex:none}
 .ruler-btn[aria-expanded="true"]{background:var(--teal-soft);color:var(--teal)}
-.waist-how{margin-top:8px;padding:12px 14px;border-radius:12px;background:var(--teal-soft);font-size:.9rem;line-height:1.45}
+.waist-how{padding:12px 14px;border-radius:12px;background:var(--teal-soft);font-size:.9rem;line-height:1.45}
 .waist-how ol{margin:6px 0 0;padding-left:20px;display:grid;gap:4px}
 .combo{display:grid;gap:6px;margin:10px 0 12px}
 .combo:empty{display:none}
@@ -712,11 +712,21 @@ body.rest-each #restBar{display:none}
 .tile.pm em{font-style:normal;font-size:.78rem;color:var(--muted)}
 .tile.pm.ok strong{color:var(--teal)}
 .tile.pm[data-pm]{position:relative;padding-top:30px}
-.tile.pm[data-pm] .mod-order{position:absolute;top:6px;right:6px;gap:3px}
+.tile.pm[data-pm] .mod-order{position:absolute;top:6px;inset-inline-end:6px;gap:3px;z-index:1}
 .tile.pm[data-pm] .mod-order-btn{width:24px;height:22px;border-radius:6px;font-size:.7rem}
 .tile.pm[data-pm] .mod-order-toggle{font-size:.55rem}
 .pm-h{font-family:var(--display);font-size:1.05rem;margin:6px 0 0}
 .pm-miss{background:var(--paper);border:1px dashed var(--line);border-radius:10px;padding:8px 10px}
+.why{margin-top:2px}
+.why > summary{display:inline-flex;align-items:center;gap:6px;min-height:32px;cursor:pointer;list-style:none;font-size:.82rem;font-weight:600;color:var(--teal)}
+.why > summary::-webkit-details-marker{display:none}
+.why > summary::after{content:"▾";font-size:.8rem;transition:transform .2s}
+.why[open] > summary::after{transform:rotate(180deg)}
+.why-body{display:grid;gap:6px;padding:2px 0 6px;font-size:.85rem;line-height:1.45}
+.why-body p{margin:0}
+.why-lv{display:flex;justify-content:space-between;gap:10px;padding:3px 8px;border-radius:7px;color:var(--muted)}
+.why-lv b{color:var(--ink);font-variant-numeric:tabular-nums}
+.why-lv.now{background:var(--teal-soft);color:var(--ink);font-weight:600}
 /* Lichaam: chart picker, period and the folding parts below it */
 .bc-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
 .bc-head select{font:inherit;font-weight:600;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;flex:1 1 160px;min-width:0;max-width:100%}
@@ -745,10 +755,11 @@ body.rest-each #restBar{display:none}
 .bd > summary::after{content:"▾";font-family:var(--body);font-size:.9rem;color:var(--muted);transition:transform .2s}
 .bd[open] > summary::after{transform:rotate(180deg)}
 .bd-body{display:flex;flex-direction:column;gap:10px;padding:10px 0 4px}
-.tile.ph{font:inherit;color:var(--ink);text-align:start;cursor:pointer}
+.ph-btn{font:inherit;color:var(--ink);text-align:start;cursor:pointer;background:none;border:0;padding:0;display:flex;flex-direction:column;min-width:0}
+.ph-btn::after{content:"";position:absolute;inset:0;border-radius:inherit}
 .phys-get{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
 .phys-get .ghost{min-height:40px;padding:0 14px;font-size:.88rem}
-.tile.ph[aria-pressed="true"]{border-color:var(--ember);box-shadow:inset 0 0 0 1px var(--ember)}
+.tile.ph.on{border-color:var(--ember);box-shadow:inset 0 0 0 1px var(--ember)}
 .tile.ph.off strong{color:var(--muted)}
 .st-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:.9rem}
 .st-row:first-child{border-top:0}
@@ -1652,6 +1663,26 @@ h1,h2,h3{overflow-wrap:anywhere}
               <div class="bw-list" id="bwList"></div>
             </div>
           </details>
+          <details class="bd" id="waistBox"><summary>Tailleomtrek ingeven</summary>
+            <div class="bd-body">
+              <div class="waist-row">
+                <span class="waist-lab">Tailleomtrek</span>
+                <span class="g-in"><input id="pWaist" inputmode="decimal" autocomplete="off" placeholder="85" aria-label="Tailleomtrek"><span class="seg seg-sm" id="pWaistUnit"><button type="button" data-v="cm">cm</button><button type="button" data-v="in">inch</button></span></span>
+                <button class="icon-btn ruler-btn" type="button" id="waistHow" aria-expanded="false" aria-label="Zo meet je je taille"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6 8v3M9 8v2M12 8v3M15 8v2M18 8v3"/></svg></button>
+              </div>
+              <div class="waist-how" id="waistHowBox" hidden>
+                <b>Zo meet je je taille thuis</b>
+                <ol>
+                  <li>Neem een zacht meetlint. Heb je er geen, gebruik dan een touwtje en meet het daarna op met een meetlat.</li>
+                  <li>Meet 's ochtends, voor het ontbijt. Sta rechtop met je voeten op heupbreedte en ontspan je buik.</li>
+                  <li>Zoek het midden tussen je onderste rib en de bovenkant van je heupbeen; meestal is dat net boven je navel.</li>
+                  <li>Leg het lint daar rond je buik, mooi horizontaal, ook op je rug. Gebruik een spiegel om te controleren.</li>
+                  <li>Adem rustig uit en lees af aan het einde van de uitademing, zonder het lint aan te spannen of je buik in te trekken.</li>
+                  <li>Meet twee keer en neem het gemiddelde. Herhaal elke 2–4 weken om je vooruitgang te volgen.</li>
+                </ol>
+              </div>
+            </div>
+          </details>
         </div>
       </section>
       <section class="panel mod" data-mod="report" data-need>
@@ -1765,22 +1796,6 @@ h1,h2,h3{overflow-wrap:anywhere}
           <p class="note" id="twNote"></p>
           <div id="twEx"></div>
           </div>
-          </div>
-          <div class="waist-row">
-            <span class="waist-lab">Tailleomtrek</span>
-            <span class="g-in"><input id="pWaist" inputmode="decimal" autocomplete="off" placeholder="85" aria-label="Tailleomtrek"><span class="seg seg-sm" id="pWaistUnit"><button type="button" data-v="cm">cm</button><button type="button" data-v="in">inch</button></span></span>
-            <button class="icon-btn ruler-btn" type="button" id="waistHow" aria-expanded="false" aria-label="Zo meet je je taille"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6 8v3M9 8v2M12 8v3M15 8v2M18 8v3"/></svg></button>
-          </div>
-          <div class="waist-how" id="waistHowBox" hidden>
-            <b>Zo meet je je taille thuis</b>
-            <ol>
-              <li>Neem een zacht meetlint. Heb je er geen, gebruik dan een touwtje en meet het daarna op met een meetlat.</li>
-              <li>Meet 's ochtends, voor het ontbijt. Sta rechtop met je voeten op heupbreedte en ontspan je buik.</li>
-              <li>Zoek het midden tussen je onderste rib en de bovenkant van je heupbeen; meestal is dat net boven je navel.</li>
-              <li>Leg het lint daar rond je buik, mooi horizontaal, ook op je rug. Gebruik een spiegel om te controleren.</li>
-              <li>Adem rustig uit en lees af aan het einde van de uitademing, zonder het lint aan te spannen of je buik in te trekken.</li>
-              <li>Meet twee keer en neem het gemiddelde. Herhaal elke 2–4 weken om je vooruitgang te volgen.</li>
-            </ol>
           </div>
           <form class="goal-form" id="goalForm">
             <label class="g-ex">Oefening<select id="gEx"></select></label>
@@ -1999,6 +2014,6 @@ h1,h2,h3{overflow-wrap:anywhere}
     <button type="button" id="restStop">Stop</button>
   </div>
 </div>
-<script>[window.FPT_LANG_FILE, "app.js?v=670ba942da"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
+<script>[window.FPT_LANG_FILE, "app.js?v=4b86759127"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
 </body>
 </html>

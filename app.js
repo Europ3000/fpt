@@ -2676,6 +2676,12 @@ function renderBodyStats(k, a, b, daily){
   if (MASS.has(k) && allD.length > 1) row("Sinds je eerste meting", esc(sign(daily[allD[allD.length - 1]] - daily[allD[0]])), new Date(allD[0] + "T12:00").toLocaleDateString(LOC(), { day: "numeric", month: "short", year: "numeric" }));
   $("bcStats").innerHTML = rows.join("");
 }
+// The arrows on a tile; wireTileOrder makes them work.
+const TILE_ORDER = `<span class="mod-order"><button class="mod-order-btn mod-order-toggle" type="button" aria-label="Volgorde aanpassen" title="Volgorde aanpassen"><span aria-hidden="true">⌃</span><span aria-hidden="true">⌄</span></button><button class="mod-order-btn mod-up" type="button" aria-label="Omhoog" title="Omhoog" hidden>▲</button><button class="mod-order-btn mod-down" type="button" aria-label="Omlaag" title="Omlaag" hidden>▼</button></span>`;
+const byPrefOrder = (tiles, order) => tiles.sort((a, b) => { const ia = order.indexOf(a.key), ib = order.indexOf(b.key);
+  return ia < 0 && ib < 0 ? 0 : ia < 0 ? 1 : ib < 0 ? -1 : ia - ib; });
+// BMI and fat-free mass: worked out in renderProfile, shown here right after the Garmin numbers.
+let physExtra = [];
 // Fysiologie: the latest Garmin numbers; a tap shows that number in the chart.
 function renderPhys(){
   const W = prefs.well || {}, tiles = [], cur = bcMetric();
@@ -2705,9 +2711,10 @@ function renderPhys(){
       val = `${Math.round(tot)} min`; sub = physGuess(k) ? "deze week · geschat" : "deze week · doel 150";
     }
     if (l && k === "fa"){ const age = profileAge(prefs.profile || {}); sub = physGuess(k) ? "geschat uit VO2 max" : age ? `je leeftijd: ${age}` : relDate(l[0]); }
-    tiles.push(`<button type="button" class="tile pm ph${l ? "" : " off"}" data-ph="${k}" aria-pressed="${k === cur}"><small>${esc(name)}</small><strong>${esc(val)}</strong><em>${esc(sub)}</em></button>`);
+    tiles.push({ key: k, html: `<div class="tile pm ph${l ? "" : " off"}${k === cur ? " on" : ""}" data-pm="${k}">${TILE_ORDER}<button type="button" class="ph-btn" data-ph="${k}" aria-pressed="${k === cur}"><small>${esc(name)}</small><strong>${esc(val)}</strong><em>${esc(sub)}</em></button></div>` });
   });
-  $("phys").innerHTML = tiles.join("");
+  $("phys").innerHTML = byPrefOrder(tiles.concat(physExtra), prefs.physOrder || []).map(t => t.html).join("");
+  $("phys").querySelectorAll("[data-pm]").forEach(el => wireTileOrder(el, $("phys"), "physOrder"));
   $("phys").querySelectorAll("[data-ph]").forEach(t => t.onclick = () => {
     prefs.bodyMetric = t.dataset.ph; savePrefs(); renderBodyChart(); renderPhys();
     $("bcMetric").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
@@ -6526,6 +6533,14 @@ STANDARDS.anders = Object.fromEntries(Object.keys(STANDARDS.man).map(l => [l, ST
 const sexOf = () => ["man", "vrouw", "anders"].includes(prefs.sex) ? prefs.sex : "man";
 const SEX_BMR = { man: 5, vrouw: -161, anders: -78 };
 const LEVELS = ["Beginner", "Gevorderde beginner", "Gemiddeld", "Gevorderd", "Expert"];
+const LIFT_WHY = {
+  "Bench Press": "Bankdrukken toont de duwkracht van je borst, schouders en triceps.",
+  "Back Squat": "De squat toont de kracht van je benen en billen.",
+  "Deadlift": "De deadlift toont de kracht van je hele achterkant: rug, billen en hamstrings.",
+  "Overhead Press": "De overhead press toont de kracht van je schouders en triceps. De cijfers liggen lager omdat kleinere spieren het werk doen.",
+  "Barbell Row": "Roeien met de stang toont de trekkracht van je rug en biceps.",
+  "Pull-up (added weight)": "Bij optrekken telt je eigen lichaam mee als gewicht, plus wat je extra aanhangt. Hiervoor zijn er geen vaste niveaus."
+};
 function renderStrength(){
   const sex = sexOf(), std = STANDARDS[sex];
   const bw = Object.entries(prefs.body || {}).sort((a, b) => a[0] < b[0] ? -1 : 1).pop();
@@ -6640,7 +6655,7 @@ function renderProfile(){
   $("pSex").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === sex));
   const missing = [!age && "leeftijd", !cm && "lengte", !kg && "gewicht"].filter(Boolean);
   // Lichaamsvet% en spiermassa staan al bij Fysiologie (gemeten); hier alleen wat daar niet staat.
-  const tiles = [], tile = (key, label, val, sub, cls = "") => tiles.push({ key, html: `<div class="tile pm${cls}" data-pm="${key}"><span class="mod-order"><button class="mod-order-btn mod-order-toggle" type="button" aria-label="Volgorde aanpassen" title="Volgorde aanpassen"><span aria-hidden="true">⌃</span><span aria-hidden="true">⌄</span></button><button class="mod-order-btn mod-up" type="button" aria-label="Omhoog" title="Omhoog" hidden>▲</button><button class="mod-order-btn mod-down" type="button" aria-label="Omlaag" title="Omlaag" hidden>▼</button></span><small>${label}</small><strong>${val}</strong><em>${sub}</em></div>` });
+  const tiles = [], tile = (key, label, val, sub, cls = "") => tiles.push({ key, html: `<div class="tile pm${cls}" data-pm="${key}">${TILE_ORDER}<small>${label}</small><strong>${val}</strong><em>${sub}</em></div>` });
   const dates = Object.keys(log).sort(), last28 = dates.filter(d => daysAgo(d) < 28), perWeek = last28.length / 4;
   if (kg && cm){
     const bmi = kg / (cm / 100) ** 2, cat = bmi < 18.5 ? "ondergewicht" : bmi < 25 ? "gezond gewicht" : bmi < 30 ? "overgewicht" : "obesitas";
@@ -6678,9 +6693,8 @@ function renderProfile(){
     tile("lastsession", "Laatste training", trainingKcal(lastD, kg) + " kcal", `${Math.round(sessionMinutes(lastD) + (log[lastD].cardio || []).reduce((a, c) => a + (c.min || 0), 0))} min · ${relDate(lastD).toLowerCase()}`);
     tile("weekburn", "Verbrand deze week", week + " kcal", "met trainen, geschat");
   }
-  const pmOrder = prefs.pmOrder || [];
-  tiles.sort((a, b) => { const ia = pmOrder.indexOf(a.key), ib = pmOrder.indexOf(b.key);
-    return ia < 0 && ib < 0 ? 0 : ia < 0 ? 1 : ib < 0 ? -1 : ia - ib; });
+  const inPhys = t => t.key === "bmi" || t.key === "fatfree", pmTiles = byPrefOrder(tiles.filter(t => !inPhys(t)), prefs.pmOrder || []);
+  physExtra = tiles.filter(inPhys);
   // Strength relative to body weight, corrected for age
   let strHtml = "";
   if (kg){
@@ -6693,10 +6707,17 @@ function renderProfile(){
       }));
       if (b) best[lift] = b;
     });
+    const x100 = v => v.toFixed(2).replace(".", DEC());
+    const why = (key, body) => `<details class="why" data-why="${esc(key)}"${(prefs.strOpen || []).includes(key) ? " open" : ""}><summary>Uitleg</summary><div class="why-body">${body}</div></details>`;
     const std = STANDARDS[sex], rows = Object.entries(best).map(([lift, b]) => {
       const ratio = b / kg, adj = ratio * af, th = std[lift];
-      let lv = ""; if (th){ let i = -1; th.forEach((t, j) => { if (adj >= t) i = j; }); lv = i < 0 ? "Starter" : LEVELS[i]; }
-      return `<div class="rec-row"><span class="rec-name">${esc((NL[lift] || [lift])[0] || lift)}</span><span class="rec-vals"><b>${fmt(Math.round(ratio * 100) / 100)}×</b> je gewicht${af !== 1 ? ` · leeftijd ${fmt(Math.round(adj * 100) / 100)}×` : ""}${lv ? ` · <b>${esc(lv)}</b>` : ""}</span></div>`;
+      let lv = "", lvI = -1; if (th){ th.forEach((t, j) => { if (adj >= t) lvI = j; }); lv = lvI < 0 ? "Starter" : LEVELS[lvI]; }
+      const next = th && th[lvI + 1], levels = th ? [["Starter", `< ${x100(th[0])}×`]].concat(LEVELS.map((n, i) => [n, `${x100(th[i])}×`])) : [];
+      const body = `<p>${esc(LIFT_WHY[lift])}</p><p>Je geschatte 1RM is ${fw(Math.round(b * 2) / 2)}: het gewicht dat je één keer zou kunnen tillen, berekend uit je beste set. Gedeeld door je gewicht (${fw(kg)}) is dat ${fmt(Math.round(ratio * 100) / 100)}×.</p>`
+        + (af !== 1 ? `<p>Met de correctie voor je leeftijd (${age} jaar) wordt dat ${fmt(Math.round(adj * 100) / 100)}×. Zo vergelijk je jezelf eerlijk met volwassenen van 23 tot 40 jaar.</p>` : "")
+        + levels.map(([n, v], i) => `<div class="why-lv${i - 1 === lvI ? " now" : ""}"><span>${esc(n)}</span><b>${v}</b></div>`).join("")
+        + (next ? `<p>Volgend niveau vanaf ${x100(next)}×: een 1RM van ongeveer ${fw(Math.round(next / af * kg * 2) / 2)}.</p>` : th ? `<p>Je zit op het hoogste niveau.</p>` : "");
+      return `<div class="rec-row"><span class="rec-name">${esc((NL[lift] || [lift])[0] || lift)}</span><span class="rec-vals"><b>${fmt(Math.round(ratio * 100) / 100)}×</b> je gewicht${af !== 1 ? ` · leeftijd ${fmt(Math.round(adj * 100) / 100)}×` : ""}${lv ? ` · <b>${esc(lv)}</b>` : ""}</span>${why(lift, body)}</div>`;
     });
     if (rows.length){
       const sbd = ["Back Squat", "Bench Press", "Deadlift"];
@@ -6704,17 +6725,23 @@ function renderProfile(){
       if (sbd.every(l => best[l])){
         const total = sbd.reduce((a, l) => a + best[l], 0), sc = Math.round(dots(total, kg, sex) * af);
         const lab = sc < 200 ? "beginner" : sc < 300 ? "gemiddeld" : sc < 400 ? "gevorderd" : sc < 500 ? "zeer sterk" : "elite";
-        dotsTxt = `<p class="note"><b>DOTS-score ${sc}</b> (${lab}) · totaal squat + bench + deadlift ≈ ${fw(Math.round(total))}. Hiermee vergelijk je kracht eerlijk tussen lichaamsgewichten.</p>`;
+        dotsTxt = `<p class="note"><b>DOTS-score ${sc}</b> (${lab}) · totaal squat + bench + deadlift ≈ ${fw(Math.round(total))}. Hiermee vergelijk je kracht eerlijk tussen lichaamsgewichten.</p>`
+          + why("dots", `<p>DOTS is een puntenscore uit het powerliften. Ze telt je geschatte 1RM op squat, bench en deadlift op en rekent dat om naar je lichaamsgewicht en geslacht. Je leeftijdscorrectie zit er ook in.</p><p>Onder 200 is beginner, 200 tot 299 gemiddeld, 300 tot 399 gevorderd, 400 tot 499 zeer sterk en vanaf 500 elite.</p>`);
       }
       strHtml = `<h3 class="pm-h">Kracht in verhouding tot je lichaam</h3>${rows.join("")}${dotsTxt}
         <p class="note">Geschatte 1RM (laatste 4 maanden) gedeeld door je gewicht${af !== 1 ? `, met leeftijdscorrectie ×${fmt(Math.round(af * 100) / 100)}` : ""}.</p>`;
     }
   }
   $("profMetrics").innerHTML = (missing.length ? `<p class="note pm-miss">Vul nog je ${missing.join(", ").replace(/, ([^,]*)$/, " en $1")} in voor alle cijfers.</p>` : "")
-    + (!pr.waist && !Object.values(prefs.well || {}).some(o => o.bf != null) ? `<p class="note pm-miss">Vul je tailleomtrek in bij Instellingen voor een betere schatting van je vetvrije massa.</p>` : "")
-    + (tiles.length ? `<div class="pm-tiles">${tiles.map(t => t.html).join("")}</div>` : "");
+    + (!pr.waist && !Object.values(prefs.well || {}).some(o => o.bf != null) ? `<p class="note pm-miss">Vul je tailleomtrek in bij Tailleomtrek ingeven voor een betere schatting van je vetvrije massa.</p>` : "")
+    + (pmTiles.length ? `<div class="pm-tiles">${pmTiles.map(t => t.html).join("")}</div>` : "");
   $("profMetrics").querySelectorAll("[data-pm]").forEach(el => wireTileOrder(el, $("profMetrics").querySelector(".pm-tiles"), "pmOrder"));
   $("profStrength").innerHTML = strHtml;
+  $("profStrength").querySelectorAll(".why").forEach(d => d.addEventListener("toggle", () => {
+    const k = d.dataset.why, cur = prefs.strOpen || [];
+    if (cur.includes(k) !== d.open){ prefs.strOpen = d.open ? cur.concat([k]) : cur.filter(x => x !== k); savePrefs(); }
+  }));
+  renderPhys();
 }
 // Tap the stacked-chevron button on a tile to reveal up/down arrows and move it past its neighbour.
 function wireTileOrder(el, container, prefKey){
@@ -7114,7 +7141,7 @@ $("bwForm").addEventListener("submit", e => {
   const w = fromU(parseFloat(String($("bwInput").value.trim() || $("bwInput").placeholder).replace(",", ".")));
   if (!(w > 20 && w < 400)){ toast("Vul je gewicht in " + U() + " in"); return; }
   prefs.body = Object.assign({}, prefs.body, { [today()]: w }); savePrefs();
-  $("bwInput").value = ""; renderBodyWeight(); toast("Gewicht opgeslagen: " + fw(w));
+  $("bwInput").value = ""; renderBodyWeight(); renderProfile(); toast("Gewicht opgeslagen: " + fw(w));
 });
 $("viewTrain").onclick = () => showPage("train");
 $("viewStats").onclick = () => showPage("stats");
