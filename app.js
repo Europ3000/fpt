@@ -8203,7 +8203,8 @@ function wellOf(r){
   return o;
 }
 async function icuWell(L, full){
-  const from = addDays(today(), full || !Object.keys(prefs.well || {}).length ? -400 : -10);   // the first time a year back, for the year chart
+  // the first time a year back, for the year chart; after a long break (app not opened) two months, else the last 10 days
+  const from = addDays(today(), full || !Object.keys(prefs.well || {}).length ? -400 : (L.wellAt && Date.now() - L.wellAt > 8 * 864e5 ? -60 : -10));
   const list = await icuGet(L, `/wellness?oldest=${from}&newest=${today()}`), rows = Array.isArray(list) ? list : [];
   const W = Object.assign({}, prefs.well), B = Object.assign({}, prefs.body);   // after the wait: what you typed meanwhile stays
   let n = 0;
@@ -8270,6 +8271,10 @@ async function icuPull(manual){
 }
 // New activities from the linked apps: on start, after syncing and when the app comes back to the front.
 function pullLinks(){ if (!STANDALONE) return; stravaPull(); icuPull(); }
+// A browser app cannot run in the background, so while FPT stays open (a tab, a pinned app) it fetches again
+// every hour, and a day or more after the last fetch at once; so weight and Garmin data are never older than a day.
+setInterval(() => { if (!document.hidden) pullLinks(); }, 60 * 60000);
+window.addEventListener("online", () => pullLinks());
 async function stravaConnect(){
   if (!sbSession){ toast("Log eerst in bij Account (onderaan in Instellingen). Zo blijft je koppeling bewaard."); return; }
   let cfg = {}; try { cfg = await sbFn("strava", { action: "config" }); } catch {}
