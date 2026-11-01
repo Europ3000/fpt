@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-EEO6zygQ/Dxn+kwTNvXrWLGWkHUcetSJOCKN2x7DydM=' 'sha256-dr9u86JWhnuTs+s2kyxYkGu07SkF4E064h2V3t40cyE='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-TFcljvaJ0+0mC7EatU/2JQL5uui5Dj/cw0u9+1s3J20=' 'sha256-pJ3Uf1tWK6BfpO38Jrf/umQX2dHG5jKqwqlcvsHGMwE='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#16a34a">
@@ -16,12 +16,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FPT">
 <meta name="application-name" content="FPT">
-<link rel="preload" as="script" href="app.js?v=4b86759127">
+<link rel="preload" as="script" href="app.js?v=d7a370d1f0">
 <script>window.FPT_STANDALONE = true;
 window.FPT_HOME = "https://fptfit.app/";
 window.FPT_MOVE_TO = "https://fptfit.app/";
 window.FPT_I18N = {"langs": ["en", "fr", "es", "de", "it", "pt", "ru", "zh", "ar", "hi"]};
-window.FPT_I18N_FILES = {"en": "i18n/en.js?v=620e2f807b", "fr": "i18n/fr.js?v=de0e96dcef", "es": "i18n/es.js?v=f3e03de086", "de": "i18n/de.js?v=b360a0caee", "it": "i18n/it.js?v=b532bb6370", "pt": "i18n/pt.js?v=a9e2e92dda", "ru": "i18n/ru.js?v=fab3f1d87b", "zh": "i18n/zh.js?v=508c1b1f38", "ar": "i18n/ar.js?v=873cfa5c45", "hi": "i18n/hi.js?v=3d297092ba"};
+window.FPT_I18N_FILES = {"en": "i18n/en.js?v=bc563bebd7", "fr": "i18n/fr.js?v=f296b794fc", "es": "i18n/es.js?v=d9a915b482", "de": "i18n/de.js?v=fda8ef0019", "it": "i18n/it.js?v=20bbbde643", "pt": "i18n/pt.js?v=0a7f8776b1", "ru": "i18n/ru.js?v=71bfe14d47", "zh": "i18n/zh.js?v=e1d467b185", "ar": "i18n/ar.js?v=1ce97563f2", "hi": "i18n/hi.js?v=c3872e57a9"};
 (() => {
   // Not inside someone else's page (clickjacking): break out, or show nothing.
   if (top !== self){ try { top.location.replace(location.href); } catch {} document.documentElement.style.display = "none"; }
@@ -459,6 +459,7 @@ body.focus .ex.focused{margin-top:0}
 .bw-form .save{flex:none;padding:0 20px}
 .bw-list{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .bw-list .note{width:100%}
+.bw-list:empty{display:none}
 
 /* Own scheme button: clearly visible under the scheme row */
 .label-row{display:flex;align-items:center;gap:8px;margin:0 0 8px}
@@ -688,10 +689,7 @@ body.rest-each #restBar{display:none}
 .prof-grid label{display:flex;flex-direction:column;gap:4px;font-size:.78rem;font-weight:600;color:var(--muted);min-width:0}
 .prof-grid input{font:inherit;font-size:1rem;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:8px;padding:9px 8px;min-width:0;width:100%}
 .prof-grid .g-in b{font-size:.78rem}
-.waist-row{display:flex;align-items:center;gap:10px}
-.waist-lab{font-size:.78rem;font-weight:600;color:var(--muted);flex:none}
-.waist-row .g-in{flex:1;min-width:0}
-.waist-row input{font:inherit;font-size:1rem;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:8px;padding:9px 8px;min-width:0;width:100%;max-width:110px}
+.waist-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .seg-sm button{padding:6px 10px;font-size:.82rem}
 .ruler-btn{flex:none}
 .ruler-btn[aria-expanded="true"]{background:var(--teal-soft);color:var(--teal)}
@@ -758,6 +756,7 @@ body.rest-each #restBar{display:none}
 .ph-btn{font:inherit;color:var(--ink);text-align:start;cursor:pointer;background:none;border:0;padding:0;display:flex;flex-direction:column;min-width:0}
 .ph-btn::after{content:"";position:absolute;inset:0;border-radius:inherit}
 .phys-get{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.phys-get:empty{display:none}
 .phys-get .ghost{min-height:40px;padding:0 14px;font-size:.88rem}
 .tile.ph.on{border-color:var(--ember);box-shadow:inset 0 0 0 1px var(--ember)}
 .tile.ph.off strong{color:var(--muted)}
@@ -1368,6 +1367,8 @@ button.cal-d{font:inherit;font-size:.85rem;padding:5px 0;background:none;cursor:
 .acct .note{margin:0}
 .acct-form{display:flex;gap:8px;flex-wrap:wrap}
 .acct-form input{font:inherit;flex:1 1 180px;min-width:0;padding:11px 12px;border-radius:11px;border:1.5px solid var(--line);background:var(--card);color:var(--ink)}
+.acct-stack{display:grid}
+.acct-stack .entry-row>*{flex:1 1 0;min-width:0;padding-inline:8px}
 .acct-back{justify-self:start;font:inherit;font-size:.85rem;font-weight:600;background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:2px 0}
 .g-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:50px;border-radius:12px;border:1.5px solid var(--line);background:#fff;color:#1f1f1f;font:inherit;font-weight:700;font-size:1rem;cursor:pointer}
 .acct-or{margin-top:6px !important}
@@ -1590,6 +1591,7 @@ h1,h2,h3{overflow-wrap:anywhere}
         </div>
         <div class="mod-body">
           <div id="advice"></div>
+          <div id="profStrength"></div>
         </div>
       </section>
       <section class="panel mod" data-mod="overview" data-need>
@@ -1645,10 +1647,11 @@ h1,h2,h3{overflow-wrap:anywhere}
           <div class="c-legend" id="bcLegend" hidden></div>
           <p class="note" id="bcNote"></p>
           <details class="bd" id="physBox"><summary>Fysiologie</summary>
-            <div class="bd-body"><div class="pm-tiles" id="phys"></div><p class="note" id="physNote"></p><div class="phys-get" id="physGet"></div></div>
+            <div class="bd-body"><div class="pm-tiles" id="phys"></div></div>
           </details>
           <div id="profMetrics"></div>
-          <div id="profStrength"></div>
+          <p class="note" id="physNote"></p>
+          <div class="phys-get" id="physGet"></div>
           <details class="bd" id="statBox"><summary>Statistiek</summary>
             <div class="bd-body" id="bcStats"></div>
           </details>
@@ -1665,11 +1668,15 @@ h1,h2,h3{overflow-wrap:anywhere}
           </details>
           <details class="bd" id="waistBox"><summary>Tailleomtrek ingeven</summary>
             <div class="bd-body">
+              <form class="entry-row bw-form" id="waistForm">
+                <label class="field weight"><input id="pWaist" type="text" inputmode="decimal" autocomplete="off" placeholder="Bv. 85" aria-label="Tailleomtrek"><span id="waistU">cm</span></label>
+                <button class="save" type="submit">Opslaan</button>
+              </form>
               <div class="waist-row">
-                <span class="waist-lab">Tailleomtrek</span>
-                <span class="g-in"><input id="pWaist" inputmode="decimal" autocomplete="off" placeholder="85" aria-label="Tailleomtrek"><span class="seg seg-sm" id="pWaistUnit"><button type="button" data-v="cm">cm</button><button type="button" data-v="in">inch</button></span></span>
+                <span class="seg seg-sm" id="pWaistUnit"><button type="button" data-v="cm">cm</button><button type="button" data-v="in">inch</button></span>
                 <button class="icon-btn ruler-btn" type="button" id="waistHow" aria-expanded="false" aria-label="Zo meet je je taille"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6 8v3M9 8v2M12 8v3M15 8v2M18 8v3"/></svg></button>
               </div>
+              <div class="bw-list" id="waistList"></div>
               <div class="waist-how" id="waistHowBox" hidden>
                 <b>Zo meet je je taille thuis</b>
                 <ol>
@@ -2014,6 +2021,6 @@ h1,h2,h3{overflow-wrap:anywhere}
     <button type="button" id="restStop">Stop</button>
   </div>
 </div>
-<script>[window.FPT_LANG_FILE, "app.js?v=4b86759127"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
+<script>[window.FPT_LANG_FILE, "app.js?v=d7a370d1f0"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
 </body>
 </html>

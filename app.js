@@ -2423,7 +2423,7 @@ function renderBodyWeight(){
   const last = entries.slice(-5).reverse();
   $("bwInput").placeholder = entries.length ? fmt(toU(entries[entries.length - 1][1])) : (isLb() ? "Bv. 173" : "Bv. 78,5");
   $("bwUnit").textContent = U();
-  $("bwList").innerHTML = last.map(([d, w]) => `<span class="set-pill">${esc(relDate(d))}: ${fw(w)}<button type="button" data-bw="${esc(d)}" aria-label="Verwijder gewicht van ${esc(shortDate(d))}">×</button></span>`).join("")
+  $("bwList").innerHTML = last.map(([d, w]) => `<span class="set-pill"><span><span>${esc(relDate(d))}</span>: ${fw(w)}</span><button type="button" data-bw="${esc(d)}" aria-label="Verwijder gewicht van ${esc(shortDate(d))}">×</button></span>`).join("")
     + (entries.length ? "" : `<p class="note">Weeg jezelf bij voorkeur op hetzelfde moment, bv. 's ochtends voor het ontbijt.</p>`);
   $("bwList").querySelectorAll("[data-bw]").forEach(b => b.onclick = () => {
     const sn = takeSnapshot(); prefs.body = Object.assign({}, prefs.body); delete prefs.body[b.dataset.bw]; savePrefs(); renderBodyWeight(); undoToast("Gewicht verwijderd", sn);
@@ -2431,11 +2431,30 @@ function renderBodyWeight(){
   $("physBox").open = !!prefs.physOpen; $("statBox").open = !!prefs.statOpen;
   renderBodyChart(); renderPhys();
 }
+// Waist: one measurement per day in cm, like your weight. Before this it was one number in the profile.
+const waistUnit = () => prefs.waistUnit === "in" || (!prefs.waistUnit && isLb()) ? "in" : "cm";
+const toWaist = cm => waistUnit() === "in" ? cm / 2.54 : cm;
+function waistLog(){
+  const pr = prefs.profile || {};
+  return prefs.waist || (pr.waist ? { [pr.waistSet || today()]: pr.waist } : {});
+}
+function latestWaist(){ const e = Object.entries(waistLog()).sort((a, b) => a[0] < b[0] ? -1 : 1).pop(); return e ? e[1] : undefined; }
+function renderWaist(){
+  const entries = Object.entries(waistLog()).sort((a, b) => a[0] < b[0] ? -1 : 1), wu = waistUnit();
+  $("pWaist").placeholder = entries.length ? physFmt("tw", toWaist(entries[entries.length - 1][1]), true) : "Bv. 85";
+  $("waistU").textContent = wu === "in" ? "inch" : "cm";
+  $("pWaistUnit").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === wu));
+  $("waistList").innerHTML = entries.slice(-5).reverse().map(([d, cm]) => `<span class="set-pill"><span><span>${esc(relDate(d))}</span>: ${esc(physFmt("tw", toWaist(cm)))}</span><button type="button" data-wst="${esc(d)}" aria-label="Verwijder tailleomtrek van ${esc(shortDate(d))}">×</button></span>`).join("");
+  $("waistList").querySelectorAll("[data-wst]").forEach(b => b.onclick = () => {
+    const sn = takeSnapshot(); prefs.waist = Object.assign({}, waistLog()); delete prefs.waist[b.dataset.wst]; clearProfileWaist(); savePrefs(); renderBodyChart(); renderProfile(); demoRefit(); undoToast("Tailleomtrek verwijderd", sn);
+  });
+}
+function clearProfileWaist(){ prefs.profile = Object.assign({}, prefs.profile, { waist: undefined, waistSet: undefined }); }
 
 // ---------- Lichaam: one chart for your weight and the Garmin numbers, per week, month or year ----------
 // [key, name, unit, kind]: "bars" draws bars (a year shows the average day of each week), "sum" bars with weekly totals.
 const PHYS = [
-  ["w", "Gewicht"], ["bf", "Lichaamsvet", "%"], ["mm", "Spier en bot"], ["bm", "Botmassa"], ["wat", "Lichaamswater", "%"], ["hr", "Hartslag", "bpm"], ["rs", "Herstelscore", "%"], ["st", "Stress"], ["bb", "Body Battery"], ["sl", "Slaapscore"],
+  ["w", "Gewicht"], ["tw", "Tailleomtrek", "cm"], ["bf", "Lichaamsvet", "%"], ["mm", "Spier en bot"], ["bm", "Botmassa"], ["wat", "Lichaamswater", "%"], ["hr", "Hartslag", "bpm"], ["rs", "Herstelscore", "%"], ["st", "Stress"], ["bb", "Body Battery"], ["sl", "Slaapscore"],
   ["stp", "Stappen", "", "bars"], ["hrv", "HRV-status", "ms"], ["im", "Minuten intensieve training", "min", "sum"],
   ["fl", "Verdiepingen", "", "bars"], ["vo2", "VO2 max"], ["fa", "Fitnessleeftijd", "jaar"], ["spo2", "Pulse Ox", "%"], ["acc", "Acclimatisatie", "%"]
 ];
@@ -2484,6 +2503,7 @@ function physDaily(k){
   const out = {}, W = prefs.well || {};
   if (k === "rs"){ Object.entries(W).forEach(([d, o]) => { const v = recScore(o); if (v != null) out[d] = v; }); return out; }
   if (k === "w"){ Object.entries(prefs.body || {}).forEach(([d, kg]) => { out[d] = toU(kg); }); return out; }
+  if (k === "tw"){ Object.entries(waistLog()).forEach(([d, cm]) => { out[d] = toWaist(cm); }); return out; }
   Object.entries(W).forEach(([d, o]) => { if (o[k] != null) out[d] = MASS.has(k) ? toU(o[k]) : o[k]; });
   if (Object.keys(out).length) return out;
   if (k === "st") Object.entries(W).forEach(([d, o]) => { if (o.sq != null) out[d] = o.sq; });
@@ -2496,6 +2516,7 @@ const stress4 = () => !Object.values(prefs.well || {}).some(o => o.st != null);
 function physFmt(k, v, bare){
   if (v == null || !isFinite(v)) return "—";
   if (MASS.has(k)) return fmt(Math.round(v * 10) / 10) + (bare ? "" : " " + U());
+  if (k === "tw") return fmt(Math.round(v * 10) / 10) + (bare ? "" : waistUnit() === "in" ? " inch" : " cm");
   if (k === "st" && stress4() && !bare) return STRESS4[Math.round(v)] || fmt(Math.round(v * 10) / 10);
   const r = ["vo2", "hrv", "spo2", "bf", "wat", "st"].includes(k) ? Math.round(v * 10) / 10 : Math.round(v), u = PHYS_BY[k][2];
   return (Math.abs(r) >= 10000 ? r.toLocaleString(LOC()) : fmt(r)) + (u && !bare ? " " + u : "");
@@ -2546,7 +2567,7 @@ function renderBodyChart(){
     + (drawn.fc ? `<span><i class="lg-fc"></i>${esc("Verwachting volgende week")}</span>` : "");
   $("bcLegend").hidden = !drawn.ma && !drawn.fc;
   const name = PHYS_BY[k][1];
-  $("bcNote").textContent = !all.length ? (k === "w" ? "Nog geen gewicht. Vul het in bij Gewicht ingeven, of koppel Garmin via intervals.icu." : `Nog geen gegevens voor ${name}. Die komen van je Garmin via intervals.icu.`)
+  $("bcNote").textContent = !all.length ? (k === "w" ? "Nog geen gewicht. Vul het in bij Gewicht ingeven, of koppel Garmin via intervals.icu." : k === "tw" ? "Nog geen tailleomtrek. Vul ze in bij Tailleomtrek ingeven." : `Nog geen gegevens voor ${name}. Die komen van je Garmin via intervals.icu.`)
     : physGuess(k) ? (k === "im" ? "Geschat uit je trainingen: minuten kracht en cardio per dag." : "Geschat uit je VO2 max en je geslacht.")
     : bc.p === "y" ? (PHYS_BY[k][3] === "sum" ? "Totaal per week." : PHYS_BY[k][3] ? "Gemiddeld per dag, per week." : "Gemiddelde per week.") : "";
   $("bcNote").hidden = !$("bcNote").textContent;
@@ -2589,7 +2610,7 @@ function drawBody(box, pts, o){
   const pad = (hi - lo) * .12 || Math.max(1, Math.abs(hi) * .05);
   if (!bars) lo -= pad; hi += pad;
   // a few tenths of a kilo must not look like a cliff
-  const span = !bars && ({ w: isLb() ? 4 : 2, mm: isLb() ? 4 : 2, bm: isLb() ? 1 : .5, bf: 4, wat: 4, hr: 10, hrv: 10, sl: 20, bb: 20, vo2: 4, fa: 10, spo2: 4, acc: 20 })[o.k];
+  const span = !bars && ({ w: isLb() ? 4 : 2, tw: 4, mm: isLb() ? 4 : 2, bm: isLb() ? 1 : .5, bf: 4, wat: 4, hr: 10, hrv: 10, sl: 20, bb: 20, vo2: 4, fa: 10, spo2: 4, acc: 20 })[o.k];
   if (span && hi - lo < span){ const c = (hi + lo) / 2; lo = c - span / 2; hi = c + span / 2; }
   const step = niceStep(hi - lo);
   lo = Math.max(0, Math.floor(lo / step) * step); hi = Math.ceil(hi / step) * step;
@@ -2673,7 +2694,7 @@ function renderBodyStats(k, a, b, daily){
     row("Verwachting over een week", esc(physFmt(k, fc.v1)), `${shortDate(fc.to)} · op basis van de laatste 30 dagen`);
   }
   const allD = Object.keys(daily).sort();
-  if (MASS.has(k) && allD.length > 1) row("Sinds je eerste meting", esc(sign(daily[allD[allD.length - 1]] - daily[allD[0]])), new Date(allD[0] + "T12:00").toLocaleDateString(LOC(), { day: "numeric", month: "short", year: "numeric" }));
+  if ((MASS.has(k) || k === "tw") && allD.length > 1) row("Sinds je eerste meting", esc(sign(daily[allD[allD.length - 1]] - daily[allD[0]])), new Date(allD[0] + "T12:00").toLocaleDateString(LOC(), { day: "numeric", month: "short", year: "numeric" }));
   $("bcStats").innerHTML = rows.join("");
 }
 // The arrows on a tile; wireTileOrder makes them work.
@@ -2688,7 +2709,12 @@ function renderPhys(){
   const latest = daily => { const d = Object.keys(daily).sort().pop(); return d ? [d, daily[d]] : null; };
   PHYS_SHOWN.slice(1).forEach(([k, name]) => {
     const daily = physDaily(k), l = latest(daily);
-    let val = l ? physFmt(k, l[1]) : "—", sub = l ? relDate(l[0]) : "Nog geen gegevens";
+    let val = l ? physFmt(k, l[1]) : "—", sub = l ? relDate(l[0]) : "Nog geen gegevens", subHtml = "", ok = false;
+    if (l && k === "tw" && (prefs.profile || {}).height){
+      // waist-to-height ratio: the category sits in its own span, so it gets translated
+      const r = waistLog()[l[0]] / prefs.profile.height, cat = r < .4 ? "slank" : r < .5 ? "gezond" : r < .6 ? "verhoogd risico" : "hoog risico";
+      subHtml = `<span>${cat}</span> (${fmt(Math.round(r * 100) / 100)}) · <span>${esc(relDate(l[0]))}</span>`; ok = r >= .4 && r < .5;
+    }
     if (k === "mm" && !l){ const b = latest(physDaily("bm")); if (b){ val = physFmt("bm", b[1]); sub = `botmassa · ${relDate(b[0])}`; } }
     else if (k === "mm"){ const b = W[l[0]] && W[l[0]].bm; if (b != null) sub = `bot ${physFmt("bm", toU(b))} · ${relDate(l[0])}`; }
     if (l && k === "rs"){ const o = W[l[0]] || {}; const bits = [o.ss != null ? `${fmt(Math.round(o.ss / 360) / 10)} u slaap` : "", o.bb != null ? `Body Battery ${fmt(Math.round(o.bb))}` : "", (o.st != null || o.sq != null) ? `stress ${physFmt("st", o.st != null ? o.st : o.sq)}` : ""].filter(Boolean); sub = `${bits.join(" · ") || "slaap, stress en Body Battery"} · ${relDate(l[0])}`; }
@@ -2711,7 +2737,7 @@ function renderPhys(){
       val = `${Math.round(tot)} min`; sub = physGuess(k) ? "deze week · geschat" : "deze week · doel 150";
     }
     if (l && k === "fa"){ const age = profileAge(prefs.profile || {}); sub = physGuess(k) ? "geschat uit VO2 max" : age ? `je leeftijd: ${age}` : relDate(l[0]); }
-    tiles.push({ key: k, html: `<div class="tile pm ph${l ? "" : " off"}${k === cur ? " on" : ""}" data-pm="${k}">${TILE_ORDER}<button type="button" class="ph-btn" data-ph="${k}" aria-pressed="${k === cur}"><small>${esc(name)}</small><strong>${esc(val)}</strong><em>${esc(sub)}</em></button></div>` });
+    tiles.push({ key: k, html: `<div class="tile pm ph${l ? "" : " off"}${ok ? " ok" : ""}${k === cur ? " on" : ""}" data-pm="${k}">${TILE_ORDER}<button type="button" class="ph-btn" data-ph="${k}" aria-pressed="${k === cur}"><small>${esc(name)}</small><strong>${esc(val)}</strong><em>${subHtml || esc(sub)}</em></button></div>` });
   });
   $("phys").innerHTML = byPrefOrder(tiles.concat(physExtra), prefs.physOrder || []).map(t => t.html).join("");
   $("phys").querySelectorAll("[data-pm]").forEach(el => wireTileOrder(el, $("phys"), "physOrder"));
@@ -2720,7 +2746,7 @@ function renderPhys(){
     $("bcMetric").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
   });
   const I = (prefs.links || {}).intervals, none = ["mm", "wat", "bb", "acc"].filter(k => !Object.values(W).some(o => o[k] != null));
-  $("physNote").textContent = !I ? "Deze cijfers komen van je Garmin via intervals.icu. Koppel het bij Delen → Gekoppelde apps."
+  $("physNote").textContent = !I ? "De cijfers bij Fysiologie komen van je Garmin via intervals.icu. Koppel het bij Delen → Gekoppelde apps."
     : none.length ? "Skeletspiermassa, botmassa, lichaamswater, Body Battery en acclimatisatie stuurt intervals.icu niet door van Garmin. Staan ze bij intervals.icu in een eigen wellness-veld (bv. BodyBattery, ingevuld met een hulpmiddel zoals garmin-intervals-bridge), dan komen ze hier ook." : "";
   $("physNote").hidden = !$("physNote").textContent;
   // when it was fetched last, and a button to fetch everything again
@@ -6649,9 +6675,8 @@ function renderProfile(){
   if (document.activeElement !== $("pBirth")) $("pBirth").value = pr.birth || "";
   $("pAgeNote").textContent = ageNote(pr);
   setVal("pHeight", cm); setVal("pWeight", kg ? fmt(toU(kg)) : "");
-  const waist = pr.waist, wu = waistUnit();
-  setVal("pWaist", waist ? fmt(Math.round((wu === "in" ? waist / 2.54 : waist) * 10) / 10) : "");
-  $("pWaistUnit").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === wu));
+  const waist = latestWaist();
+  renderWaist();
   $("pSex").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === sex));
   const missing = [!age && "leeftijd", !cm && "lengte", !kg && "gewicht"].filter(Boolean);
   // Lichaamsvet% en spiermassa staan al bij Fysiologie (gemeten); hier alleen wat daar niet staat.
@@ -6669,8 +6694,6 @@ function renderProfile(){
       const deur = age ? 1.2 * bmi + .23 * age - 10.8 * (sex === "vrouw" ? 0 : sex === "anders" ? .5 : 1) - 5.4 : null;
       const fat = mFat || Math.max(3, Math.min(60, deur == null ? rfm : (rfm + deur) / 2)), lean = kg * (1 - fat / 100);
       tile("fatfree", "Vetvrije massa", fw(Math.round(lean * 2) / 2), "spieren, botten, organen en water");
-      if (waist){ const r = waist / cm, rcat = r < .4 ? "slank" : r < .5 ? "gezond" : r < .6 ? "verhoogd risico" : "hoog risico";
-      tile("waist", "Taille", `${fmt(Math.round(waist))} cm`, `${fmt(Math.round(waist / 2.54 * 10) / 10)} inch · <span>${rcat}</span> (${fmt(Math.round(r * 100) / 100)})`, r >= .4 && r < .5 ? " ok" : ""); }
     } else {
       const leanF = .252 * kg + .473 * cm - 48.3, leanM = .407 * kg + .267 * cm - 19.2, lean = sex === "vrouw" ? leanF : sex === "anders" ? (leanF + leanM) / 2 : leanM;
       tile("fatfree", "Vetvrije massa", fw(Math.round(lean * 2) / 2), `geschat · ±${Math.round(100 - lean / kg * 100)}% vet`);
@@ -6733,7 +6756,7 @@ function renderProfile(){
     }
   }
   $("profMetrics").innerHTML = (missing.length ? `<p class="note pm-miss">Vul nog je ${missing.join(", ").replace(/, ([^,]*)$/, " en $1")} in voor alle cijfers.</p>` : "")
-    + (!pr.waist && !Object.values(prefs.well || {}).some(o => o.bf != null) ? `<p class="note pm-miss">Vul je tailleomtrek in bij Tailleomtrek ingeven voor een betere schatting van je vetvrije massa.</p>` : "")
+    + (!waist && !Object.values(prefs.well || {}).some(o => o.bf != null) ? `<p class="note pm-miss">Vul je tailleomtrek in bij Tailleomtrek ingeven voor een betere schatting van je vetvrije massa.</p>` : "")
     + (pmTiles.length ? `<div class="pm-tiles">${pmTiles.map(t => t.html).join("")}</div>` : "");
   $("profMetrics").querySelectorAll("[data-pm]").forEach(el => wireTileOrder(el, $("profMetrics").querySelector(".pm-tiles"), "pmOrder"));
   $("profStrength").innerHTML = strHtml;
@@ -6765,11 +6788,6 @@ function saveProfileField(id){
     prefs.profile.birth = raw ? $(id).value : undefined; prefs.profile.age = undefined; prefs.profile.ageSet = undefined;
   }
   if (id === "pHeight"){ if (raw && !(v >= 100 && v <= 250)){ toast("Vul je lengte in cm in (bv. 178)"); return; } prefs.profile.height = raw ? Math.round(v) : undefined; }
-  if (id === "pWaist"){
-    const cmW = waistUnit() === "in" ? v * 2.54 : v;
-    if (raw && !(cmW >= 40 && cmW <= 200)){ toast("Vul je tailleomtrek in, bv. 85 cm of 33,5 inch"); return; }
-    prefs.profile.waist = raw ? Math.round(cmW * 10) / 10 : undefined; prefs.profile.waistSet = raw ? today() : undefined;
-  }
   if (id === "pWeight"){
     if (!raw) return;
     const kg = fromU(v); if (!(kg > 20 && kg < 400)){ toast("Vul je gewicht in " + U() + " in"); return; }
@@ -6777,9 +6795,15 @@ function saveProfileField(id){
   }
   savePrefs(); renderProfile(); demoRefit();
 }
-["pBirth", "pHeight", "pWeight", "pWaist"].forEach(id => $(id).addEventListener("change", () => saveProfileField(id)));
-const waistUnit = () => prefs.waistUnit === "in" || (!prefs.waistUnit && isLb()) ? "in" : "cm";
-$("pWaistUnit").onclick = e => { const b = e.target.closest("button"); if (!b) return; prefs.waistUnit = b.dataset.v; savePrefs(); renderProfile(); };
+["pBirth", "pHeight", "pWeight"].forEach(id => $(id).addEventListener("change", () => saveProfileField(id)));
+$("waistForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const v = parseFloat(String($("pWaist").value.trim() || $("pWaist").placeholder).replace(",", ".")), cm = waistUnit() === "in" ? v * 2.54 : v;
+  if (!(cm >= 40 && cm <= 200)){ toast("Vul je tailleomtrek in, bv. 85 cm of 33,5 inch"); return; }
+  prefs.waist = Object.assign({}, waistLog(), { [today()]: Math.round(cm * 10) / 10 }); clearProfileWaist(); savePrefs();
+  $("pWaist").value = ""; renderBodyChart(); renderProfile(); demoRefit(); toast("Tailleomtrek opgeslagen: " + physFmt("tw", toWaist(cm)));
+});
+$("pWaistUnit").onclick = e => { const b = e.target.closest("button"); if (!b) return; prefs.waistUnit = b.dataset.v; savePrefs(); renderBodyChart(); renderProfile(); };
 $("waistHow").onclick = () => { const box = $("waistHowBox"); box.hidden = !box.hidden; $("waistHow").setAttribute("aria-expanded", !box.hidden); };
 // The stand-alone app keeps each language in its own file (build.py: FPT_I18N_FILES) and loads it on first use.
 const langLoads = {};
@@ -7468,21 +7492,48 @@ showPage(inWorkout() ? "train" : "today");
 setStore(false, "Opgeslagen op dit toestel.");
 
 
-// ---------- Account for the stand-alone app: Supabase, log in with a code by mail, your data per user ----------
+// ---------- Account for the stand-alone app: Supabase, log in by password, mail link, social account, passkey or SMS; your data per user ----------
 // The publishable key is meant to be public; row level security in the database lets each user reach only their own rows.
 const SB_URL = "https://vcbyebuhmefyydevjsur.supabase.co", SB_KEY = "sb_publishable_cupM_aiMLcFREDDAlqQhCw_GUk45Cko", SB_LS = "fpt.sb";
-let sbGoogle = false;
-let sbSession = (() => { try { return JSON.parse(localStorage.getItem(SB_LS) || "null"); } catch { return null; } })(), sbMail = "";
+let sbOn = {};   // which login methods are switched on in Supabase (/auth/v1/settings); a method only shows once it is
+let sbSession = (() => { try { return JSON.parse(localStorage.getItem(SB_LS) || "null"); } catch { return null; } })(), sbMail = "", sbMailType = "email", sbPhone = "", sbNewPass = false;
 // Asking for a login (mail or Google) leaves a mark, so a link with someone else's session is not taken over unseen.
 const SB_WAIT = "fpt.sbWait", sbAsked = () => { try { localStorage.setItem(SB_WAIT, String(Date.now())); } catch {} };
 const sbSave = x => { sbSession = x; try { x ? localStorage.setItem(SB_LS, JSON.stringify(x)) : localStorage.removeItem(SB_LS); } catch {} };
-async function sbAuth(path, body){
-  const r = await fetch(SB_URL + "/auth/v1/" + path, { method: "POST", headers: { apikey: SB_KEY, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+async function sbAuth(path, body, jwt, method = "POST"){
+  const r = await fetch(SB_URL + "/auth/v1/" + path, { method, headers: { apikey: SB_KEY, "Content-Type": "application/json", ...(jwt ? { Authorization: "Bearer " + jwt } : {}) }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw Object.assign(new Error(j.msg || j.error_description || j.message || "auth"), { status: r.status });
+  if (!r.ok) throw Object.assign(new Error(j.msg || j.error_description || j.message || "auth"), { status: r.status, code: j.error_code });
   return j;
 }
-const sbKeep = j => sbSave({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || Math.floor(Date.now() / 1000) + (j.expires_in || 3600), user: { id: j.user.id, email: j.user.email } });
+const sbKeep = j => sbSave({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: j.expires_at || Math.floor(Date.now() / 1000) + (j.expires_in || 3600), user: { id: j.user.id, email: j.user.email || (j.user.phone ? "+" + j.user.phone : "") } });
+// Logged in without leaving the app. After a password reset (type "recovery") the next step is choosing a new password.
+function sbDone(j, type){
+  sbKeep(j); sbMail = sbPhone = ""; sbNewPass = type === "recovery";
+  toast("Ingelogd. Je gegevens worden gesynchroniseerd."); renderAccount(); connectStore();
+}
+async function sbMailSend(email, path, body, type = "email"){
+  try { await sbAuth(path, { email, ...body }); sbAsked(); sbMail = email; sbMailType = type; renderAccount(); toast("Mail verstuurd. Kijk in je mailbox."); }
+  catch (err) { toast(err.status === 429 ? "Je vroeg te veel codes aan. Probeer het over een uur opnieuw." : "Versturen lukt niet. Controleer je e-mailadres en je verbinding."); }
+}
+// Passkeys: the browser's own WebAuthn JSON helpers do the conversion, so a browser without them simply gets no passkey button.
+const sbPasskeys = () => sbOn.passkey && window.PublicKeyCredential && PublicKeyCredential.parseRequestOptionsFromJSON && PublicKeyCredential.parseCreationOptionsFromJSON;
+async function sbPasskeyIn(){
+  try {
+    const o = await sbAuth("passkeys/authentication/options", {});
+    const c = await navigator.credentials.get({ publicKey: PublicKeyCredential.parseRequestOptionsFromJSON(o.options) });
+    sbDone(await sbAuth("passkeys/authentication/verify", { challenge_id: o.challenge_id, credential: c.toJSON() }));
+  } catch (err) { toast(err.name === "NotAllowedError" ? "Geen passkey gebruikt. Een passkey voeg je toe nadat je op een andere manier bent ingelogd." : "Inloggen met een passkey lukte niet."); }
+}
+async function sbPasskeyAdd(){
+  try {
+    const t = await sbToken();
+    const o = await sbAuth("passkeys/registration/options", {}, t);
+    const c = await navigator.credentials.create({ publicKey: PublicKeyCredential.parseCreationOptionsFromJSON(o.options) });
+    await sbAuth("passkeys/registration/verify", { challenge_id: o.challenge_id, credential: c.toJSON() }, t);
+    toast("Passkey toegevoegd. Hiermee log je voortaan in zonder wachtwoord.");
+  } catch (err) { if (err.name !== "NotAllowedError") toast(err.name === "InvalidStateError" ? "Op dit toestel staat al een passkey." : "De passkey toevoegen lukte niet."); }
+}
 async function sbToken(){
   if (!sbSession) return null;
   if (sbSession.expires_at - 60 > Date.now() / 1000) return sbSession.access_token;
@@ -7514,16 +7565,38 @@ async function cloudStore(){
   const uid = sbSession.user.id;
   return { uid, db: { doc: path => sbDoc(path.replace("data/users/" + uid + "/", "")) } };
 }
+// A new provider only needs a line here (with its Supabase name) and switching it on in the Supabase dashboard.
+const SB_SOCIAL = [
+  ["google", "Doorgaan met Google", `<path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.2-2.1 3.5-5.1 3.5-8.7z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8l4-3.1z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9z"/>`],
+  ["apple", "Doorgaan met Apple", `<path fill="#000" d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.428-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.613 0 2.886.06 4.374 2.19-.13.09-2.383 1.37-2.383 4.19 0 3.26 2.854 4.42 2.955 4.45z"/>`],
+  ["azure", "Doorgaan met Microsoft", `<path fill="#F25022" d="M1 1h10v10H1z"/><path fill="#7FBA00" d="M13 1h10v10H13z"/><path fill="#00A4EF" d="M1 13h10v10H1z"/><path fill="#FFB900" d="M13 13h10v10H13z"/>`],
+  ["facebook", "Doorgaan met Facebook", `<circle cx="12" cy="12" r="12" fill="#1877F2"/><path fill="#fff" d="M16.7 15.5l.5-3.5h-3.3V9.8c0-1 .5-1.9 2-1.9h1.5v-3s-1.4-.2-2.7-.2c-2.7 0-4.5 1.6-4.5 4.6V12H7.1v3.5h3.1V24h3.7v-8.5h2.8z"/>`]
+];
 function renderAccount(){
   const box = $("acctBox"); if (!box) return;
   $("backupNote").hidden = !!sbSession;   // "only on this device" is no longer true once you are logged in
   box.hidden = false;
-  if (sbSession){
+  if (sbSession && sbNewPass){
+    const me = sbSession.user.email || "";
+    box.innerHTML = `<p class="acct-h">Account</p><p class="note">Kies een wachtwoord voor <b translate="no">${esc(me)}</b>. Daarmee log je voortaan ook in.</p>
+      <form class="acct-form" id="acctPwForm"><input type="email" autocomplete="username" value="${esc(me)}" hidden><input type="password" id="acctNewPass" autocomplete="new-password" minlength="8" placeholder="Nieuw wachtwoord" aria-label="Nieuw wachtwoord" required><button class="save" type="submit">Opslaan</button></form>
+      <button class="ghost-sm acct-back" type="button" id="acctPwBack">Annuleren</button>`;
+    $("acctPwBack").onclick = () => { sbNewPass = false; renderAccount(); };
+    $("acctPwForm").onsubmit = async e => {
+      e.preventDefault();
+      try { await sbAuth("user", { password: $("acctNewPass").value }, await sbToken(), "PUT"); sbNewPass = false; renderAccount(); toast("Wachtwoord opgeslagen."); }
+      catch (err) { toast(err.code === "same_password" ? "Dat is al je wachtwoord." : err.code === "weak_password" ? "Kies een sterker wachtwoord van minstens 8 tekens." : "Opslaan lukte niet. Controleer je verbinding en probeer opnieuw."); }
+    };
+  } else if (sbSession){
+    const hasMail = (sbSession.user.email || "").includes("@");
     box.innerHTML = `<p class="acct-h">Account</p><p class="note">Ingelogd als <b translate="no">${esc(sbSession.user.email || "")}</b>. Je trainingen worden gesynchroniseerd tussen al je toestellen.</p>
       <div class="entry-row"><button class="ghost wide" type="button" id="acctSync">Nu synchroniseren</button><button class="ghost wide" type="button" id="acctOut">Uitloggen</button></div>
+      ${hasMail || sbPasskeys() ? `<div class="entry-row">${hasMail ? `<button class="ghost wide" type="button" id="acctPw">Wachtwoord instellen</button>` : ""}${sbPasskeys() ? `<button class="ghost wide" type="button" id="acctKey">Passkey toevoegen</button>` : ""}</div>` : ""}
       <button class="acct-del" type="button" id="acctDel">Account verwijderen</button>`;
     $("acctSync").onclick = () => connectStore();
     $("acctDel").onclick = deleteAccount;
+    if ($("acctPw")) $("acctPw").onclick = () => { sbNewPass = true; renderAccount(); };
+    if ($("acctKey")) $("acctKey").onclick = sbPasskeyAdd;
     $("acctOut").onclick = () => {
       sbSave(null); recordsRef = prefsRef = layoutRef = logCol = null;
       setStore(false, "Uitgelogd. Je gegevens blijven op dit toestel staan."); renderAccount();
@@ -7542,31 +7615,79 @@ function renderAccount(){
       let u = null; try { u = new URL($("acctLink").value.trim()); } catch {}
       const token = u && (u.searchParams.get("token") || u.searchParams.get("token_hash")), type = (u && u.searchParams.get("type")) || "magiclink";
       if (!token){ toast("Dat is geen inloglink uit de mail. Kopieer de link achter Sign in."); return; }
-      try { sbKeep(await sbAuth("verify", { type, token_hash: token })); sbMail = ""; toast("Ingelogd. Je gegevens worden gesynchroniseerd."); renderAccount(); connectStore(); }
+      try { sbDone(await sbAuth("verify", { type, token_hash: token }), type); }
       catch (err) { toast(err.status === 429 ? "Even wachten en dan opnieuw proberen." : "Die link werkt niet meer (al gebruikt of verlopen). Vraag een nieuwe aan."); }
     };
     $("acctCheck").onclick = () => { if (!sbAdopt()) toast("Nog niet ingelogd. Tik op de link in de mail en kom dan terug, of sluit de app en open hem opnieuw."); };
     $("acctCodeForm").onsubmit = async e => {
       e.preventDefault();
       const token = $("acctCode").value.replace(/\s/g, "");
-      try { sbKeep(await sbAuth("verify", { type: "email", email: sbMail, token })); sbMail = ""; toast("Ingelogd. Je gegevens worden gesynchroniseerd."); renderAccount(); connectStore(); }
+      try { sbDone(await sbAuth("verify", { type: sbMailType, email: sbMail, token }), sbMailType); }
+      catch (err) { toast(err.status === 429 ? "Even wachten en dan opnieuw proberen." : "Die code klopt niet of is verlopen. Vraag een nieuwe aan."); }
+    };
+  } else if (sbPhone === "ask"){
+    box.innerHTML = `<p class="acct-h">Account</p><p class="note">Je krijgt een sms met een code. Begin met je landcode, bijvoorbeeld +32.</p>
+      <form class="acct-form" id="acctPhoneForm"><input type="tel" id="acctPhone" autocomplete="tel" placeholder="+32 470 12 34 56" aria-label="Telefoonnummer" required><button class="save" type="submit">Stuur code</button></form>
+      <button class="ghost-sm acct-back" type="button" id="acctBack">Terug</button>`;
+    $("acctBack").onclick = () => { sbPhone = ""; renderAccount(); };
+    $("acctPhoneForm").onsubmit = async e => {
+      e.preventDefault();
+      const phone = $("acctPhone").value.replace(/[\s().-]/g, "");
+      if (!/^\+\d{8,15}$/.test(phone)){ toast("Vul je nummer in met landcode, bijvoorbeeld +32470123456."); return; }
+      try { await sbAuth("otp", { phone, create_user: true }); sbPhone = phone; renderAccount(); toast("Sms verstuurd."); }
+      catch (err) { toast(err.status === 429 ? "Je vroeg te veel codes aan. Probeer het over een uur opnieuw." : "Versturen lukt niet. Controleer je nummer en je verbinding."); }
+    };
+  } else if (sbPhone){
+    box.innerHTML = `<p class="acct-h">Account</p><p class="note">We stuurden een sms naar <b translate="no">${esc(sbPhone)}</b>. Vul de code hier in.</p>
+      <form class="acct-form" id="acctPhoneCode"><input id="acctCode" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456" aria-label="Code uit de sms" required><button class="save" type="submit">Inloggen</button></form>
+      <button class="ghost-sm acct-back" type="button" id="acctBack">Ander nummer</button>`;
+    $("acctBack").onclick = () => { sbPhone = "ask"; renderAccount(); };
+    $("acctPhoneCode").onsubmit = async e => {
+      e.preventDefault();
+      try { sbDone(await sbAuth("verify", { type: "sms", phone: sbPhone, token: $("acctCode").value.replace(/\s/g, "") })); }
       catch (err) { toast(err.status === 429 ? "Even wachten en dan opnieuw proberen." : "Die code klopt niet of is verlopen. Vraag een nieuwe aan."); }
     };
   } else {
-    box.innerHTML = `<p class="acct-h">Account</p>${sbGoogle ? `<p class="note">Log in om je trainingen op al je toestellen te bewaren.</p>
-      <button class="g-btn" type="button" id="acctGoogle"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.2-2.1 3.5-5.1 3.5-8.7z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8l4-3.1z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9z"/></svg><span>Doorgaan met Google</span></button>
-      <p class="note acct-or">Of met een inloglink per mail:</p>` : ""}<p class="note">${sbGoogle ? "" : "Log in met je e-mailadres om je trainingen op al je toestellen te bewaren. "}Je krijgt een mail met een inloglink; een wachtwoord is niet nodig.</p>
-      <form class="acct-form" id="acctForm"><input type="email" id="acctMail" autocomplete="email" placeholder="jij@voorbeeld.be" aria-label="E-mailadres" required><button class="save" type="submit">Stuur inloglink</button></form>`;
-    if ($("acctGoogle")) $("acctGoogle").onclick = () => {
+    const btn = (attr, svg, text) => `<button class="g-btn" type="button" ${attr}><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">${svg}</svg><span>${text}</span></button>`;
+    const quick = SB_SOCIAL.filter(s => sbOn[s[0]]).map(s => btn(`data-sb="${s[0]}"`, s[2], s[1])).join("")
+      + (sbPasskeys() ? btn(`id="acctKeyIn"`, `<path fill="#1f1f1f" d="M7 14a5 5 0 1 1 4.9-6H22v4h-2v3h-4v-3h-4.1A5 5 0 0 1 7 14zm0-3a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>`, "Inloggen met een passkey") : "")
+      + (sbOn.phone ? btn(`id="acctPhoneBtn"`, `<path fill="#1f1f1f" d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.2c1.1.4 2.3.6 3.6.6a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.2.2 2.4.6 3.6a1 1 0 0 1-.3 1z"/>`, "Doorgaan met je telefoonnummer") : "");
+    box.innerHTML = `<p class="acct-h">Account</p><p class="note">Log in of maak een account om je trainingen op al je toestellen te bewaren.</p>${quick}${quick ? `<p class="note acct-or">Of met je e-mailadres:</p>` : ""}
+      <form class="acct-form acct-stack" id="acctForm"><input type="email" id="acctMail" autocomplete="username" placeholder="jij@voorbeeld.be" aria-label="E-mailadres" required><input type="password" id="acctPass" autocomplete="current-password" placeholder="Wachtwoord" aria-label="Wachtwoord" required>
+        <div class="entry-row"><button class="save" type="submit">Inloggen</button><button class="ghost wide" type="button" id="acctNew">Account maken</button></div></form>
+      <button class="ghost-sm acct-back" type="button" id="acctForgot">Wachtwoord vergeten?</button>
+      <p class="note acct-or">Liever geen wachtwoord? Je krijgt dan een mail met een inloglink.</p>
+      <button class="ghost wide" type="button" id="acctLinkBtn">Stuur inloglink</button>`;
+    box.querySelectorAll("[data-sb]").forEach(b => b.onclick = () => {
       sbAsked();
-      location.href = `${SB_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(location.origin + location.pathname)}`;
-    };
+      location.href = `${SB_URL}/auth/v1/authorize?provider=${b.dataset.sb}${b.dataset.sb === "azure" ? "&scopes=email" : ""}&redirect_to=${encodeURIComponent(location.origin + location.pathname)}`;
+    });
+    if ($("acctKeyIn")) $("acctKeyIn").onclick = sbPasskeyIn;
+    if ($("acctPhoneBtn")) $("acctPhoneBtn").onclick = () => { sbPhone = "ask"; renderAccount(); };
+    const mail = () => $("acctMail").value.trim();
     $("acctForm").onsubmit = async e => {
       e.preventDefault();
-      const email = $("acctMail").value.trim();
-      try { await sbAuth("otp", { email, create_user: true }); sbAsked(); sbMail = email; renderAccount(); toast("Mail verstuurd. Kijk in je mailbox."); }
-      catch (err) { toast(err.status === 429 ? "Je vroeg te veel codes aan. Probeer het over een uur opnieuw." : "Versturen lukt niet. Controleer je e-mailadres en je verbinding."); }
+      const email = mail();
+      try { sbDone(await sbAuth("token?grant_type=password", { email, password: $("acctPass").value })); }
+      catch (err) {
+        if (err.code === "email_not_confirmed") return sbMailSend(email, "resend", { type: "signup" });
+        toast(err.status === 429 ? "Even wachten en dan opnieuw proberen." : err.status === 400 ? "E-mailadres of wachtwoord klopt niet. Nog geen wachtwoord? Kies Wachtwoord vergeten." : "Inloggen lukt niet. Controleer je verbinding.");
+      }
     };
+    $("acctNew").onclick = async () => {
+      if (!$("acctMail").reportValidity()) return;
+      const email = mail(), password = $("acctPass").value;
+      if (password.length < 8){ toast("Kies een wachtwoord van minstens 8 tekens."); return; }
+      try {
+        const j = await sbAuth("signup", { email, password });
+        if (j.access_token) return sbDone(j);
+        // An address that already has an account answers like a new one, but with no identities and no mail.
+        if ((j.user || j).identities && !(j.user || j).identities.length){ toast("Dit e-mailadres heeft al een account. Log in, of kies Wachtwoord vergeten."); return; }
+        sbAsked(); sbMail = email; sbMailType = "email"; renderAccount(); toast("Mail verstuurd. Kijk in je mailbox.");
+      } catch (err) { toast(err.code === "weak_password" ? "Kies een sterker wachtwoord van minstens 8 tekens." : err.status === 429 ? "Je vroeg te veel codes aan. Probeer het over een uur opnieuw." : "Versturen lukt niet. Controleer je e-mailadres en je verbinding."); }
+    };
+    $("acctForgot").onclick = () => { if ($("acctMail").reportValidity()) sbMailSend(mail(), "recover", {}, "recovery"); };
+    $("acctLinkBtn").onclick = () => { if ($("acctMail").reportValidity()) sbMailSend(mail(), "otp", { create_user: true }); };
   }
 }
 // Your account and everything in it, for good (supabase/functions/account). What is on this device stays, unless you wipe it.
@@ -7605,8 +7726,8 @@ function sbFromHash(){
   if (!claims.sub) return;
   let asked = 0; try { asked = +localStorage.getItem(SB_WAIT) || 0; localStorage.removeItem(SB_WAIT); } catch {}
   if (Date.now() - asked > 864e5 && !confirm(tr(`Inloggen als ${claims.email || "?"}? Doe dit alleen als je zelf om deze inloglink vroeg.`))) return;
-  sbSave({ access_token: at, refresh_token: rt, expires_at: +h.get("expires_at") || claims.exp || Math.floor(Date.now() / 1000) + 3600, user: { id: claims.sub, email: claims.email || "" } });
-  sbMail = "";
+  sbSave({ access_token: at, refresh_token: rt, expires_at: +h.get("expires_at") || claims.exp || Math.floor(Date.now() / 1000) + 3600, user: { id: claims.sub, email: claims.email || claims.phone || "" } });
+  sbMail = ""; sbNewPass = h.get("type") === "recovery";   // back from "Wachtwoord vergeten?": choose a new one first
   setTimeout(() => toast("Ingelogd. Je gegevens worden gesynchroniseerd."), 600);
 }
 // Logged in from the link in another tab (e.g. Chrome next to the installed app): pick that session up here too.
@@ -7619,7 +7740,7 @@ function sbAdopt(){
 }
 if (STANDALONE){
   sbFromHash(); renderAccount();
-  fetch(SB_URL + "/auth/v1/settings", { headers: { apikey: SB_KEY } }).then(r => r.json()).then(j => { sbGoogle = !!(j.external && j.external.google); if (!sbSession) renderAccount(); }).catch(() => {});
+  fetch(SB_URL + "/auth/v1/settings", { headers: { apikey: SB_KEY } }).then(r => r.json()).then(j => { sbOn = { ...j.external, passkey: j.passkeys_enabled }; if (!sbNewPass) renderAccount(); }).catch(() => {});
   window.addEventListener("storage", e => { if (e.key === SB_LS) sbAdopt(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) sbAdopt(); });
 }
@@ -7908,7 +8029,7 @@ async function icuWell(L, full){
   savePrefs(); if (page === "stats"){ renderBodyWeight(); renderProfile(); }
   return { n, rows: rows.length, days: L.wellDays };
 }
-// "Opnieuw ophalen" under Fysiologie: the whole year again, and say plainly what intervals.icu sent.
+// "Opnieuw ophalen" under the tiles in Lichaam: the whole year again, and say plainly what intervals.icu sent.
 let wellBusy = false;
 async function icuWellNow(){
   const L = links().intervals; if (!L || wellBusy) return;
@@ -8078,6 +8199,7 @@ function unitePrefs(rp){
     goals: neu.goals || old.goals || [],
     notes: Object.assign({}, old.notes, neu.notes),
     body: Object.assign({}, old.body, neu.body),
+    waist: Object.assign({}, old.waist, neu.waist),
     well: Object.assign({}, old.well, neu.well),
     dev: Object.assign({}, old.dev, neu.dev),
     custom: (rp.custom || []).concat((prefs.custom || []).filter(c => !ids.has(c.id))),
