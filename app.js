@@ -578,7 +578,7 @@ function relDate(date){
   if (d === 1) return "Gisteren";
   return new Date(date + "T12:00").toLocaleDateString(LOC(), { weekday: "short", day: "numeric", month: "short" });
 }
-const splitLabel = label => { const i = label.lastIndexOf(" · "); return i < 0 ? ["", label] : [label.slice(0, i), label.slice(i + 3)]; };
+const splitLabel = label => { const i = label.lastIndexOf(" · "); return i < 0 ? ["", label] : [label.slice(0, i).replace(/^Athletisch$/, "Atletisch"), label.slice(i + 3)]; };
 let statsEx = null;   // exercise key shown in the big chart
 let statsAll = false;   // true: show the sparkline list of every exercise instead of the single chart
 
@@ -1143,7 +1143,7 @@ function renderSchemes(){
   row($("cardioRow"), catSchemes("crd"), cardioOpen, "Cardio", () => { cardioOpen = !cardioOpen; }, "crd");
   row($("kineRow"), orderedSchemes().filter(s => s.kine), kineOpen, "Kinetherapie en blessures", () => { kineOpen = !kineOpen; }, "kine");
   row($("mindRow"), orderedSchemes().filter(s => s.mind), mindOpen, "Meditatie en ademhaling", () => { mindOpen = !mindOpen; }, "mind");
-  const focusLines = cur.days.filter(d => d.focus).map(d => `<br><b>${esc(d.name)}</b>: ${esc(d.focus)}`).join("");
+  const focusLines = cur.days.filter(d => d.focus).map(d => `<br><b>${esc(d.name)}</b>: ${esc(d.focus)}` + (cur.id === "run" && RUN_KIND[d.name] ? runWhy({ name: d.name, min: d.ex[0][2] }) : "")).join("");
   $("schemeNote").innerHTML = esc(cur.note) + focusLines + (cur.kine ? `<br><small class="warn-t">${esc(KINE_NOTE)}</small>` : cur.mind ? `<br><small class="warn-t">${esc(MIND_NOTE)}</small>` : "");
   const noteOpen = noteIsOpen(cur.id);
   $("schemeNote").hidden = !noteOpen;
@@ -1255,11 +1255,13 @@ function renderCombo(){
 }
 
 // A logged label ("Yoga · Yin (herstel)") belongs to a day, also under the day's old name.
-const dayLabelIs = (s, day, l) => l === s.name + " · " + day.name || (day.was || []).some(w => l === s.name + " · " + w);
+// A renamed scheme keeps its old name in `was`, so days logged under that name still count.
+const inScheme = (s, l) => l.startsWith(s.name + " · ") || (!!s.was && l.startsWith(s.was + " · "));
+const dayLabelIs = (s, day, l) => [s.name, s.was].some(n => n && (l === n + " · " + day.name || (day.was || []).some(w => l === n + " · " + w)));
 // Which day of this scheme comes next: the one after the day you trained last (or today's, if you trained today).
 function nextDayIndex(s){
   for (const d of Object.keys(log).sort().reverse()){
-    const labels = log[d].days.filter(l => l.startsWith(s.name + " · "));
+    const labels = log[d].days.filter(l => inScheme(s, l));
     if (!labels.length) continue;
     const i = s.days.findIndex(x => dayLabelIs(s, x, labels[labels.length - 1]));
     if (i < 0) continue;
@@ -2139,16 +2141,20 @@ function renderCalendar(){
   const used = new Set(), states = new Set();
   for (let d = 1; d <= days; d++){
     const iso = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    const info = dayInfo(iso, planned), st = info.state; if (st === "done") inMonth++;
+    const info = dayInfo(iso, planned), st = info.state, run = st !== "done" && runOn(iso); if (st === "done") inMonth++;
+    // A run day on a day without other training looks like a planned cardio day.
+    if (run && st === "free"){ info.kinds = ["cardio"]; states.add("planned"); }
+    if (run) states.add("run");
     info.kinds.forEach(k => used.add(k)); if (st !== "free") states.add(st === "today" ? "planned" : st);
     const goal = goalsOn(iso).length; if (goal) states.add("goal");
-    const cls = `cal-d${st === "done" ? " on" : st === "planned" || st === "today" ? " plan" : st === "missed" ? " missed" : ""}${info.kinds.length > 1 ? " two" : ""}${iso === today() ? " now" : ""}${iso === selDate ? " sel" : ""}${iso >= wkMonday && iso <= wkEnd ? " inwk" : ""}${goal ? " goal" : ""}`;
-    html += `<button type="button" class="${cls}" data-date="${iso}"${kindVars(info.kinds)} title="${esc(info.label ? shortDate(iso) + ": " + info.label : shortDate(iso))}">${d}</button>`;
+    const cls = `cal-d${st === "done" ? " on" : st === "planned" || st === "today" || run ? " plan" : st === "missed" ? " missed" : ""}${info.kinds.length > 1 ? " two" : ""}${iso === today() ? " now" : ""}${iso === selDate ? " sel" : ""}${iso >= wkMonday && iso <= wkEnd ? " inwk" : ""}${goal ? " goal" : ""}${run ? " run" : ""}`;
+    const label = [info.label, run ? `${run.name} · ${fmt(run.km)} km` : ""].filter(Boolean).join(" + ");
+    html += `<button type="button" class="${cls}" data-date="${iso}"${kindVars(info.kinds)} title="${esc(label ? shortDate(iso) + ": " + label : shortDate(iso))}">${d}</button>`;
   }
   $("cal").innerHTML = html;
   $("calLegend").innerHTML = [...used].map(k => `<span><i style="--c1:${TRAIN_KINDS[k][1]}"></i>${esc(TRAIN_KINDS[k][0])}</span>`).join("")
     + (states.has("done") ? `<span><i class="lg-done"></i>Gedaan</span>` : "") + (states.has("planned") ? `<span><i class="dash"></i>Gepland</span>` : "")
-    + (states.has("missed") ? `<span><i class="lg-miss"></i>Gemist</span>` : "") + (states.has("goal") ? `<span><b aria-hidden="true">🎯</b>Doel</span>` : "");
+    + (states.has("missed") ? `<span><i class="lg-miss"></i>Gemist</span>` : "") + (states.has("run") ? `<span><b aria-hidden="true">🏃</b>Loopdag</span>` : "") + (states.has("goal") ? `<span><b aria-hidden="true">🎯</b>Doel</span>` : "");
   $("cal").querySelectorAll("[data-date]").forEach(b => b.onclick = () => selectDay(b.dataset.date, "cal"));
   $("calDetail").innerHTML = selFrom === "cal" && selDate.slice(0, 7) === calMonth ? dayDetail(selDate) : "";
   wireDayDetail($("calDetail"));
@@ -2157,15 +2163,16 @@ function renderCalendar(){
   const rows = next.map(p => {
     const k = kindOf(p.scheme), when = new Date(p.date + "T12:00").toLocaleDateString(LOC(), { weekday: "short", day: "numeric", month: "short" });
     return { date: p.date, html: `<div class="pl-row" style="--c1:${TRAIN_KINDS[k][1]}"><b>${esc(p.date === today() ? "Vandaag" : when)}</b><span>${esc(p.scheme.days[p.day].name)} · ${esc(p.scheme.name.replace(/^Programma: /, ""))}</span>${p.addon ? `<small>${esc(`Daarna: ${p.addon.name}`)}</small>` : ""}</div>` };
-  }).concat((prefs.goals || []).filter(g => g.date && g.date >= today() && g.date <= addDays(today(), 60) && !goalEval(g).done).map(g => ({ date: g.date,
+  }).concat(Array.from({ length: 29 }, (_, i) => addDays(today(), i)).map(iso => [iso, runOn(iso)]).filter(x => x[1]).slice(0, 8).map(([iso, r]) => ({ date: iso,
+    html: `<div class="pl-row" style="--c1:${TRAIN_KINDS.cardio[1]}"><b>${esc(iso === today() ? "Vandaag" : new Date(iso + "T12:00").toLocaleDateString(LOC(), { weekday: "short", day: "numeric", month: "short" }))}</b><span><span aria-hidden="true">🏃</span> <span>${esc(r.name)}</span> · ${fmt(r.km)} km</span></div>` }))).concat((prefs.goals || []).filter(g => g.date && g.date >= today() && g.date <= addDays(today(), 60) && !goalEval(g).done).map(g => ({ date: g.date,
     html: `<div class="pl-row goal-row"><b>${esc(new Date(g.date + "T12:00").toLocaleDateString(LOC(), { weekday: "short", day: "numeric", month: "short" }))}</b><span><span aria-hidden="true">🎯</span> ${esc(goalLabel(g.name))} · ${esc(goalEval(g).targetText)}</span></div>` })))
     .sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
   const planOpen = !!prefs.planListOpen;
   $("planList").hidden = !planOpen; $("planToggle").setAttribute("aria-expanded", planOpen);
   $("planToggle").querySelector(".chev").textContent = planOpen ? "▾" : "▸";
-  $("planCount").textContent = next.length ? `(${next.length})` : "";
+  $("planCount").textContent = rows.length ? `(${rows.length})` : "";
   $("planToggle").onclick = () => { prefs.planListOpen = !planOpen; savePrefs(); renderCalendar(); };
-  $("planList").innerHTML = next.length ? rows.map(r => r.html).join("") : `<p class="note">Nog niets gepland. Kies je trainingsdagen in Weekplanning.</p>` + rows.map(r => r.html).join("");
+  $("planList").innerHTML = rows.length ? rows.map(r => r.html).join("") : `<p class="note">Nog niets gepland. Kies je trainingsdagen in Weekplanning.</p>`;
   // Streak: weeks in a row with at least one training (this week counts once you trained in it).
   const weeks = new Set([...dates].map(weekOf));
   let w = weekOf(today()); if (!weeks.has(w)) w = addDays(w, -7);
@@ -3032,7 +3039,10 @@ function weekPlan(monday = weekOf(today())){
   const planned = plannedMap(addDays(monday, 6));
   return WD.map((w, i) => { const date = addDays(monday, i); return Object.assign({ w, i, date }, dayInfo(date, planned)); });
 }
-const wpCell = d => `<button type="button" class="wp ${d.state}${d.kinds.length > 1 ? " two" : ""}${d.date === today() ? " now" : ""}${d.date === selDate ? " sel" : ""}${goalsOn(d.date).length ? " goal" : ""}${runOn(d.date) && d.state !== "done" ? " run" : ""}" data-date="${d.date}"${kindVars(d.kinds)}><small>${d.w} ${Number(d.date.slice(8))}</small><span>${esc(d.label || (runOn(d.date) && d.state !== "done" ? "Lopen" : "Rust"))}</span></button>`;
+const wpCell = d => {
+  const run = d.state !== "done" && runOn(d.date);
+  return `<button type="button" class="wp ${d.state}${d.kinds.length > 1 ? " two" : ""}${d.date === today() ? " now" : ""}${d.date === selDate ? " sel" : ""}${goalsOn(d.date).length ? " goal" : ""}${run ? " run" : ""}" data-date="${d.date}"${kindVars(d.kinds)}><small>${d.w} ${Number(d.date.slice(8))}</small><span>${esc(d.label || (run ? "Lopen" : "Rust"))}</span>${run ? `<small class="wp-km">${fmt(run.km)} km</small>` : ""}</button>`;
+};
 // Details of one day, with what you can do from there.
 function dayDetail(iso){
   const d = dayInfo(iso, plannedMap(iso)), wd = (new Date(iso + "T12:00").getDay() + 6) % 7;
@@ -3051,6 +3061,7 @@ function dayDetail(iso){
   if (iso >= today() && d.state !== "done") btns.push(`<button class="ghost-sm" type="button" data-dd="plan">${esc(isPlanDay ? `Geen trainingsdag meer op ${wdName}` : `Maak van ${wdName} een trainingsdag`)}</button>`);
   const run = d.state !== "done" && runOn(iso);
   const goals = (run && !run.race ? `<p class="dd-goal"><span aria-hidden="true">🏃</span> <b>Loopschema</b> <span>${esc(run.name)}</span> · ${fmt(run.km)} km · <span>${esc(run.detail)}</span></p>` : "")
+    + (run ? runWhy(run, runZones(RACES[raceGoals()[0].name])) : "")
     + goalsOn(iso).map(g => `<p class="dd-goal"><span aria-hidden="true">🎯</span> <b>Doel</b> <span>${esc(goalLabel(g.name))}</span> · ${esc(goalEval(g).targetText)}</p>`).join("");
   return `<div class="day-detail" data-iso="${iso}"><p class="label">${esc(longDate(iso))}</p>${body}${goals}${btns.length ? `<div class="dd-btns">${btns.join("")}</div>` : ""}</div>`;
 }
@@ -3077,7 +3088,8 @@ function renderWeek(){
   const plan = prefs.planDays || [], wk = weekPlan(wkMonday), sun = addDays(wkMonday, 6), thisW = weekOf(today());
   const title = wkMonday === thisW ? "Deze week" : wkMonday === addDays(thisW, -7) ? "Vorige week" : wkMonday === addDays(thisW, 7) ? "Volgende week" : `${shortDate(wkMonday)} – ${shortDate(sun)}`;
   const n = st => wk.filter(d => st.includes(d.state)).length, done = n(["done"]), pl = n(["planned", "today"]), missed = n(["missed"]);
-  const sum = [done ? `${done} gedaan` : "", pl ? `${pl} gepland` : "", missed ? `${missed} gemist` : ""].filter(Boolean);
+  const runs = wk.filter(d => d.state !== "done" && runOn(d.date)).length;
+  const sum = [done ? `${done} gedaan` : "", pl ? `${pl} gepland` : "", runs ? (runs === 1 ? "1 loopdag" : `${runs} loopdagen`) : "", missed ? `${missed} gemist` : ""].filter(Boolean);
   $("weekBody").innerHTML = `
     <div class="wk-nav"><button type="button" class="wk-arrow" id="wkPrev" aria-label="Vorige week">‹</button>
       <div class="wk-title"><b>${esc(title)}</b><small>${sum.length ? sum.map(x => `<span>${x}</span>`).join(" · ") : "<span>Geen trainingen</span>"}</small></div>
@@ -3121,8 +3133,11 @@ const RACES = {
 };
 const RUN_TYPES = ["Lopen", "Loopband", "Intervallopen"];
 const RUNS_FOR_DAYS = { 1: 2, 2: 2, 3: 3, 4: 3, 5: 4, 6: 4, 7: 5 };
-const runKm = iso => Math.max(0, ...((log[iso] || {}).cardio || []).filter(c => RUN_TYPES.includes(c.type)).map(c => c.km || 0));
-const recentLongRun = () => Math.max(0, ...Object.keys(log).filter(d => daysAgo(d) < 28).map(runKm));
+const runsOf = iso => ((log[iso] || {}).cardio || []).filter(c => RUN_TYPES.includes(c.type));
+const runKm = iso => Math.max(0, ...runsOf(iso).map(c => c.km || 0));
+// Distance of a day; a run with only a time counts at 6:30 per km.
+const runDayKm = iso => runsOf(iso).reduce((s, c) => s + (c.km || (c.min ? c.min / 6.5 : 0)), 0);
+const recentLongRun = (at = today()) => Math.max(0, ...Object.keys(log).filter(d => d <= at && d > addDays(at, -28)).map(runKm));
 const raceGoals = () => (prefs.goals || []).filter(g => RACES[g.name] && g.date && g.date >= today()).sort((a, b) => a.date < b.date ? -1 : 1);
 const wdOf = iso => (new Date(iso + "T12:00").getDay() + 6) % 7;
 // Run days: the long run at the weekend, the others spread out. Runs take free days as long as the week stays
@@ -3143,12 +3158,29 @@ function runDays(runs, days){
   const rest = picked.slice(1).sort((a, b) => strength.includes(a) - strength.includes(b) || gap(b, long) - gap(a, long));
   return { long, quality: rest[0], easy: rest.slice(1), strength };
 }
-let racePlanMemo = { key: "", plan: null };
+// Which session of a week each logged run belongs to: the same day first, otherwise the nearest one within 2 days
+// (a run moved a day). Sessions get `did` (the date) and `kmDone`; the week gets its totals.
+function runWeekDone(sessions, monday, from){
+  const free = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(monday, i)).filter(d => d >= from && runsOf(d).length), runs = free.length;
+  const gap = (a, b) => Math.abs(new Date(a) - new Date(b)) / 864e5;
+  let km = free.reduce((s, d) => s + runDayKm(d), 0);
+  const long = Math.max(0, ...free.map(runDayKm));
+  const take = (s, d) => { s.did = d; s.kmDone = runDayKm(d); if (!s.kmDone) km += s.km; free.splice(free.indexOf(d), 1); };
+  sessions.filter(s => free.includes(s.date)).forEach(s => take(s, s.date));
+  sessions.filter(s => !s.did).forEach(s => { const d = free.slice().sort((a, b) => gap(a, s.date) - gap(b, s.date))[0]; if (d && gap(d, s.date) <= 2) take(s, d); });
+  return { km, long, runs };
+}
+const racePlanMemo = new Map();
+// The plan runs from the week you set the goal (g.from), so weeks keep their number and you can compare them with
+// what you did. It follows the log: a long run you made lets the next week go up, a near miss repeats it, and
+// (almost) nothing is a step back. Weeks you changed yourself are in g.adj, per Monday.
 function racePlan(g){
   const R = RACES[g.name], days = prefs.daysPerWeek || (prefs.planDays || []).length || 3, runs = Math.min(RUNS_FOR_DAYS[days] || 3, R.short ? 4 : 5);
-  const recent = recentLongRun(), key = JSON.stringify([g, days, prefs.planDays, today(), recent]);
-  if (racePlanMemo.key === key) return racePlanMemo.plan;
-  const slots = runDays(runs, days), first = weekOf(today()), raceWk = weekOf(g.date);
+  const from = g.from || today(), recent = recentLongRun(from), thisW = weekOf(today());
+  const key = JSON.stringify([g, days, prefs.planDays, today(), recent, Object.keys(log).filter(d => d >= from && runsOf(d).length).sort().map(d => [d, runDayKm(d)])]);
+  const memo = racePlanMemo.get(g.name);
+  if (memo && memo.key === key) return memo.plan;
+  const slots = runDays(runs, days), first = weekOf(from), raceWk = weekOf(g.date);
   const weeks = Math.round((new Date(raceWk) - new Date(first)) / 6048e5) + 1;
   const taper = Math.min(R.taper, Math.max(0, weeks - 1)) , build = weeks - taper;
   const start = recent ? Math.min(Math.max(recent, 2), R.peak * .85) : R.start;
@@ -3163,7 +3195,11 @@ function racePlan(g){
     else if (i >= build){ phase = "taper"; long = level * taperFactor[i - build]; }
     else if (build >= 5 && (i + 1) % 4 === 0 && i < build - 1){ phase = "easy"; long = level * .75; }
     else {
-      if (i > 0) level = Math.min(R.peak, level + Math.min((R.peak - level) / Math.max(1, build - i), Math.max(1, level * .12)));
+      if (i > 0){
+        const step = Math.min(R.peak, level + Math.min((R.peak - level) / Math.max(1, build - i), Math.max(1, level * .12)));
+        const prev = list[i - 1], ls = prev.past && prev.sessions.find(s => s.name === "Lange duurloop"), made = ls ? prev.done.long / ls.km : 1;
+        if (!(prev.adj && prev.adj.f < 1)) level = made >= .9 ? Math.max(step, Math.min(ls ? prev.done.long : 0, R.peak * .85)) : made >= .6 ? level : Math.max(Math.min(start, R.start), level * .9);
+      }
       long = level; phase = i === build - 1 ? "peak" : q < .3 ? "base" : "build";
     }
     const sessions = [];
@@ -3185,17 +3221,139 @@ function racePlan(g){
       slots.easy.forEach(wd => add(wd, "Rustige duurloop", long * R.easy, "in praattempo"));
       sessions.sort((a, b) => a.wd - b.wd);
     }
-    list.push({ i, monday, phase, long: half(long), km: half(sessions.reduce((s, x) => s + x.km, 0)), sessions });
+    // Your own change for this week: from that day on, shorter and easy (rest) or the easy runs a bit longer (more).
+    const adj = (g.adj || {})[monday];
+    if (adj) sessions.filter(s => s.date >= adj.day && !s.race && (adj.f < 1 || ["Lange duurloop", "Rustige duurloop"].includes(s.name))).forEach(s => {
+      s.km = Math.max(minRun, half(s.km * adj.f)); s.adj = true;
+      if (adj.f < 1 && s.name !== "Lange duurloop"){ s.name = "Rustige duurloop"; s.detail = "in praattempo"; }
+    });
+    const planned = sessions.filter(s => s.date >= from);   // a goal set on Friday has no sessions before that day
+    list.push({ i, monday, phase, long: half(long), km: half(planned.reduce((s, x) => s + x.km, 0)), sessions: planned, adj, past: monday < thisW, done: runWeekDone(planned, monday, from) });
   }
-  const plan = { g, R, days, runs, weeks, slots, recent, start: half(start), list, short: weeks < R.min || level < R.peak * .9 };
-  racePlanMemo = { key, plan };
+  const cur = list.find(w => w.monday === thisW) || list[0];
+  const plan = { g, R, days, runs, weeks, slots, recent, start: half(start), list, cur, left: weeks - cur.i, short: weeks < R.min || level < R.peak * .9 };
+  racePlanMemo.set(g.name, { key, plan });
   return plan;
 }
 // The run from the plan of the nearest race on this date (for the week plan and the day details).
 function runOn(iso){
   const g = raceGoals()[0]; if (!g || iso < today()) return null;
   const w = racePlan(g).list.find(x => x.monday === weekOf(iso));
-  return w ? w.sessions.find(s => s.date === iso) || null : null;
+  return w ? w.sessions.find(s => s.date === iso && !s.did) || null : null;
+}
+// ---------- Each run explained, with pace and heart rate from your own numbers ----------
+// Your maximum heart rate: the highest one your runs showed, or 208 − 0.7 × your age when that is higher.
+function hrMaxNow(){
+  const seen = Math.max(0, ...Object.keys(log).filter(d => daysAgo(d) < 365).flatMap(d => runsOf(d).map(c => c.hrmax || 0)));
+  const age = profileAge(prefs.profile || {}), est = age ? Math.round(208 - .7 * age) : 0, v = Math.max(seen >= 150 ? seen : 0, est);
+  return v ? { v, seen: v === seen, age } : null;
+}
+// Your 5 km pace now (min/km): your best run of the last 12 weeks, scaled to 5 km (Riegel). A run with a low heart rate
+// was not flat out, so it counts for more; without a heart rate we take it as 10% below your best.
+function runFitness(hm){
+  let best = null;
+  Object.keys(log).filter(d => daysAgo(d) < 84).forEach(d => runsOf(d).filter(c => c.type !== "Intervallopen" && c.km >= 2 && c.min > 0).forEach(c => {
+    const pace = c.min / c.km; if (pace < 2.5 || pace > 12) return;
+    const easy = hm && c.hr ? Math.max(.78, Math.min(1, 1 - (.93 - c.hr / hm.v) * 1.15)) : .9, p5 = pace * Math.pow(5 / c.km, .06) * easy;
+    if (!best || p5 < best.p5) best = { p5, date: d, km: c.km, min: c.min };
+  }));
+  return best;
+}
+const hrZone = x => x < .65 ? 1 : x < .78 ? 2 : x < .85 ? 3 : x < .92 ? 4 : 5;
+// [pace as a factor of your 5 km pace, heart rate as a share of your maximum]; race pace depends on the distance.
+const RUN_ZONES = { easy: [[1.22, 1.35], [.65, .78]], long: [[1.25, 1.38], [.65, .75]], tempo: [[1.04, 1.08], [.85, .9]], interval: [[.95, .99], [.9, .97]] };
+const RACE_HR = [[6, [.9, .96]], [11, [.88, .94]], [22, [.85, .91]], [99, [.8, .87]]];
+function runZones(R){
+  const hm = hrMaxNow(), fit = runFitness(hm), rp = R && fit ? fit.p5 * Math.pow(R.km / 5, .06) : null, rh = R ? RACE_HR.find(x => R.km < x[0])[1] : RUN_ZONES.tempo[1];
+  const row = (pace, hr) => ({ pace, hr: hm ? hr.map(x => Math.round(x * hm.v)) : null, zone: hrZone((hr[0] + hr[1]) / 2) });
+  const z = Object.fromEntries(Object.entries(RUN_ZONES).map(([k, [p, h]]) => [k, row(fit ? p.map(x => x * fit.p5) : null, h)]));
+  z.pace = row(rp ? [rp * .99, rp * 1.01] : null, rh);
+  return Object.assign(z, { hm, fit, strides: z.easy, sharp: z.pace, race: z.pace });
+}
+const paceSpan = p => `${paceText(p[0])}–${paceText(p[1])}/km`;
+const hrSpan = o => `<span>Zone ${o.zone}</span>${o.hr ? ` · ${o.hr[0]}–${o.hr[1]} bpm` : ""}`;
+// Per kind of run: what it is for, how you do it and how it feels when you have no numbers.
+const RUN_INFO = {
+  easy: ["Bouwt je basisconditie en helpt je herstellen. Hier doe je de meeste kilometers.", "Loop de hele afstand in één rustig, gelijkmatig tempo. Trager is hier beter dan te snel.", "Je kunt in hele zinnen praten (3–4 op 10)."],
+  long: ["Traint je uithouding: de belangrijkste training van de week.", "Start trager dan je denkt en houd hetzelfde tempo tot het einde. Neem water mee als je langer dan 75 minuten loopt.", "Ontspannen, ook op het einde kun je nog praten (3–4 op 10)."],
+  strides: ["Houdt je benen snel zonder dat je er moe van wordt.", "Loop rustig en doe op het einde de versnellingen uit je schema, met 40 s wandelen of dribbelen ertussen.", "Rustig, en de versnellingen vlot maar ontspannen: geen sprint (7 op 10)."],
+  interval: ["Maakt je hart en longen sterker, zodat je sneller wordt.", "10–15 min inlopen, dan de blokken uit je schema en 5–10 min uitlopen. Loop elk blok even snel.", "Zwaar: praten lukt niet meer, maar je houdt elk blok vol (8–9 op 10)."],
+  tempo: ["Leert je lichaam een hoog tempo langer volhouden.", "10–15 min inlopen, dan het tempoblok uit je schema en 5–10 min uitlopen.", "Comfortabel zwaar: je kunt nog losse woorden zeggen (7 op 10)."],
+  pace: ["Went je lichaam aan het tempo van je wedstrijd en geeft vertrouwen.", "10–15 min inlopen, dan het stuk op wedstrijdtempo en 5–10 min uitlopen. Oefen ook wat je op de wedstrijddag eet en drinkt.", "Stevig maar vol te houden (6–8 op 10)."],
+  sharp: ["Houdt je scherp terwijl je minder kilometers loopt, zonder dat je moe wordt.", "Rustig inlopen, de korte stukken uit je schema en rustig uitlopen. Stop terwijl het nog makkelijk gaat.", "Vlot en licht: je houdt altijd wat over (6–7 op 10)."],
+  race: ["Hier heb je naartoe gewerkt.", "Start rustig en versnel pas in het laatste deel. Eet en drink wat je op training gewend bent.", "In het begin makkelijk, op het einde alles wat je nog hebt."]
+};
+const RUN_KIND = { "Lange duurloop": "long", "Rustige duurloop": "easy", "Loopband": "easy", "Rustig met versnellingen": "strides", "Intervallen": "interval", "Tempoloop": "tempo", "Wedstrijdtempo": "pace", "Kort en vlot": "sharp", "Wedstrijd": "race" };
+const rpWhyOpen = new Set();   // open explanations stay open when the page is drawn again
+document.addEventListener("toggle", e => { const k = e.target.dataset && e.target.dataset.rpw; if (k) rpWhyOpen[e.target.open ? "add" : "delete"](k); }, true);
+const rpDetails = (key, title, body) => `<details class="why" data-rpw="${esc(key)}"${rpWhyOpen.has(key) ? " open" : ""}><summary>${esc(title)}</summary><div class="why-body">${body}</div></details>`;
+// The Uitleg button of one run. s = a run of the plan ({ name, km, date }) or a day of the Lopen scheme ({ name, min }).
+function runWhy(s, z = runZones()){
+  const k = RUN_KIND[s.name] || "easy", [goal, how, feel] = RUN_INFO[k], o = z[k], fast = !["easy", "long", "strides"].includes(k), minKm = (z.easy.pace ? (z.easy.pace[0] + z.easy.pace[1]) / 2 : 6.5);
+  const mins = s.km ? Math.round(s.km * minKm / 5) * 5 : 0;
+  const kv = [["Tempo", o.pace ? paceSpan(o.pace) : "op gevoel"], ["Hartslag", hrSpan(o)], ["Gevoel", feel]]
+    .concat(fast && k !== "race" && z.easy.pace ? [["Inlopen en uitlopen", paceSpan(z.easy.pace)]] : [])
+    .concat(s.km ? [["Duur", `± ${mins} min`]] : s.min ? [["Duur", `${esc(s.min)} min`]] : []);
+  return rpDetails(`${s.date || "s"}:${s.name}`, "Uitleg", `<p>${esc(goal)}</p><p>${esc(how)}</p><div class="rp-kv">${kv.map(([a, b]) => `<b>${esc(a)}</b><span>${b.includes("<") ? b : `<span>${esc(b)}</span>`}</span>`).join("")}</div>`);
+}
+// Where your paces and zones come from, and the zones themselves.
+function runZonesHtml(z){
+  const src = z.fit ? `Je tempo's komen uit je snelste loop van de laatste 12 weken: ${fmt(z.fit.km)} km in ${paceText(z.fit.min)}.` : "Nog geen loopjes met afstand en tijd in je logboek, dus volg je gevoel. Log je tijden, dan berekent de app je tempo's.";
+  const hr = !z.hm ? "Vul je geboortedatum in bij Instellingen, dan krijg je hartslagen in bpm." : z.hm.seen ? `Je maximale hartslag: ${z.hm.v} bpm, de hoogste uit je loopjes.` : `Je maximale hartslag: ± ${z.hm.v} bpm, geschat uit je leeftijd (${z.hm.age}).`;
+  const row = (name, o) => `<div class="why-lv"><span>${esc(name)}</span><b>${o.pace ? `${paceSpan(o.pace)} · ` : ""}${hrSpan(o)}</b></div>`;
+  return rpDetails("zones", "Jouw tempo's en hartslagzones", `<p>${esc(src)}</p><p>${esc(hr)}</p>${row("Rustige duurloop", z.easy)}${row("Tempoloop", z.tempo)}${row("Intervallen", z.interval)}${row("Wedstrijdtempo", z.pace)}`);
+}
+// ---------- Steering: what you did against the plan, your load and your recovery score ----------
+// state: rest, behind, more or ok. Works without Garmin numbers; the recovery score only adds to it.
+function runCoach(p){
+  const w = p.cur, past = p.list.filter(x => x.past).slice(-2), last = past[past.length - 1], now = today();
+  const span = (a, b) => { let s = 0; for (let i = a; i < b; i++) s += runDayKm(addDays(now, -i)); return s; };
+  const pct = x => x.km ? x.done.km / x.km : 1, km = x => fmt(Math.round(x * 10) / 10);
+  const acute = span(0, 7), usual = span(7, 28) / 3, due = w.sessions.filter(s => s.date <= now), missed = due.filter(s => s.date < now && !s.did);
+  let streak = 0; for (let d = runsOf(now).length ? now : addDays(now, -1); runsOf(d).length; d = addDays(d, -1)) streak++;
+  const rs = physDaily("rs"), rec = [now, addDays(now, -1)].map(d => rs[d]).find(v => v != null);
+  const hist = Object.keys(rs).filter(d => daysAgo(d) >= 2 && daysAgo(d) <= 15).map(d => rs[d]), base = hist.length >= 4 ? hist.reduce((a, b) => a + b, 0) / hist.length : null;
+  const tired = rec != null && (rec < 45 || (base != null && rec < base - 20)), jump = usual >= 3 && acute >= 10 && acute >= usual * 1.5;
+  // Easy runs should stay easy: with a heart rate, compare them with the top of zone 2.
+  const z = runZones(p.R), hot = z.hm ? p.list.slice(Math.max(0, w.i - 2), w.i + 1).flatMap(x => x.sessions).filter(s => s.did && ["Lange duurloop", "Rustige duurloop"].includes(s.name)).map(s => Math.max(0, ...runsOf(s.did).map(c => c.hr || 0))).filter(Boolean) : [];
+  const hotAvg = hot.length >= 2 ? Math.round(hot.reduce((a, b) => a + b, 0) / hot.length) : 0, tooHard = !!hotAvg && hotAvg > z.easy.hr[1];
+  const next = w.sessions.find(s => s.date >= now && !s.did), nextText = next ? `Je volgende loopje: ${next.name}, ${next.date === now ? "vandaag" : wdShort(next.date)}, ${fmt(next.km)} km.` : "";
+  const why = [`Deze week: ${km(w.done.km)} van ${fmt(w.km)} km, ${w.done.runs} van ${w.sessions.length} loopjes.`];
+  if (last) why.push(`Vorige week: ${km(last.done.km)} van ${fmt(last.km)} km.`);
+  if (rec != null) why.push(`Herstelscore: ${rec}%.`);
+  if (tooHard) why.push(`Je rustige loopjes gingen gemiddeld op ${hotAvg} bpm, boven de ${z.easy.hr[1]} bpm van zone 2.`);
+  const c = { why, tip: "", act: null };
+  const wind = ["taper", "race"].includes(w.phase);
+  if (tired || jump || streak >= 5){
+    c.state = "rest"; c.title = "Neem rust";
+    if (jump) why.push(`De laatste 7 dagen liep je ${km(acute)} km, tegenover ${km(usual)} km per week ervoor.`);
+    if (streak >= 5) why.push(`Je liep ${streak} dagen op rij.`);
+    c.tip = "Neem vandaag rust of wandel 20–30 minuten.";
+    if (next && !wind && !w.adj){ c.note = "Maak de loopjes van deze week daarna 20% korter en rustig."; c.act = { f: .8, label: "Maak deze week lichter" }; }
+  } else if (missed.length >= 2 || (last && pct(last) < .7) || (!last && missed.length && !w.done.runs)){
+    c.state = "behind"; c.title = "Je loopt wat achter";
+    c.tip = "Haal gemiste kilometers niet in, dat geeft sneller blessures. Ga gewoon verder met het volgende loopje.";
+    c.note = nextText;
+    c.after = "Je lange duurloop gaat pas omhoog als je hem haalt; dat past het schema zelf aan.";
+  } else if (past.length === 2 && past.every(x => pct(x) >= .95) && !missed.length && !w.adj && ["base", "build"].includes(w.phase) && !tooHard && (rec == null || rec >= 55) && (!usual || acute <= usual * 1.3)){
+    c.state = "more"; c.title = "Je mag meer doen";
+    const extra = w.sessions.filter(s => s.date >= now && ["Lange duurloop", "Rustige duurloop"].includes(s.name)).reduce((s, x) => s + x.km, 0) * .1;
+    c.tip = extra >= .5 ? `Je haalt je schema vlot. Maak je rustige loopjes deze week 10% langer: samen ± ${km(extra)} km extra.` : "Je haalt je schema vlot. Houd deze week dit tempo aan; volgende week mag je er 10% bij doen.";
+    if (extra >= .5) c.act = { f: 1.1, label: "Maak deze week 10% langer" };
+  } else {
+    c.state = "ok"; c.title = "Je zit op schema";
+    c.tip = wind ? "Je bouwt af: minder kilometers zijn nu de bedoeling. Doe niets extra." : tooHard ? "Loop je rustige loopjes trager, dan herstel je beter." : !w.done.runs && !last ? "Log je loopjes als Lopen of Loopband, dan vergelijkt de app ze met je schema." : "Ga zo door.";
+    c.note = nextText;
+  }
+  return c;
+}
+function runCoachHtml(p){
+  const c = runCoach(p), adj = p.cur.adj;
+  return `<div class="rp-coach ${c.state}"><p class="rp-c-h"><span aria-hidden="true">${{ rest: "😴", behind: "⚠️", more: "🚀", ok: "✅" }[c.state]}</span> <b>${esc(c.title)}</b></p>
+    <ul>${c.why.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+    <p><b>Voorstel</b></p><p>${esc(c.tip)}</p>${c.note ? `<p>${esc(c.note)}</p>` : ""}${c.after ? `<p class="note">${esc(c.after)}</p>` : ""}
+    ${adj ? `<p class="note">${adj.f < 1 ? "Deze week is lichter gemaakt." : "Deze week is 10% langer gemaakt."}</p><button class="ghost-sm" type="button" data-coach="undo">Terugzetten</button>`
+      : c.act ? `<button class="ghost-sm" type="button" data-coach="${c.act.f}">${esc(c.act.label)}</button>` : ""}</div>`;
 }
 const RACE_PHASE = { base: "Basis", build: "Opbouw", easy: "Rustigere week", peak: "Piekweek", taper: "Afbouwen", race: "Wedstrijdweek" };
 let raceSel = "";
@@ -3203,24 +3361,42 @@ const wdShort = iso => new Date(iso + "T12:00").toLocaleDateString(LOC(), { week
 function renderRacePlan(){
   const mod = document.querySelector('#planBody .mod[data-mod="race"]'); if (!mod) return;
   const goals = raceGoals(); mod.hidden = !goals.length; if (!goals.length) return;
-  const g = goals.find(x => x.name === raceSel) || goals[0], p = racePlan(g), thisW = weekOf(today());
+  const g = goals.find(x => x.name === raceSel) || goals[0];
+  if (!g.from){ g.from = today(); savePrefs(); }
+  const p = racePlan(g), thisW = weekOf(today()), z = runZones(p.R);
   const strength = (p.slots.strength || []).slice().sort((a, b) => a - b), both = p.list.some(w => w.sessions.some(s => s.both));
-  const row = s => `<div class="rp-run${s.race ? " race" : ""}${s.date < today() ? " past" : ""}"><b>${esc(wdShort(s.date))}</b><span><span>${esc(s.name)}</span>${s.both ? ` <small class="rp-both">+ kracht</small>` : ""}<small>${esc(s.detail)}</small></span><i>${fmt(s.km)} km</i></div>`;
+  const runDaysNow = [...new Set([p.slots.long, p.slots.quality].concat(p.slots.easy))].filter(d => d != null).sort((a, b) => a - b);
+  const weekOpen = w => { const o = (prefs.rpOpen || {})[w.monday]; return o == null ? w.monday === thisW : o; };
+  const status = s => s.did ? `<small class="rp-did"><span aria-hidden="true">✓</span> ${s.did === s.date ? `<span>Gedaan</span>` : `<span>Gedaan op ${esc(wdShort(s.did))}</span>`}${s.kmDone ? ` · ${fmt(Math.round(s.kmDone * 10) / 10)} km` : ""}</small>` : s.date < today() ? `<small class="rp-miss">Niet gedaan</small>` : "";
+  const row = s => `<div class="rp-run${s.race ? " race" : ""}${s.date < today() && !s.did ? " past" : ""}"><b>${esc(wdShort(s.date))}</b><span><span>${esc(s.name)}</span>${s.both ? ` <small class="rp-both">+ kracht</small>` : ""}<small>${esc(s.detail)}</small>${s.adj ? `<small class="rp-both">Aangepast</small>` : ""}${status(s)}${runWhy(s, z)}</span><i>${fmt(s.km)} km</i></div>`;
+  const total = w => w.past || w.monday === thisW ? `${fmt(Math.round(w.done.km * 10) / 10)} / ${fmt(w.km)} km` : `${fmt(w.km)} km`;
   $("raceBody").innerHTML = `
     ${goals.length > 1 ? `<div class="chips rp-pick">${goals.map(x => `<button type="button" class="chip${x === g ? " on" : ""}" data-race="${esc(x.name)}" aria-pressed="${x === g}">${esc(RACES[x.name].label)}</button>`).join("")}</div>` : ""}
     <p class="rp-head"><b>${esc(RACES[g.name].label)}</b> <span>${esc(longDate(g.date))}</span></p>
-    <p class="note">${p.weeks === 1 ? "Deze week is het zover." : `Nog ${p.weeks} weken, inclusief de wedstrijdweek.`}</p>
+    <p class="note">${p.left === 1 ? "Deze week is het zover." : `Nog ${p.left} weken, inclusief de wedstrijdweek.`}</p>
+    ${runCoachHtml(p)}
     <p class="note">${p.days === 1 ? `${p.runs} loopdagen per week, op basis van 1 trainingsdag per week.` : `${p.runs} loopdagen per week, op basis van ${p.days} trainingsdagen per week.`}</p>
-    <p class="note">${p.recent ? `Je schema start bij een lange duurloop van ${fmt(p.start)} km, op basis van je loopjes de laatste 4 weken.` : `Je schema start bij een lange duurloop van ${fmt(p.start)} km. Log je loopjes als Lopen of Loopband, dan past het schema zich aan.`}</p>
+    <p class="rp-k"><b>Ideale loopdagen</b> ${runDaysNow.map(d => `<span>${esc(wdShort(addDays(thisW, d)))}</span>`).join("")}</p>
+    ${p.cur.i ? "" : `<p class="note">${p.recent ? `Je schema start bij een lange duurloop van ${fmt(p.start)} km, op basis van je loopjes de laatste 4 weken.` : `Je schema start bij een lange duurloop van ${fmt(p.start)} km. Log je loopjes als Lopen of Loopband, dan past het schema zich aan.`}</p>`}
     ${p.short ? `<p class="note rp-warn">Weinig tijd voor deze afstand: het schema bouwt sneller op en de lange duurloop blijft korter. Een latere wedstrijd is veiliger.</p>` : ""}
     ${p.days < 3 && p.R.km > 20 ? `<p class="note rp-warn">Voor deze afstand zijn 3 of meer loopdagen per week beter. Pas je trainingsdagen aan in Weekplanning.</p>` : ""}
     ${strength.length ? `<p class="rp-k"><b>Krachttraining</b> ${strength.map(d => `<span>${esc(wdShort(addDays(thisW, d)))}</span>`).join("")}</p>
       <p class="note">Plan geen zware beentraining de dag voor je lange duurloop. In de afbouwweken houd je het bij 1–2 lichte krachttrainingen.</p>
       ${both ? `<p class="note">Op dagen met kracht én lopen: loop rustig na je krachttraining, of op een ander moment van de dag.</p>` : ""}`
       : `<p class="note">Nog geen krachtdagen gepland. 1–2 krachttrainingen per week helpen tegen blessures.</p>`}
-    <div class="rp-weeks">${p.list.map(w => `<details class="rp-week ${w.phase}"${w.monday === thisW ? " open" : ""}><summary><b>Week ${w.i + 1}</b><span>${esc(RACE_PHASE[w.phase])}</span><small>${esc(shortDate(w.monday))} – ${esc(shortDate(addDays(w.monday, 6)))}</small><i>${fmt(w.km)} km</i></summary>${w.sessions.map(row).join("")}</details>`).join("")}</div>
-    <ul class="tips"><li class="tips-h">Tips</li><li>Praattempo: je kunt nog in zinnen praten. Zo loop je de meeste kilometers.</li><li>Intervallen en tempoloop: 10–15 min inlopen en 5–10 min uitlopen; de km zijn de hele training.</li><li>Pijn die blijft of erger wordt: sla een loopje over. Een week minder kost je niets.</li></ul>`;
+    ${runZonesHtml(z)}
+    <div class="rp-weeks">${p.list.map(w => `<details class="rp-week ${w.phase}" data-w="${w.monday}"${weekOpen(w) ? " open" : ""}><summary><b>Week ${w.i + 1}</b><span>${esc(RACE_PHASE[w.phase])}</span><small>${esc(shortDate(w.monday))} – ${esc(shortDate(addDays(w.monday, 6)))}</small><i>${total(w)}</i></summary>${w.sessions.map(row).join("") || `<p class="note">Je schema start volgende week.</p>`}</details>`).join("")}</div>
+    <ul class="tips"><li class="tips-h">Tips</li><li>Praattempo: je kunt nog in zinnen praten. Zo loop je de meeste kilometers.</li><li>Intervallen en tempoloop: 10–15 min inlopen en 5–10 min uitlopen; de km zijn de hele training.</li><li>Pijn die blijft of erger wordt: sla een loopje over. Een week minder kost je niets.</li><li>Je schema volgt je logboek: haal je de lange duurloop, dan gaat hij de week erna omhoog. Haal je hem niet, dan herhaal je hem.</li></ul>`;
   $("raceBody").querySelectorAll("[data-race]").forEach(b => b.onclick = () => { raceSel = b.dataset.race; renderRacePlan(); });
+  $("raceBody").querySelectorAll(".rp-week").forEach(d => d.addEventListener("toggle", () => {
+    const m = d.dataset.w;
+    if (weekOpen({ monday: m }) !== d.open){ prefs.rpOpen = Object.assign({}, prefs.rpOpen, { [m]: d.open }); savePrefs(); }
+  }));
+  $("raceBody").querySelectorAll("[data-coach]").forEach(b => b.onclick = () => {
+    const undo = b.dataset.coach === "undo", adj = Object.assign({}, g.adj);
+    if (undo) delete adj[thisW]; else adj[thisW] = { f: +b.dataset.coach, day: today() };
+    g.adj = adj; savePrefs(); renderPlanning(); toast(undo ? "Je schema staat terug." : "Je schema is aangepast voor deze week.");
+  });
 }
 // ---------- Ready-made programs with a weekly cycle ----------
 // cycle: one entry per week; factor scales the suggested weight, reps overrides the target, mainOnly = only the first exercise of the day.
@@ -3294,7 +3470,7 @@ const TRAIN_GOALS = {
   strength: ["Kracht", "Zware basisoefeningen in 3–6 herhalingen met lange rust; hulpoefeningen blijven 8–12."],
   fat: ["Vetverlies", "Krachttraining in 10–15 herhalingen met korte rust, plus extra cardio en een klein calorietekort."],
   endurance: ["Conditie", "Hardlopen, fietsen of zwemmen opbouwen, bv. naar een 5 km of marathon, met 2 korte krachttrainingen erbij."],
-  athletic: ["Athletisch", "Een mix van conditie, kracht en core: sterk, fit en wendbaar."]
+  athletic: ["Atletisch", "Een mix van conditie, kracht en core: sterk, fit en wendbaar."]
 };
 const trainGoal = () => TRAIN_GOALS[prefs.trainGoal] ? prefs.trainGoal : "muscle";
 function goalAdjust(it){
@@ -4268,6 +4444,16 @@ function renderToday(){
   const homeS = comboHome(), afterS = !homeS && afterOf(s, idx);
   const comboNote = homeS ? `Daarna terug naar ${homeS.days[nextHomeDay(homeS)].name}.` : afterS ? `Daarna: ${afterS.name}` : "";
   const goalsTitle = goalsToday.length > 1 ? "Je doelen" : "Je doel";
+  const runToday = runOn(today()), runP = runToday && racePlan(raceGoals()[0]), runC = runP && runCoach(runP);
+  const runCard = runToday ? `<section class="panel mod" data-mod="run">
+        ${modHead("Loopje van vandaag")}
+        <div class="mod-body">
+          <h2 class="nc-day">${esc(runToday.name)} · ${fmt(runToday.km)} km</h2>
+          <p class="note">${esc(runToday.detail)}</p>
+          <div class="rp-coach ${runC.state}"><p class="rp-c-h"><span aria-hidden="true">${{ rest: "😴", behind: "⚠️", more: "🚀", ok: "✅" }[runC.state]}</span> <b>${esc(runC.title)}</b></p><p>${esc(runC.tip)}</p></div>
+          ${runWhy(runToday, runZones(runP.R))}
+        </div>
+      </section>` : "";
   $("todayView").innerHTML = `
     <div class="hello"><h2>${hello}</h2><p class="note">${esc(longDate(today()))}</p></div>
     ${prefs.daysPerWeek ? "" : `<section class="panel"><h2>Hoeveel dagen per week?</h2><p class="note">Kies hoe vaak je wil trainen; de app zet je weekplanning klaar.</p><div class="days-pick" id="todayDays">${dayButtons()}</div></section>`}
@@ -4284,6 +4470,7 @@ function renderToday(){
           <button class="save big-start" type="button" id="startBtn">${inWorkout() ? "Verder trainen" : "Start training"}</button>
         </div>
       </section>
+      ${runCard}
       <section class="panel mod" data-mod="tiles">
         ${modHead("Reeks en deze week")}
         <div class="mod-body">
@@ -4542,7 +4729,7 @@ function goalPlan(g){
   const ev = goalEval(g), t = ev.type, cur = ev.cur;
   if (t === "race"){
     const R = RACES[g.name], weeksLeft = g.date ? Math.max(0, (new Date(g.date) - new Date(today())) / 6048e5) : null;
-    const p = g.date && g.date >= today() ? racePlan(g) : null, w = p && p.list[0], long = w && w.sessions.find(s => s.name === "Lange duurloop");
+    const p = g.date && g.date >= today() ? racePlan(g) : null, w = p && p.cur, long = w && w.sessions.find(s => s.name === "Lange duurloop");
     const verdict = p ? (p.weeks >= R.rec ? "ok" : p.weeks >= R.min ? "tough" : "hard") : null;
     return { ev, weeksLeft, gap: null, need: null, hist: null, verdict, eta: null, next: long ? `Deze week: lange duurloop van ${fmt(long.km)} km.` : "",
       often: p ? `Loop ${p.runs}× per week: één lange duurloop, één snellere training en de rest rustig.` : "", tips: GOAL_TIPS.race.slice(), freqNow: null, ideal: p ? p.runs : 3 };
@@ -4840,13 +5027,13 @@ SCHEMES.push({ id: "row", name: "Roeien", crd: true, note: "Roeien op het roeito
     { name: "Intervallen", focus: "Bv. 8× 250 m stevig met 1 min rustig roeien ertussen: kracht en conditie", ex: [cdx("Roeien", "15–25")] },
     { name: "Lange afstand", focus: "30–45 min zonder te stoppen: uithouding", ex: [cdx("Roeien", "30–45")] }
   ]});
-// Simple starter schemes for the goals Conditie and Athletisch (the welcome carousel proposes them).
+// Simple starter schemes for the goals Conditie and Atletisch (the welcome carousel proposes them).
 SCHEMES.push({ id: "runfit", name: "Kracht voor lopers", note: "2 korte krachttrainingen per week naast je loopschema, bv. op een rustige dag. Sterke benen en een stevige romp helpen je sneller te lopen en voorkomen blessures.",
   days: [
     { name: "Benen en billen", focus: "Sterke benen voor lopen, fietsen en zwemmen", ex: [["Goblet Squat","3","10–12","90 s","legs"],["Romanian Deadlift","3","8–10","2 min","legs"],["Walking Lunge","3","10 / leg","90 s","legs"],["Standing Calf Raise","3","12–15","60 s","legs"]] },
     { name: "Romp en rug", focus: "Stevige romp en een rechte houding onderweg", ex: [["Push-up","3","8–15","60 s","push","bw"],["Single-Arm Dumbbell Row","3","10–12","60 s","pull"],["Glute Bridge","3","12–20","45 s","legs","bw"],["Plank","3","30–45","45 s","core","time"],["Bird Dog","3","10–16","30 s","core","bw"]] }
   ]});
-SCHEMES.push({ id: "ath", name: "Athletisch", note: "Een mix van kracht, conditie en core: 3× per week, bv. ma Kracht, wo Conditie en vr Core en beweeglijkheid. Voeg in het weekend gerust een lange rustige wandeling of duurloop toe.",
+SCHEMES.push({ id: "ath", name: "Atletisch", was: "Athletisch", note: "Een mix van kracht, conditie en core: 3× per week, bv. ma Kracht, wo Conditie en vr Core en beweeglijkheid. Voeg in het weekend gerust een lange rustige wandeling of duurloop toe.",
   days: [
     { name: "Kracht", focus: "Benen, borst en rug: de basis", ex: [["Back Squat","3","6–8","2 min","legs"],["Bench Press","3","6–8","2 min","push"],["Barbell Row","3","8","90 s","pull"],["Romanian Deadlift","3","8–10","2 min","legs"]] },
     { name: "Conditie", focus: "Intervallen en een korte, pittige circuitronde", ex: [cdx("Intervallopen"), ["Kettlebell Swing","3","15","60 s","legs"],["Burpee","3","8–12","60 s","core","bw"],["Mountain Climber","3","30–45","30 s","core","time"]] },
@@ -6973,7 +7160,7 @@ function renderAdvice(){
   if (tg === "fat") add(45, "Vetverlies: houd je krachttraining zwaar genoeg, doe 150–300 minuten cardio per week en eet ±300–500 kcal per dag minder dan je verbruikt.", "Wandelen openen", open("walk", 0));
   else if (tg === "strength") add(50, "Kracht: zware basisoefeningen in 3–6 herhalingen en elke week een klein beetje zwaarder. Een vast programma zoals 5/3/1 helpt.", "Kracht 5/3/1 openen", open("prog-531"));
   else if (tg === "endurance") add(48, "Conditie: doe 80% van je cardio rustig, 1× per week intervallen of tempo, en bouw per week hooguit 10% op.", "Lopen openen", open("run"));
-  else if (tg === "athletic") add(52, "Athletisch: wissel kracht, conditie en core af, ±3× per week.", "Athletisch openen", open("ath"));
+  else if (tg === "athletic") add(52, "Atletisch: wissel kracht, conditie en core af, ±3× per week.", "Atletisch openen", open("ath"));
   else if (r.area.pct < 100) add(55, "Spieropbouw: mik op 10–20 sets per spiergroep per week in 6–12 herhalingen.", "Push / Pull / Legs openen", open("ppl"));
   tips.sort((x, y) => x.score - y.score);
   const lvText = lvl == null ? "" : lvl < 0 ? "Starter" : LEVELS[Math.round(lvl)];
@@ -7195,6 +7382,7 @@ $("goalForm").addEventListener("submit", e => {
   if (type === "body") goal.start = latestBw() || v;
   // One goal per exercise: a new goal for the same exercise replaces the old one, in its place.
   const goals = prefs.goals || [], same = g => g.name === name && (type !== "body" || g.date === goal.date), at = goals.findIndex(same);
+  if (type === "race"){ goal.from = (at >= 0 && goals[at].from) || today(); if (at >= 0 && goals[at].adj) goal.adj = goals[at].adj; }
   prefs.goals = at < 0 ? goals.concat([goal]) : goals.map((g, i) => i === at ? goal : g).filter((g, i) => i === at || !same(g));
   savePrefs(); $("gKg").value = ""; $("gV2").value = ""; if (type === "race") renderPlanning(); else renderGoals(); toast(at < 0 ? "Doel toegevoegd" : "Doel aangepast");
 });

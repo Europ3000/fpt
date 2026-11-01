@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-9BZ9nXu5q4+Yx40+4imECLW3EDiVMO27WUXGzMa7luE=' 'sha256-ZvYwimeD31S+4evqMQvFtVoPLS+nvXD0LzQ6ibd2yBs='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-r5G4C8ozujvA1aD1QbnzcA/AKGZmk0dHwUVqXh3ldEg=' 'sha256-8gvIUacGrYSE6ndlM8M/vBLkzYHp1tq3Wi9zIxWZRLs='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#16a34a">
@@ -16,12 +16,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FPT">
 <meta name="application-name" content="FPT">
-<link rel="preload" as="script" href="app.js?v=6fe8c096f3">
+<link rel="preload" as="script" href="app.js?v=3dca98f42c">
 <script>window.FPT_STANDALONE = true;
 window.FPT_HOME = "https://fptfit.app/";
 window.FPT_MOVE_TO = "https://fptfit.app/";
 window.FPT_I18N = {"langs": ["en", "fr", "es", "de", "it", "pt", "ru", "zh", "ar", "hi"]};
-window.FPT_I18N_FILES = {"en": "i18n/en.js?v=f9b7d0d46b", "fr": "i18n/fr.js?v=686a6fecfa", "es": "i18n/es.js?v=0cc4ada51d", "de": "i18n/de.js?v=a3c7d427db", "it": "i18n/it.js?v=e902cf7141", "pt": "i18n/pt.js?v=59b9a346a0", "ru": "i18n/ru.js?v=dc5527e74b", "zh": "i18n/zh.js?v=898e617e6e", "ar": "i18n/ar.js?v=7575c23cac", "hi": "i18n/hi.js?v=f8dfcf41ef"};
+window.FPT_I18N_FILES = {"en": "i18n/en.js?v=683c784b64", "fr": "i18n/fr.js?v=51ab02076e", "es": "i18n/es.js?v=7a6086bfab", "de": "i18n/de.js?v=ef5b421362", "it": "i18n/it.js?v=5b27713866", "pt": "i18n/pt.js?v=153cc69ff6", "ru": "i18n/ru.js?v=24e0b347b1", "zh": "i18n/zh.js?v=b2eed76d61", "ar": "i18n/ar.js?v=579a893381", "hi": "i18n/hi.js?v=6e1750a113"};
 (() => {
   // Not inside someone else's page (clickjacking): break out, or show nothing.
   if (top !== self){ try { top.location.replace(location.href); } catch {} document.documentElement.style.display = "none"; }
@@ -1310,8 +1310,9 @@ button.cal-d{font:inherit;font-size:.85rem;padding:5px 0;background:none;cursor:
 .dd-btns [data-dd="open"]{border-color:var(--c1,var(--teal));color:var(--teal)}
 .goal-plan{margin:-4px 0 14px}
 .pl-row.goal-row{--c1:var(--ember)}
-.wp.run::before{content:"🏃";position:absolute;top:-7px;left:-5px;font-size:.72rem}
+.wp.run::before,.cal-d.run::before{content:"🏃";position:absolute;top:-7px;left:-5px;font-size:.72rem;text-decoration:none}
 .wp.free.run span{color:var(--teal);font-weight:700}
+.wp .wp-km{font-size:.62rem;font-weight:600;white-space:nowrap}
 #raceBody{display:grid;gap:8px}
 #raceBody p{margin:0}
 .rp-pick{margin-bottom:2px}
@@ -1323,13 +1324,15 @@ button.cal-d{font:inherit;font-size:.85rem;padding:5px 0;background:none;cursor:
 .rp-weeks{display:grid;gap:6px;margin-top:4px}
 .rp-week{border:1px solid var(--line);border-radius:12px;padding:0 12px;background:var(--card)}
 .rp-week[open]{padding-bottom:8px}
-.rp-week summary{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:baseline;padding:10px 0;cursor:pointer;list-style:none}
-.rp-week summary::-webkit-details-marker{display:none}
-.rp-week summary small{grid-column:1/3;color:var(--muted);font-size:.78rem}
-.rp-week summary i{grid-row:1;grid-column:3;font-style:normal;font-weight:700;font-size:.88rem}
-.rp-week summary span{font-size:.85rem;color:var(--teal);font-weight:700}
-.rp-week.easy summary span,.rp-week.taper summary span{color:var(--muted)}
-.rp-week.race summary span{color:var(--ember)}
+.rp-week > summary{display:grid;grid-template-columns:auto 1fr auto auto;gap:2px 10px;align-items:baseline;padding:10px 0;cursor:pointer;list-style:none}
+.rp-week > summary::-webkit-details-marker{display:none}
+.rp-week > summary small{grid-column:1/3;color:var(--muted);font-size:.78rem}
+.rp-week > summary i{grid-row:1;grid-column:3;font-style:normal;font-weight:700;font-size:.88rem;white-space:nowrap}
+.rp-week > summary::after{content:"▾";grid-row:1;grid-column:4;color:var(--muted);transition:transform .2s}
+.rp-week[open] > summary::after{transform:rotate(180deg)}
+.rp-week > summary span{font-size:.85rem;color:var(--teal);font-weight:700}
+.rp-week.easy > summary span,.rp-week.taper > summary span{color:var(--muted)}
+.rp-week.race > summary span{color:var(--ember)}
 .rp-run{display:grid;grid-template-columns:2.2em 1fr auto;gap:10px;align-items:start;padding:7px 0;border-top:1px solid var(--line);font-size:.9rem}
 .rp-run > b{text-transform:capitalize;color:var(--muted)}
 .rp-run > span{display:grid;gap:1px;min-width:0}
@@ -1339,6 +1342,15 @@ button.cal-d{font:inherit;font-size:.85rem;padding:5px 0;background:none;cursor:
 .rp-run i{font-style:normal;font-weight:700;white-space:nowrap}
 .rp-run.race > span > span{color:var(--ember)}
 .rp-run.past{opacity:.55}
+.rp-run small.rp-did{color:var(--teal);font-weight:700}
+.rp-run small.rp-miss{color:var(--ember);font-weight:700}
+.rp-kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:2px 0}
+.rp-kv b{color:var(--muted);font-weight:600}
+.rp-coach{display:grid;gap:4px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--c,var(--teal)) 10%,var(--card));border-inline-start:4px solid var(--c,var(--teal));font-size:.9rem;line-height:1.4}
+.rp-coach.rest,.rp-coach.behind{--c:var(--ember)}
+.rp-coach .rp-c-h{font-size:1rem}
+.rp-coach ul{margin:0;padding-inline-start:18px;color:var(--muted);font-size:.84rem}
+.rp-coach .ghost-sm{justify-self:start;font:inherit;font-size:.82rem;font-weight:700;border:1.5px solid var(--c,var(--teal));background:var(--card);color:var(--ink);border-radius:9px;padding:7px 12px;margin-top:4px;cursor:pointer}
 .log-edit{display:grid;gap:12px;padding:6px 0 12px}
 .le-ex{display:grid;gap:6px}
 .le-name{font-size:.95rem}
@@ -2021,6 +2033,6 @@ h1,h2,h3{overflow-wrap:anywhere}
     <button type="button" id="restStop">Stop</button>
   </div>
 </div>
-<script>[window.FPT_LANG_FILE, "app.js?v=6fe8c096f3"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
+<script>[window.FPT_LANG_FILE, "app.js?v=3dca98f42c"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
 </body>
 </html>
