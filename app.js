@@ -233,6 +233,27 @@ const MUSCLES = {
 
 const LS_RECORDS = "ppl.records", LS_VIEW = "ppl.view", LS_LAYOUTS = "ppl.layouts", LS_LOG = "ppl.log";
 const $ = id => document.getElementById(id);
+// Keep the keyboard's autofill bar (passwords / cards / addresses) off number and search fields.
+// "off" alone is often ignored, so also name the field as nothing the browser knows.
+(function noAutofillBar() {
+  const fix = el => {
+    if (!el || el.tagName !== "INPUT" || el.dataset.af) return;
+    const t = (el.type || "text").toLowerCase();
+    const ac = el.getAttribute("autocomplete") || "";
+    if (t === "password" || t === "email" || ac === "username" || ac === "current-password" || ac === "new-password" || ac === "one-time-code") return;
+    el.dataset.af = "1";
+    el.setAttribute("autocomplete", "off");
+    el.setAttribute("data-lpignore", "true");
+    el.setAttribute("data-1p-ignore", "");
+    el.setAttribute("data-form-type", "other");
+    if (!el.getAttribute("name")) el.setAttribute("name", "fpt-" + Math.random().toString(36).slice(2, 8));
+    if (t === "text" || t === "search") { el.setAttribute("autocorrect", "off"); el.spellcheck = false; }
+  };
+  const scan = root => { if (root.nodeType !== 1) return; fix(root); root.querySelectorAll && root.querySelectorAll("input").forEach(fix); };
+  document.querySelectorAll("input").forEach(fix);
+  new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(scan))).observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener("focusin", e => fix(e.target), true);
+})();
 // The stand-alone version (own website, no Claude) sets window.FPT_STANDALONE: data stays on the device,
 // with a backup file instead of account sync, and it installs as an app with its own icon.
 const STANDALONE = !!window.FPT_STANDALONE;
