@@ -4177,13 +4177,12 @@ const SUMMARY = [
   ["📈", "Je vooruitgang en doelen in beeld", "Log elke set in een paar seconden. Op basis van je vorige sets stelt FPT herhalingen en gewichtsverhogingen voor, afgestemd op de doelen die je stelt. Je ziet je records en krijgt een plan met concrete tips om die doelen te halen.", "Doelen bekijken", "goals"],
   ["🎯", "Eén app voor elk doel", "Sterker worden, afvallen naar je streefgewicht, tot rust komen of herstellen van een blessure? Met FPT doe je het allemaal in een handomdraai.", "Naar Training", "train"],
   ["🧭", "De juiste oefening, goed uitgevoerd", "Elke oefening heeft een animatie, een korte uitleg en de spiergroepen die je traint. Lukt iets niet of is het toestel bezet? Dan krijg je meteen een gelijkwaardig alternatief.", "Naar de oefeningen", "train"],
-  ["⚖️", "Evenwichtig trainen met analytics", "Zie welke spiergroepen je traint en of kracht, core, stretchen en conditie in balans zijn, met voorstellen op maat van je leeftijd, geslacht en doel.", "Analytics", "stats"],
-  ["🔁", "Stap voor stap beter, zonder extra toestellen", "FPT analyseert je vorige trainingen en bouwt je belasting stapsgewijs op: wat meer gewicht, een extra herhaling of net wat meer rust. Daarvoor heb je geen sporthorloge, hartslagmeter of ander hulpmiddel nodig; je telefoon is genoeg.", "Naar Training", "train"]
+  ["⚖️", "Evenwichtig trainen met analytics", "Zie welke spiergroepen je traint en of kracht, core, stretchen en conditie in balans zijn, met voorstellen op maat van je leeftijd, geslacht en doel.", "Analytics", "stats"]
 ];
 function openSummary(){
   const sh = $("shareSheet");
   sh.setAttribute("aria-label", "Samenvatting");
-  sh.querySelector(".ss-body").innerHTML = `<h2>Wat doet FPT voor jou?</h2><p class="note">Fitness Progress Tracker in zes punten.</p>
+  sh.querySelector(".ss-body").innerHTML = `<h2>Wat doet FPT voor jou?</h2><p class="note">Fitness Progress Tracker in vijf punten.</p>
     <ol class="sum-list">${SUMMARY.map(([icon, title, text, btn, go], i) => `<li><span class="sum-n" aria-hidden="true">${icon}</span><div><b><span>${i + 1}.</span> ${esc(title)}</b><p>${esc(text)}</p>
       <button type="button" class="ghost-sm sum-go" data-go="${go}">${esc(btn)}</button></div></li>`).join("")}</ol>`;
   sh.hidden = false;
@@ -4318,7 +4317,6 @@ function openTips(){
     <p class="note">Algemene tips, geen vervanging voor advies van een arts of diëtist.</p>`;
   sh.hidden = false;
   prefs.tipsSeen = tipsSig(); savePrefs();
-  const nb = document.querySelector("#toTips .tb-new"); if (nb) nb.remove();
 }
 
 
@@ -4469,7 +4467,7 @@ function renderToday(){
   const runCard = runToday ? `<section class="panel mod" data-mod="run">
         ${modHead("Loopje van vandaag")}
         <div class="mod-body">
-          <h2 class="nc-day">${esc(runToday.name)} · ${fmt(runToday.km)} km</h2>
+          <h2 class="nc-day"><span>${esc(runToday.name)}</span> · ${fmt(runToday.km)} km</h2>
           <p class="note">${esc(runToday.detail)}</p>
           <div class="rp-coach ${runC.state}"><p class="rp-c-h"><span aria-hidden="true">${{ rest: "😴", behind: "⚠️", more: "🚀", ok: "✅" }[runC.state]}</span> <b>${esc(runC.title)}</b></p><p>${esc(runC.tip)}</p></div>
           ${runWhy(runToday, runZones(runP.R))}
@@ -4520,8 +4518,7 @@ function renderToday(){
         <div class="mod-body">${goalsToday.map(goalRow).join("")}</div>
       </section>` : ""}
     </div>
-    ${STANDALONE && dates.length >= 5 && (!lsGet("ppl.lastBackup", "") || daysAgo(lsGet("ppl.lastBackup", "")) > 30) ? `<section class="panel tip-card"><small class="label">Back-up</small><p>Je gegevens staan alleen op deze telefoon. Download een back-up via Instellingen (rechtsboven).</p></section>` : ""}
-    <div class="entry-row"><button class="ghost wide sum-btn" type="button" id="toSummary">Samenvatting</button><button class="ghost wide tips-btn" type="button" id="toTips">Tips${tipsChanged() ? `<span class="tb-new">Nieuw</span>` : ""}</button></div>`;
+        <div class="entry-row"><button class="ghost wide sum-btn" type="button" id="toSummary">Samenvatting</button><button class="ghost wide tips-btn" type="button" id="toTips">Tips</button></div>`;
 
   setupModulesIn("todayMods", "todayOrder", "todayClosed");
   const td = $("todayDays"); if (td) td.querySelectorAll("[data-days]").forEach(b => b.onclick = () => { setDaysPerWeek(+b.dataset.days); toast(b.dataset.days === "1" ? "1 dag per week ingepland." : `${b.dataset.days} dagen per week ingepland.`); });
