@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-1SazO5P6EbrKkZGZl9obAHqJ9i18zG5aElobsdOQ0aM=' 'sha256-h50jRN70VSEKxVkk0NAxfKr+rIQ/AcMHb55qnm+eExg='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-yNyNlE4PFDMcjV3jf2qZbAyPpiEp+MrCaODm1xPVo6E=' 'sha256-D5IiuOBSEdYAYJklQ2pYpzltoeGQKVwfkOh4tHal9go='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#16a34a">
@@ -16,12 +16,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FPT">
 <meta name="application-name" content="FPT">
-<link rel="preload" as="script" href="app.js?v=48be8c9610">
+<link rel="preload" as="script" href="app.js?v=dc05e7c371">
 <script>window.FPT_STANDALONE = true;
 window.FPT_HOME = "https://fptfit.app/";
 window.FPT_MOVE_TO = "https://fptfit.app/";
 window.FPT_I18N = {"langs": ["en", "fr", "es", "de", "it", "pt", "ru", "zh", "ar", "hi"]};
-window.FPT_I18N_FILES = {"en": "i18n/en.js?v=b46918856a", "fr": "i18n/fr.js?v=44a61ea1cf", "es": "i18n/es.js?v=2f36440ac9", "de": "i18n/de.js?v=e06e0eba90", "it": "i18n/it.js?v=752e19da74", "pt": "i18n/pt.js?v=1c9bb04fd7", "ru": "i18n/ru.js?v=3c973c08de", "zh": "i18n/zh.js?v=a420fcdb0e", "ar": "i18n/ar.js?v=be2190ca1f", "hi": "i18n/hi.js?v=a39fb2ce86"};
+window.FPT_I18N_FILES = {"en": "i18n/en.js?v=8f607b6a66", "fr": "i18n/fr.js?v=a84b9d43ba", "es": "i18n/es.js?v=93c79f9e16", "de": "i18n/de.js?v=e9cf9bc687", "it": "i18n/it.js?v=4041c3ca45", "pt": "i18n/pt.js?v=5594f6ab31", "ru": "i18n/ru.js?v=8ee120161e", "zh": "i18n/zh.js?v=4bf2222d9a", "ar": "i18n/ar.js?v=f129e225cf", "hi": "i18n/hi.js?v=8f9de67e62"};
 (() => {
   // Not inside someone else's page (clickjacking): break out, or show nothing.
   if (top !== self){ try { top.location.replace(location.href); } catch {} document.documentElement.style.display = "none"; }
@@ -753,6 +753,7 @@ body.rest-each #restBar{display:none}
 .bd > summary::after{content:"▾";font-family:var(--body);font-size:.9rem;color:var(--muted);transition:transform .2s}
 .bd[open] > summary::after{transform:rotate(180deg)}
 .bd-body{display:flex;flex-direction:column;gap:10px;padding:10px 0 4px}
+.ph-btn small{overflow-wrap:anywhere;hyphens:auto}
 .ph-btn{font:inherit;color:var(--ink);text-align:start;cursor:pointer;background:none;border:0;padding:0;display:flex;flex-direction:column;min-width:0}
 .ph-btn::after{content:"";position:absolute;inset:0;border-radius:inherit}
 .phys-get{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
@@ -1324,6 +1325,7 @@ button.cal-d{font:inherit;font-size:.85rem;padding:5px 0;background:none;cursor:
 .rp-weeks{display:grid;gap:6px;margin-top:4px}
 .rp-week{border:1px solid var(--line);border-radius:12px;padding:0 12px;background:var(--card)}
 .rp-week[open]{padding-bottom:8px}
+.rp-all{width:100%;margin-top:8px}
 .rp-week > summary{display:grid;grid-template-columns:auto 1fr auto auto;gap:2px 10px;align-items:baseline;padding:10px 0;cursor:pointer;list-style:none}
 .rp-week > summary::-webkit-details-marker{display:none}
 .rp-week > summary small{grid-column:1/3;color:var(--muted);font-size:.78rem}
@@ -2033,6 +2035,6 @@ h1,h2,h3{overflow-wrap:anywhere}
     <button type="button" id="restStop">Stop</button>
   </div>
 </div>
-<script>[window.FPT_LANG_FILE, "app.js?v=48be8c9610"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
+<script>[window.FPT_LANG_FILE, "app.js?v=dc05e7c371"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
 </body>
 </html>

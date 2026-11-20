@@ -902,7 +902,7 @@ function showPage(p){
   $("viewStats").setAttribute("aria-selected", p === "stats");
   $("viewPlan").setAttribute("aria-selected", p === "plan");
   $("statsJump").hidden = p !== "stats";
-  if (p === "stats") renderStats();
+  if (p === "stats"){ renderStats(); try { statsSync(); } catch {} }   // during start-up the link code is not there yet
   if (p === "plan") renderPlanning();
   if (p === "train") renderSchemes();
   if (p === "today") renderToday();
@@ -2482,7 +2482,8 @@ function clearProfileWaist(){ prefs.profile = Object.assign({}, prefs.profile, {
 // ---------- Lichaam: one chart for your weight and the Garmin numbers, per week, month or year ----------
 // [key, name, unit, kind]: "bars" draws bars (a year shows the average day of each week), "sum" bars with weekly totals.
 const PHYS = [
-  ["w", "Gewicht"], ["tw", "Tailleomtrek", "cm"], ["bf", "Lichaamsvet", "%"], ["mm", "Spier en bot"], ["bm", "Botmassa"], ["wat", "Lichaamswater", "%"], ["hr", "Hartslag", "bpm"], ["rs", "Herstelscore", "%"], ["st", "Stress"], ["bb", "Body Battery"], ["sl", "Slaapscore"],
+  ["w", "Gewicht"], ["tw", "Tailleomtrek", "cm"], ["bf", "Lichaamsvet", "%"], ["mm", "Spier en bot"], ["bm", "Botmassa"], ["wat", "Lichaamswater", "%"], ["hr", "Hartslag", "bpm"], ["rs", "Herstelscore", "%"], ["st", "Stress"], ["bb", "Body Battery"], ["sl", "Slaapscore"], ["sd", "Slaapduur", "u"], ["shr", "Hartslag in slaap", "bpm"], ["rsp", "Ademhaling", "/min"],
+  ["rdy", "Trainingsgereedheid"], ["bps", "Bloeddruk", "mmHg"],
   ["stp", "Stappen", "", "bars"], ["hrv", "HRV-status", "ms"], ["im", "Minuten intensieve training", "min", "sum"],
   ["fl", "Verdiepingen", "", "bars"], ["vo2", "VO2 max"], ["fa", "Fitnessleeftijd", "jaar"], ["spo2", "Pulse Ox", "%"], ["acc", "Acclimatisatie", "%"]
 ];
@@ -2532,6 +2533,7 @@ function physDaily(k){
   if (k === "rs"){ Object.entries(W).forEach(([d, o]) => { const v = recScore(o); if (v != null) out[d] = v; }); return out; }
   if (k === "w"){ Object.entries(prefs.body || {}).forEach(([d, kg]) => { out[d] = toU(kg); }); return out; }
   if (k === "tw"){ Object.entries(waistLog()).forEach(([d, cm]) => { out[d] = toWaist(cm); }); return out; }
+  if (k === "sd"){ Object.entries(W).forEach(([d, o]) => { if (o.ss > 0) out[d] = Math.round(o.ss / 360) / 10; }); return out; }
   Object.entries(W).forEach(([d, o]) => { if (o[k] != null) out[d] = MASS.has(k) ? toU(o[k]) : o[k]; });
   if (Object.keys(out).length) return out;
   if (k === "st") Object.entries(W).forEach(([d, o]) => { if (o.sq != null) out[d] = o.sq; });
@@ -2546,7 +2548,7 @@ function physFmt(k, v, bare){
   if (MASS.has(k)) return fmt(Math.round(v * 10) / 10) + (bare ? "" : " " + U());
   if (k === "tw") return fmt(Math.round(v * 10) / 10) + (bare ? "" : waistUnit() === "in" ? " inch" : " cm");
   if (k === "st" && stress4() && !bare) return STRESS4[Math.round(v)] || fmt(Math.round(v * 10) / 10);
-  const r = ["vo2", "hrv", "spo2", "bf", "wat", "st"].includes(k) ? Math.round(v * 10) / 10 : Math.round(v), u = PHYS_BY[k][2];
+  const r = ["vo2", "hrv", "spo2", "bf", "wat", "st", "sd", "rsp"].includes(k) ? Math.round(v * 10) / 10 : Math.round(v), u = PHYS_BY[k][2];
   return (Math.abs(r) >= 10000 ? r.toLocaleString(LOC()) : fmt(r)) + (u && !bare ? " " + u : "");
 }
 
@@ -2747,6 +2749,8 @@ function renderPhys(){
     else if (k === "mm"){ const b = W[l[0]] && W[l[0]].bm; if (b != null) sub = `bot ${physFmt("bm", toU(b))} · ${relDate(l[0])}`; }
     if (l && k === "rs"){ const o = W[l[0]] || {}; const bits = [o.ss != null ? `${fmt(Math.round(o.ss / 360) / 10)} u slaap` : "", o.bb != null ? `Body Battery ${fmt(Math.round(o.bb))}` : "", (o.st != null || o.sq != null) ? `stress ${physFmt("st", o.st != null ? o.st : o.sq)}` : ""].filter(Boolean); sub = `${bits.join(" · ") || "slaap, stress en Body Battery"} · ${relDate(l[0])}`; }
     if (l && k === "hr") sub = `in rust · ${relDate(l[0])}`;
+    if (l && k === "sd"){ const m = Math.round(l[1] * 60); val = `${Math.floor(m / 60)} u ${m % 60} min`; }
+    if (l && k === "bps" && W[l[0]] && W[l[0]].bpd != null){ val = `${Math.round(l[1])}/${Math.round(W[l[0]].bpd)}`; sub = `mmHg · ${relDate(l[0])}`; }
     if (l && k === "sl" && W[l[0]] && W[l[0]].ss) sub = `${Math.floor(W[l[0]].ss / 3600)} u ${Math.round(W[l[0]].ss % 3600 / 60)} min · ${relDate(l[0])}`;
     if (l && k === "hrv"){
       // HRV status like Garmin: your 7-day average against your own normal range (the weeks before)
@@ -2765,9 +2769,11 @@ function renderPhys(){
       val = `${Math.round(tot)} min`; sub = physGuess(k) ? "deze week · geschat" : "deze week · doel 150";
     }
     if (l && k === "fa"){ const age = profileAge(prefs.profile || {}); sub = physGuess(k) ? "geschat uit VO2 max" : age ? `je leeftijd: ${age}` : relDate(l[0]); }
-    tiles.push({ key: k, html: `<div class="tile pm ph${l ? "" : " off"}${ok ? " ok" : ""}${k === cur ? " on" : ""}" data-pm="${k}">${TILE_ORDER}<button type="button" class="ph-btn" data-ph="${k}" aria-pressed="${k === cur}"><small>${esc(name)}</small><strong>${esc(val)}</strong><em>${subHtml || esc(sub)}</em></button></div>` });
+    tiles.push({ key: k, off: !l && k !== "im", html: `<div class="tile pm ph${l ? "" : " off"}${ok ? " ok" : ""}${k === cur ? " on" : ""}" data-pm="${k}">${TILE_ORDER}<button type="button" class="ph-btn" data-ph="${k}" aria-pressed="${k === cur}"><small>${esc(name)}</small><strong>${esc(val)}</strong><em>${subHtml || esc(sub)}</em></button></div>` });
   });
-  $("phys").innerHTML = byPrefOrder(tiles.concat(physExtra), prefs.physOrder || []).map(t => t.html).join("");
+  // your own order, but tiles without a number yet go to the end
+  const sorted = byPrefOrder(tiles.concat(physExtra), prefs.physOrder || []);
+  $("phys").innerHTML = sorted.filter(t => !t.off).concat(sorted.filter(t => t.off)).map(t => t.html).join("");
   $("phys").querySelectorAll("[data-pm]").forEach(el => wireTileOrder(el, $("phys"), "physOrder"));
   $("phys").querySelectorAll("[data-ph]").forEach(t => t.onclick = () => {
     prefs.bodyMetric = t.dataset.ph; savePrefs(); renderBodyChart(); renderPhys();
@@ -2779,7 +2785,7 @@ function renderPhys(){
   $("physNote").hidden = !$("physNote").textContent;
   // when it was fetched last, and a button to fetch everything again
   const at = I && I.wellAt ? new Date(I.wellAt) : null;
-  $("physGet").innerHTML = !I || !STANDALONE ? "" : `<span class="note">${esc(at ? `Laatst opgehaald ${relDate(dayIso(at)).toLowerCase()} om ${at.toLocaleTimeString(LOC(), { hour: "2-digit", minute: "2-digit" })}: ${I.wellDays || 0} dagen met gegevens.` : "Nog niet opgehaald.")}</span>
+  $("physGet").innerHTML = !I || !STANDALONE ? "" : `<span class="note">${esc(at ? `Laatst opgehaald ${relDate(dayIso(at)).toLowerCase()} om ${at.toLocaleTimeString(LOC(), { hour: "2-digit", minute: "2-digit" })}: ${I.wellDays || 0} dagen met gegevens.` : "Nog niet opgehaald.")}</span><span class="note">Wordt vanzelf bijgewerkt als je Analytics opent.</span>
     <button class="ghost" type="button" id="physReload"${wellBusy ? " disabled" : ""}>${wellBusy ? "Bezig met ophalen …" : "Opnieuw ophalen"}</button>`;
   const rb = $("physReload"); if (rb) rb.onclick = () => icuWellNow();
 }
@@ -3388,6 +3394,9 @@ function renderRacePlan(){
   const strength = (p.slots.strength || []).slice().sort((a, b) => a - b), both = p.list.some(w => w.sessions.some(s => s.both));
   const runDaysNow = [...new Set([p.slots.long, p.slots.quality].concat(p.slots.easy))].filter(d => d != null).sort((a, b) => a - b);
   const weekOpen = w => { const o = (prefs.rpOpen || {})[w.monday]; return o == null ? w.monday === thisW : o; };
+  // the list of weeks is folded: only this week (or the first one to come) shows until you ask for all of them
+  const nowW = p.list.find(w => w.monday === thisW) || p.list.find(w => w.monday > thisW) || p.list[p.list.length - 1];
+  const allW = !!prefs.rpAll || p.list.length < 3, weeks = allW ? p.list : [nowW];
   const status = s => s.did ? `<small class="rp-did"><span aria-hidden="true">✓</span> ${s.did === s.date ? `<span>Gedaan</span>` : `<span>Gedaan op ${esc(wdShort(s.did))}</span>`}${s.kmDone ? ` · ${fmt(Math.round(s.kmDone * 10) / 10)} km` : ""}</small>` : s.date < today() ? `<small class="rp-miss">Niet gedaan</small>` : "";
   const row = s => `<div class="rp-run${s.race ? " race" : ""}${s.date < today() && !s.did ? " past" : ""}"><b>${esc(wdShort(s.date))}</b><span><span>${esc(s.name)}</span>${s.both ? ` <small class="rp-both">+ kracht</small>` : ""}<small>${esc(s.detail)}</small>${s.adj ? `<small class="rp-both">Aangepast</small>` : ""}${status(s)}${runWhy(s, z)}</span><i>${fmt(s.km)} km</i></div>`;
   const total = w => w.past || w.monday === thisW ? `${fmt(Math.round(w.done.km * 10) / 10)} / ${fmt(w.km)} km` : `${fmt(w.km)} km`;
@@ -3406,13 +3415,19 @@ function renderRacePlan(){
       ${both ? `<p class="note">Op dagen met kracht én lopen: loop rustig na je krachttraining, of op een ander moment van de dag.</p>` : ""}`
       : `<p class="note">Nog geen krachtdagen gepland. 1–2 krachttrainingen per week helpen tegen blessures.</p>`}
     ${runZonesHtml(z)}
-    <div class="rp-weeks">${p.list.map(w => `<details class="rp-week ${w.phase}" data-w="${w.monday}"${weekOpen(w) ? " open" : ""}><summary><b>Week ${w.i + 1}</b><span>${esc(RACE_PHASE[w.phase])}</span><small>${esc(shortDate(w.monday))} – ${esc(shortDate(addDays(w.monday, 6)))}</small><i>${total(w)}</i></summary>${w.sessions.map(row).join("") || `<p class="note">Je schema start volgende week.</p>`}</details>`).join("")}</div>
+    <div class="rp-weeks">${weeks.map(w => `<details class="rp-week ${w.phase}" data-w="${w.monday}"${weekOpen(w) ? " open" : ""}><summary><b>Week ${w.i + 1}</b><span>${esc(RACE_PHASE[w.phase])}</span><small>${esc(shortDate(w.monday))} – ${esc(shortDate(addDays(w.monday, 6)))}</small><i>${total(w)}</i></summary>${w.sessions.map(row).join("") || `<p class="note">Je schema start volgende week.</p>`}</details>`).join("")}</div>
+    ${p.list.length < 3 ? "" : `<button class="ghost rp-all" type="button" id="rpAll" aria-expanded="${allW}">${allW ? "Alleen deze week tonen" : `Alle ${p.list.length} weken tonen`}</button>`}
     <ul class="tips"><li class="tips-h">Tips</li><li>Praattempo: je kunt nog in zinnen praten. Zo loop je de meeste kilometers.</li><li>Intervallen en tempoloop: 10–15 min inlopen en 5–10 min uitlopen; de km zijn de hele training.</li><li>Pijn die blijft of erger wordt: sla een loopje over. Een week minder kost je niets.</li><li>Je schema volgt je logboek: haal je de lange duurloop, dan gaat hij de week erna omhoog. Haal je hem niet, dan herhaal je hem.</li></ul>`;
   $("raceBody").querySelectorAll("[data-race]").forEach(b => b.onclick = () => { raceSel = b.dataset.race; renderRacePlan(); });
   $("raceBody").querySelectorAll(".rp-week").forEach(d => d.addEventListener("toggle", () => {
     const m = d.dataset.w;
     if (weekOpen({ monday: m }) !== d.open){ prefs.rpOpen = Object.assign({}, prefs.rpOpen, { [m]: d.open }); savePrefs(); }
   }));
+  const ra = $("rpAll"); if (ra) ra.onclick = () => {
+    prefs.rpAll = !prefs.rpAll; savePrefs(); renderRacePlan();
+    const t = $("raceBody").querySelector(`.rp-week[data-w="${nowW.monday}"]`);
+    if (t) t.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+  };
   $("raceBody").querySelectorAll("[data-coach]").forEach(b => b.onclick = () => {
     const undo = b.dataset.coach === "undo", adj = Object.assign({}, g.adj);
     if (undo) delete adj[thisW]; else adj[thisW] = { f: +b.dataset.coach, day: today() };
@@ -7372,10 +7387,16 @@ $("bwForm").addEventListener("submit", e => {
   prefs.body = Object.assign({}, prefs.body, { [today()]: w }); savePrefs();
   $("bwInput").value = ""; renderBodyWeight(); renderProfile(); toast("Gewicht opgeslagen: " + fw(w));
 });
-$("viewTrain").onclick = () => showPage("train");
-$("viewStats").onclick = () => showPage("stats");
-$("viewPlan").onclick = () => { showPage("plan"); window.scrollTo(0, 0); };
-$("viewToday").onclick = () => showPage("today");
+// The tabs at the bottom: every page keeps its own scroll position; a tap on the tab you are on goes to the top.
+const pageY = {};
+function tabTo(p){
+  if (page === p){ window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" }); return; }
+  pageY[page] = window.scrollY; showPage(p); window.scrollTo(0, p === "plan" ? 0 : pageY[p] || 0);
+}
+$("viewTrain").onclick = () => tabTo("train");
+$("viewStats").onclick = () => tabTo("stats");
+$("viewPlan").onclick = () => tabTo("plan");
+$("viewToday").onclick = () => tabTo("today");
 $("settingsBtn").onclick = () => { const st = $("settings"); closeFriends(); st.hidden = !st.hidden; $("settingsBtn").setAttribute("aria-expanded", !st.hidden); renderSettings(); renderProfile(); if (!st.hidden) window.scrollTo(0, 0); };
 $("settingsClose").onclick = () => { $("settings").hidden = true; $("settingsBtn").setAttribute("aria-expanded", false); };
 $("settingsSummary").onclick = () => openSummary();
@@ -8215,26 +8236,32 @@ function wellOf(r){
   const o = {}, put = (k, v) => { if (typeof v === "number" && isFinite(v) && o[k] === undefined) o[k] = Math.round(v * 10) / 10; };
   put("hr", r.restingHR); put("hrv", r.hrv); put("sl", r.sleepScore); put("ss", r.sleepSecs); put("stp", r.steps);
   put("fl", r.floorsClimbed); put("vo2", r.vo2max); put("spo2", r.spO2); put("sq", r.stress); put("bf", r.bodyFat);
+  put("shr", r.avgSleepingHR); put("rsp", r.respiration); put("rdy", r.readiness); put("bps", r.systolic); put("bpd", r.diastolic);
   // own fields: the highest Body Battery of the day first
   const own = Object.keys(r).filter(f => !WELL_STD.has(f)).sort((a, b) => /max|high|wake|morning/i.test(b) - /max|high|wake|morning/i.test(a));
   WELL_OWN.forEach(([k, re]) => own.filter(f => re.test(f)).forEach(f => put(k, r[f])));
   return o;
 }
 async function icuWell(L, full){
-  const from = addDays(today(), full || !Object.keys(prefs.well || {}).length ? -400 : -10);   // the first time a year back, for the year chart
+  // the first time a year back, for the year chart; after that the last 10 days, or more when the app was away longer
+  const away = L.wellAt ? Math.ceil((Date.now() - L.wellAt) / 864e5) + 3 : 400;
+  const from = addDays(today(), full || !Object.keys(prefs.well || {}).length ? -400 : -Math.min(400, Math.max(10, away)));
   const list = await icuGet(L, `/wellness?oldest=${from}&newest=${today()}`), rows = Array.isArray(list) ? list : [];
   const W = Object.assign({}, prefs.well), B = Object.assign({}, prefs.body);   // after the wait: what you typed meanwhile stays
-  let n = 0;
+  let n = 0, T = null;
   L.wellAt = Date.now(); L.wellDays = rows.filter(r => Object.keys(wellOf(r)).length || r.weight > 0).length;
   rows.forEach(r => {
     const d = r.id; if (!/^\d{4}-\d\d-\d\d$/.test(d || "")) return;
     const o = wellOf(r), old = W[d] || {};
     // Garmin's weight: the scale is more precise, so it replaces a weight you typed in on that day
     if (r.weight > 20 && r.weight < 400){ o.w = Math.round(r.weight * 10) / 10; B[d] = o.w; }
+    // the waist (abdomen, cm) goes with your own measurements, like the weight
+    if (r.abdomen > 30 && r.abdomen < 250){ o.tw = Math.round(r.abdomen * 10) / 10; if (waistLog()[d] !== o.tw){ T = T || Object.assign({}, waistLog()); T[d] = o.tw; } }
     if (JSON.stringify(o) !== JSON.stringify(old) && Object.keys(o).length){ W[d] = o; n++; }
   });
   const cut = addDays(today(), -731); Object.keys(W).forEach(d => { if (d < cut) delete W[d]; });
   if (n){ prefs.well = W; prefs.body = B; }
+  if (T){ prefs.waist = T; clearProfileWaist(); }
   savePrefs(); if (page === "stats"){ renderBodyWeight(); renderProfile(); }
   return { n, rows: rows.length, days: L.wellDays };
 }
@@ -8288,6 +8315,9 @@ async function icuPull(manual){
 }
 // New activities from the linked apps: on start, after syncing and when the app comes back to the front.
 function pullLinks(){ if (!STANDALONE) return; stravaPull(); icuPull(); }
+// Analytics always shows fresh Garmin numbers: fetch when you open it (at most once a minute) and every 5 minutes while the app is open.
+function statsSync(){ if (!STANDALONE || !(prefs.links || {}).intervals || Date.now() - icuAt < 60000) return; icuAt = 0; icuPull(); }
+setInterval(() => { if (!document.hidden) pullLinks(); }, 5 * 60000);
 async function stravaConnect(){
   if (!sbSession){ toast("Log eerst in bij Account (onderaan in Instellingen). Zo blijft je koppeling bewaard."); return; }
   let cfg = {}; try { cfg = await sbFn("strava", { action: "config" }); } catch {}
