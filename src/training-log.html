@@ -11189,8 +11189,16 @@ function renderLinks(){
     if (await saveFile(`fpt-${sm.date}.tcx`, new Blob([tcxFor(sm, summaryText(sm))], { type: "application/vnd.garmin.tcx+xml" }))) toast("Bestand bewaard. Importeer het op connect.garmin.com → Importeren.");
   };
 }
+// App shortcuts (long-press the icon on Android): ?tab=today|train|stats|plan opens that page, then the address is cleaned.
+function tabFromUrl(){
+  const t = new URLSearchParams(location.search).get("tab");
+  if (!["today", "train", "stats", "plan"].includes(t)) return;
+  try { history.replaceState(null, "", location.pathname + location.hash); } catch {}
+  tabTo(t);
+}
 if (STANDALONE){
   stravaFromUrl();
+  tabFromUrl();
   document.addEventListener("visibilitychange", () => { if (document.hidden) return; if (!$("friends").hidden) refreshLinks(); pullLinks(); });
 }
 // ---------- Native app: Health Connect (Android; Samsung Health and Google Fit write there) and Apple Health (iPhone) ----------

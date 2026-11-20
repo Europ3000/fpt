@@ -1,5 +1,5 @@
 {
-  "id": "./",
+  "id": "/",
   "name": "Fitness Progress Tracker",
   "short_name": "FPT",
   "description": "Schema's, voorstellen voor gewicht en reps, rusttimer en je vooruitgang.",
@@ -16,6 +16,60 @@
     "sports"
   ],
   "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Training starten",
+      "short_name": "Training",
+      "description": "Open je training van vandaag",
+      "url": "./?tab=train",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Vandaag",
+      "short_name": "Vandaag",
+      "description": "Je volgende training en tip",
+      "url": "./?tab=today",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Vooruitgang",
+      "short_name": "Analytics",
+      "description": "Sets per spiergroep en records",
+      "url": "./?tab=stats",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Planning",
+      "short_name": "Planning",
+      "description": "Kalender en schema",
+      "url": "./?tab=plan",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
   "icons": [
     {
       "src": "icon-192.png",

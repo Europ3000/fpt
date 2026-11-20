@@ -25,13 +25,13 @@ color = m["theme_color"]
 options = {
     "appVersion": version, "appVersionCode": code,
     "backgroundColor": m["background_color"], "display": "standalone",
-    "enableNotifications": False, "enableSiteSettingsShortcut": True, "fallbackType": "customtabs",
+    "enableNotifications": True, "enableSiteSettingsShortcut": True, "fallbackType": "customtabs",
     "features": {"locationDelegation": {"enabled": False}, "playBilling": {"enabled": False}},
     "host": "fptfit.app", "iconUrl": SITE + "icon-512.png", "maskableIconUrl": SITE + "icon-maskable-512.png", "monochromeIconUrl": None,
-    "includeSourceCode": False, "isChromeOSOnly": False, "isMetaQuest": False,
+    "includeSourceCode": True, "isChromeOSOnly": False, "isMetaQuest": False,
     "launcherName": m["short_name"], "name": m["name"],
     "navigationColor": color, "navigationColorDark": color, "navigationDividerColor": color, "navigationDividerColorDark": color,
-    "orientation": "default", "packageId": "app.fptfit.twa", "shortcuts": [],
+    "orientation": "default", "packageId": "app.fptfit.twa", "shortcuts": [{"name": x["name"], "short_name": x["short_name"], "url": x["url"].replace("./", "/"), "icon": SITE + "icon-192.png"} for x in m.get("shortcuts", [])],
     # empty passwords: the service makes strong ones and puts them in the zip (signing-key-info.txt)
     "signing": {"file": None, "alias": "fpt", "fullName": "FPT Admin", "organization": "Fitness Progress Tracker", "organizationalUnit": "App", "countryCode": "BE", "keyPassword": "", "storePassword": ""},
     "signingMode": "new", "splashScreenFadeOutDuration": 300, "startUrl": "/",
@@ -53,3 +53,11 @@ out.mkdir(parents=True, exist_ok=True)
 zip_path = out / f"fpt-android-{version}-{code}.zip"
 zip_path.write_bytes(call("/downloadPackageZip?id=" + urllib.parse.quote(job), token=token, raw=True))
 print("saved", zip_path, zip_path.stat().st_size // 1024, "KB")
+# Google Play: since 2026-08-31 new apps and updates must target Android 16 (API 36) or higher. Check what PWABuilder built.
+import re, zipfile
+with zipfile.ZipFile(zip_path) as z:
+    gradle = [n for n in z.namelist() if n.endswith("build.gradle") and "app/" in n.replace("\\", "/")]
+    found = re.findall(r"targetSdkVersion\s*[=\s]\s*(\d+)", " ".join(z.read(n).decode("utf-8", "replace") for n in gradle))
+print("targetSdkVersion in the package:", found or "not found (look in app/build.gradle)")
+if found and int(found[0]) < 36:
+    print("WARNING: Google Play needs targetSdkVersion 36 or higher. This package will be refused: see src/store/checklist.md, step 'doel-API'.")

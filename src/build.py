@@ -136,7 +136,7 @@ html = f"""<!doctype html>
 (OUT / "index.html").write_text(html, encoding="utf-8")
 
 manifest = {
-    "id": "./",
+    "id": "/",
     "name": "Fitness Progress Tracker",
     "short_name": "FPT",
     "description": "Schema's, voorstellen voor gewicht en reps, rusttimer en je vooruitgang.",
@@ -149,6 +149,12 @@ manifest = {
     "dir": "ltr",
     "categories": ["health", "fitness", "sports"],
     "prefer_related_applications": False,
+    "shortcuts": [
+        {"name": "Training starten", "short_name": "Training", "description": "Open je training van vandaag", "url": "./?tab=train", "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"}]},
+        {"name": "Vandaag", "short_name": "Vandaag", "description": "Je volgende training en tip", "url": "./?tab=today", "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"}]},
+        {"name": "Vooruitgang", "short_name": "Analytics", "description": "Sets per spiergroep en records", "url": "./?tab=stats", "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"}]},
+        {"name": "Planning", "short_name": "Planning", "description": "Kalender en schema", "url": "./?tab=plan", "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"}]}
+    ],
     "icons": [
         {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
         {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
@@ -177,6 +183,8 @@ Image.open(icons / "fpt-apple.png").convert("RGB").resize((180, 180), Image.LANC
 
 # The privacy policy (stores require a URL for it): a page of its own, no scripts.
 shutil.copyfile(ROOT / "privacy.html", OUT / "privacy.html")
+# Account deletion on the web (Google Play wants a URL that works without the app).
+shutil.copyfile(ROOT / "delete-account.html", OUT / "delete-account.html")
 
 # Own domain for GitHub Pages; the Play Store check (Digital Asset Links) must sit at the root of that domain.
 if DOMAIN: (OUT / "CNAME").write_text(DOMAIN + "\n", encoding="utf-8")
