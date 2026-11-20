@@ -2898,7 +2898,6 @@ const WL_SCHEMES = {
   athletic: ["ath", "prog-beginner", "core", "run"]
 };
 function welcomeSchemeList(){
-  if (obQuick) return obSchemeList();   // first start: a short fixed list (see Onboarding below)
   const g = trainGoal(), ids = WL_SCHEMES[g], days = prefs.daysPerWeek;
   const rec = g === "endurance" ? "run" : g === "athletic" ? "ath"
     : ids.includes(SCHEME_FOR_DAYS[days]) ? SCHEME_FOR_DAYS[days] : days >= 4 && ids.includes("ul") ? "ul" : "prog-beginner";
@@ -2921,11 +2920,10 @@ function renderLangSlide(){
 }
 // First open: skip the pitch slides (hero, trainen, vooruitgang, inzicht) and go straight to your profile.
 // "Uitleg opnieuw tonen" in Instellingen: show that pitch again, skip language/days/scheme (already set).
-// The first open is the quick start (language, what FPT does, pick a scheme): profile, goal and days per week are asked later in the app.
-const WL_SKIP_FIRST = ["hero", "trainen", "vooruitgang", "inzicht", "about", "goal", "days"], WL_SKIP_REPLAY = ["lang", "summary", "days", "start"];
+// The first open is the quick start (language, then a short film: pick a scheme, tick off your sets): profile, goal and days per week are asked later in the app.
+const WL_SKIP_FIRST = ["summary", "hero", "trainen", "vooruitgang", "inzicht", "about", "goal", "days", "start"], WL_SKIP_REPLAY = ["lang", "film", "summary", "days", "start"];
 const wlSlides = () => [...document.querySelectorAll(".wl-slide")].filter(sl => !sl.hidden);
 function showWelcome(replay){
-  obQuick = !replay;
   const wireDays = () => $("wlDays").querySelectorAll("[data-days]").forEach(b => b.onclick = () => { setDaysPerWeek(+b.dataset.days); $("wlDays").innerHTML = dayButtons(); wireDays(); welcomeSchemeList(); wlGo(wlAt + 1); });
   $("wlDays").innerHTML = dayButtons(); wireDays();
   $("wlGoals").innerHTML = goalButtons();
@@ -2950,6 +2948,7 @@ function wlGo(i){
   const slides = wlSlides(), n = slides.length;
   wlAt = Math.max(0, Math.min(n - 1, i));
   if (slides[wlAt].dataset.wl === "start") welcomeSchemeList();   // follows the goal picked a few slides earlier
+  obFilm(slides[wlAt].dataset.wl === "film");
   $("wlTrack").parentElement.scrollLeft = 0; // focus moving inside a slide must not shift the strip
   $("wlTrack").style.transform = `translateX(${(document.documentElement.dir === "rtl" ? 1 : -1) * wlAt * 100}%)`;
   slides.forEach((sl, j) => { sl.setAttribute("aria-hidden", j !== wlAt); sl.inert = j !== wlAt; });
@@ -2959,7 +2958,7 @@ function wlGo(i){
   $("wlNext").hidden = wlAt === n - 1;
   $("wlNext").textContent = slides[wlAt].dataset.wl === "hero" ? "Laten we beginnen" : "Volgende";
 }
-function closeWelcome(){ $("welcome").hidden = true; if (!lsGet("ppl.welcomed", false) || !(prefs.dev || {})["ppl.welcomed"]) devSet("ppl.welcomed", true); }
+function closeWelcome(){ $("welcome").hidden = true; obFilm(false); if (!lsGet("ppl.welcomed", false) || !(prefs.dev || {})["ppl.welcomed"]) devSet("ppl.welcomed", true); }
 // "Over jou": the answers go through the same saving as the profile in Instellingen.
 [["wBirth", "pBirth"], ["wHeight", "pHeight"], ["wWeight", "pWeight"]].forEach(([w, p]) => $(w).addEventListener("change", () => { $(p).value = $(w).value; saveProfileField(p); }));
 $("wlNext").onclick = () => { if (document.activeElement && document.activeElement.closest(".wl-fields")) document.activeElement.blur(); wlGo(wlAt + 1); };
@@ -2971,39 +2970,32 @@ $("welcome").addEventListener("keydown", e => {
   if (e.key === "Escape") closeWelcome();
 });
 
-// ---------- Onboarding: first start in three steps (language, what FPT does, pick a scheme), then straight to the first set ----------
-// No account needed. OB_HINT holds the moment the scheme was picked; the hint at the first set stays until a set is logged after it.
+// ---------- Onboarding: first start in two steps (language, a short film), then straight to the first set ----------
+// No account needed, and the scheme is already there: a new device starts with Push / Pull (see the start-up code).
+// OB_HINT holds the moment you pressed start; the hint at the first set stays until a set is logged after it.
 // OB_ACCT is set once the account proposal (after a finished workout) was answered.
-const OB_HINT = "ppl.obHint", OB_ACCT = "ppl.obAcct";
-let obQuick = false;
-// [scheme id, short name, one line]; the first one is the recommended one
-const OB_SCHEMES = [["prog-beginner", "Full Body", "3 dagen per week · ideaal om te starten"], ["ppl", "Push / Pull / Legs", "3 of 6 dagen per week"], ["ul", "Upper / Lower", "4 dagen per week"]];
-function obSchemeList(){
-  $("welcomeStartNote").textContent = "Geen account nodig: je logt meteen je eerste set. Wisselen van schema kan later altijd.";
-  $("welcomeSchemes").innerHTML = OB_SCHEMES.filter(([id]) => findScheme(id)).map(([id, name, sub], i) =>
-    `<button type="button" class="wl-scheme" data-ob="${id}">${i ? "" : `<em class="wl-rec">Aanbevolen</em>`}<b>${esc(name)}</b><small>${esc(sub)}</small></button>`).join("")
-    + `<button type="button" class="wl-scheme ob-empty" data-ob=""><b>Leeg beginnen</b><small>Stel zelf je schema samen</small></button>`;
-  $("welcomeSchemes").querySelectorAll("[data-ob]").forEach(b => b.onclick = () => obStart(b.dataset.ob));
+const OB_HINT = "ppl.obHint", OB_ACCT = "ppl.obAcct", OB_SCHEME = "pp2";
+// The film: three scenes in a loop (pick scheme and day, tick off a set, rest timer); CSS draws each scene from data-step.
+let obFilmTimer = 0;
+function obFilm(on){
+  clearInterval(obFilmTimer); obFilmTimer = 0;
+  if (!on) return;
+  let i = 0;
+  const show = () => { $("obFilm").dataset.step = i; [...$("obCaps").children].forEach((li, j) => li.classList.toggle("on", j === i)); };
+  show();
+  obFilmTimer = setInterval(() => { i = (i + 1) % 3; show(); }, 3000);
 }
-function obStart(id){
-  if (id) view = { scheme: id, day: 0 };
-  else {
-    const cid = "c" + Date.now().toString(36);
-    prefs.custom = (prefs.custom || []).concat([{ id: cid, name: "Mijn schema", note: NS_KINDS[""][4], days: [{ name: "Dag A", focus: "", ex: [] }] }]);
-    savePrefs();
-    view = { scheme: cid, day: 0 };
-  }
-  lsSet(LS_VIEW, view);
-  editing = !id;
+function obStart(){
+  editing = false;
   lsSet(OB_HINT, new Date().toISOString());
-  focusKey = null;   // focus mode starts at the first exercise of the new scheme
+  focusKey = null;   // focus mode starts at the first exercise
   closeWelcome(); showPage("train"); render();
-  if (!id){ window.scrollTo(0, 0); toast("Schema gemaakt. Voeg nu oefeningen toe."); return; }
   // Straight to the first set, past the scheme lists. Not a smooth scroll: a render during start-up would stop it halfway.
   obMark();
   const ex = document.querySelector("#exercises .ob-first"), top = document.querySelector(".top");
-  if (ex) window.scrollTo({ top: Math.max(0, ex.getBoundingClientRect().top + window.scrollY - (top ? top.getBoundingClientRect().height + 10 : 10)), behavior: "instant" });
+  window.scrollTo({ top: ex ? Math.max(0, ex.getBoundingClientRect().top + window.scrollY - (top ? top.getBoundingClientRect().height + 10 : 10)) : 0, behavior: "instant" });
 }
+$("obGo").onclick = obStart;
 // Mark the first open set row after every render of the exercise list, until the first set is in the log.
 function obMark(){
   const since = lsGet(OB_HINT, ""); if (!since) return;
@@ -8187,7 +8179,11 @@ if (devRestore()){ focusOn = lsGet("ppl.focus", true); applyTheme(); }
 const answeredBefore = lsGet("ppl.welcomed", false) || Object.keys(log).length || prefs.trainGoal || prefs.daysPerWeek || (prefs.profile && (prefs.profile.age || prefs.profile.birth));
 // Onboarding only for a really new device: no data, no login, not arriving through a move or login link.
 const obExisting = answeredBefore || obByLink || lsGet("fpt.sb", null) || Object.keys(records).length || Object.keys(layouts).length || (prefs.custom || []).length;
-if (!obExisting) showWelcome();
+if (!obExisting){
+  // a new device starts with Push / Pull, whether you watch the film or skip it
+  if (localStorage.getItem(LS_VIEW) === null && findScheme(OB_SCHEME)){ view = { scheme: OB_SCHEME, day: 0 }; lsSet(LS_VIEW, view); }
+  showWelcome();
+}
 render();
 showPage(inWorkout() ? "train" : "today");
 setStore(false, "Opgeslagen op dit toestel.");
