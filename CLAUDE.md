@@ -116,3 +116,12 @@ on Linux/Codespaces point `FONT` to another bold serif). Copy the results to `sr
 
 The `.devcontainer` lets you open this repo in GitHub Codespaces (Python + Pillow ready) and keep
 working there, e.g. with Claude Code in the cloud.
+
+## Tests
+
+Playwright smoke tests live in `tests/` (own `package.json`, needs Node). They run against the built app in the
+repo root on a phone viewport, with a clean browser context each and the service worker blocked. First time:
+`cd tests && npm install && npx playwright install chromium`. Then `py src/build.py` and `cd tests && npm test`
+(`tests/server.js` serves the repo root on port 4173). Covered: welcome wizard, logging a set, records, back-up and
+restore, csv import (Hevy, Strong, FitNotes fixtures in `tests/fixtures/`), no console errors / sideways scroll.
+Sync with Supabase is not tested.

@@ -1,0 +1,5 @@
+title,start_time,end_time,description,exercise_title,superset_id,exercise_notes,set_index,set_type,weight_kg,reps,distance_km,duration_seconds,rpe
+"Push day","12 Nov 2025, 18:05","12 Nov 2025, 19:02","","Bench Press (Barbell)",,"",0,warmup,40,10,,,
+"Push day","12 Nov 2025, 18:05","12 Nov 2025, 19:02","","Bench Press (Barbell)",,"",1,normal,60,8,,,
+"Push day","12 Nov 2025, 18:05","12 Nov 2025, 19:02","","Bench Press (Barbell)",,"",2,normal,60,7,,,
+"Push day","12 Nov 2025, 18:05","12 Nov 2025, 19:02","","Overhead Press (Barbell)",,"",0,normal,40,8,,,
