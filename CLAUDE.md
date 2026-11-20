@@ -151,3 +151,16 @@ on Linux/Codespaces point `FONT` to another bold serif). Copy the results to `sr
 
 The `.devcontainer` lets you open this repo in GitHub Codespaces (Python + Pillow ready) and keep
 working there, e.g. with Claude Code in the cloud.
+
+## Tests
+
+- Eén commando (Node 20+, geen afhankelijkheden): `npm test` (of `node --test tests/`). Duurt ongeveer 7 seconden.
+- `tests/harness.js` laadt het hoofdscript uit `src/training-log.html` (de laatste `<script>`, zoals `build.py`) in een
+  Node-`vm` met een nep-DOM en een geheugen-`localStorage`. `loadApp({ storage, standalone, fetch, hash, confirm })` geeft
+  `ev("code")` terug, dat in de scope van het script draait (dus ook bij `let`/`const` zoals `log` en `records`).
+  Zo test je de echte app-code zonder iets aan de architectuur te wijzigen. `FPT_SRC=<pad>` laadt een ander bronbestand.
+- `sync.test.js`: `connectStore`/`sbDoc` tegen een nep-Supabase (twee toestellen, drieweg-merge, verwijderen, offline).
+  `import.test.js`: `csvSets`/`importName`/`importCsv` met voorbeelden in Hevy-, Strong-, FitNotes- en JEFIT-formaat.
+  `backup.test.js`: `backupData`/`restoreItems`, de `#move=`-verhuizing en records op geschat 1RM (`saveWeight`).
+- Draai de tests na elke wijziging aan sync-, import-, back-up- of recordcode. Een nieuwe browser-API die de app bij het
+  laden aanroept en die het harnas mist, geeft een `ReferenceError` bij `loadApp`: voeg hem toe in `harness.js`.

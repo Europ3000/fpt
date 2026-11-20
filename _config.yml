@@ -5,3 +5,5 @@ exclude:
   - native
   - README.md
   - CLAUDE.md
+  - tests
+  - package.json

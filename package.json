@@ -1,0 +1,8 @@
+{
+  "name": "fpt",
+  "private": true,
+  "description": "FPT: alleen voor de tests (de app zelf heeft geen afhankelijkheden).",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}
