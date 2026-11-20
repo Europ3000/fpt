@@ -1714,6 +1714,9 @@ function finishWorkout(){
   const open = items.map(e => e[0]).filter(n => !doneNames.includes(n) && !skipped.includes(n));
   const dayName = s.days[view.day].name, doneIdx = view.day;
   const shareSum = daySummary(today(), { since: endedAt, title: dayName, scheme: s.name, prs });
+  const mc = {};
+  exs.forEach(([, e]) => { const m = MUSCLES[e.name]; if (m) new Set(m[0].map(muscleGroup)).forEach(g => { mc[g] = (mc[g] || 0) + e.sets.length; }); });
+  const topMuscles = Object.entries(mc).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0])).slice(0, 3);
 
   // Back to the start: this workout is closed, marks cleared, next day of the scheme selected.
   endedAt = new Date().toISOString(); lsSet(LS_ENDED, endedAt);
@@ -1742,6 +1745,10 @@ function finishWorkout(){
       <div class="tile"><small>${all.length ? "Sets" : "Cardio"}</small><strong>${all.length || cardioMin}</strong><em>${all.length ? "opgeslagen" : "minuten"}</em></div>
       <div class="tile"><small>Duur</small><strong>${mins >= 1 ? mins : "—"}</strong><em>${mins >= 1 ? "min, eerste tot laatste set" : "één set"}</em></div>
     </div>
+    ${(shareSum.kcal || topMuscles.length) ? `<div class="tiles" style="margin-top:10px">
+      ${shareSum.kcal ? `<div class="tile"><small>Calorieën</small><strong>±${shareSum.kcal}</strong><em>kcal, geschat</em></div>` : ""}
+      ${topMuscles.length ? `<div class="tile" style="grid-column:span ${shareSum.kcal ? 2 : 3}"><small>Meest getrainde spieren</small><strong class="small">${esc(topMuscles.map(m => m[0]).join(" · "))}</strong><em>${esc(topMuscles.map(m => m[1]).join(" · "))}</em></div>` : ""}
+    </div>` : ""}
     ${volume ? `<p class="fin-line">Totaal getild: <b>${fw(Math.round(volume))}</b> <span>(gewicht × reps, alle sets samen)</span></p>` : ""}
     ${prs.length ? `<p class="fin-line pr">▲ Nieuw record: <b>${esc(prs.join(", "))}</b></p>` : ""}
     ${skipped.length ? `<p class="fin-line">Overgeslagen: ${esc(skipped.join(", "))}</p>` : ""}
@@ -2006,7 +2013,12 @@ function suggestBase(k, sets, reps, mode){
   if (!repsAtW.length) out = { w: W, r: lo, why: `Vorige keer ${fw(W)}. Vul ook je reps in, dan kan de app zien wanneer je zwaarder mag.` };
   else {
     const minR = Math.min(...repsAtW), done = repsAtW.join("-");
-    if (atW.length >= planned && minR >= hi)
+    // Only go up after two sessions in a row at this weight with every set at the top of the range.
+    const prevS = sessions.length > 1 ? sessions[sessions.length - 2] : null;
+    const prevOk = prevS && Math.max(...prevS.map(s => s.w)) === W && prevS.filter(s => s.w === W).length >= planned && Math.min(...prevS.filter(s => s.w === W).map(s => s.r || 0)) >= hi;
+    if (atW.length >= planned && minR >= hi && !prevOk)
+      out = { w: W, r: hi, why: `Vorige keer ${atW.length}×${minR} op ${fw(W)}: sterk! Haal je dit nog een keer, dan ga je ${fw(step)} zwaarder. Zo bouw je rustig en veilig op.` };
+    else if (atW.length >= planned && minR >= hi)
       out = { w: W + step, r: lo, up: true, why: `Vorige keer ${atW.length}×${minR} op ${fw(W)}: alle sets gehaald, dus ${fw(step)} zwaarder.` };
     else if (minR < lo - 1)
       out = { w: Math.max(0, W - step), r: lo, why: `Vorige keer zwaar (${done} reps op ${fw(W)}). Iets lichter en ${lo} nette reps.` };
