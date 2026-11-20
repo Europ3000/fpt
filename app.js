@@ -1714,6 +1714,9 @@ function finishWorkout(){
   const open = items.map(e => e[0]).filter(n => !doneNames.includes(n) && !skipped.includes(n));
   const dayName = s.days[view.day].name, doneIdx = view.day;
   const shareSum = daySummary(today(), { since: endedAt, title: dayName, scheme: s.name, prs });
+  const mc = {};
+  exs.forEach(([, e]) => { const m = MUSCLES[e.name]; if (m) new Set(m[0].map(muscleGroup)).forEach(g => { mc[g] = (mc[g] || 0) + e.sets.length; }); });
+  const topMuscles = Object.entries(mc).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0])).slice(0, 3);
 
   // Back to the start: this workout is closed, marks cleared, next day of the scheme selected.
   endedAt = new Date().toISOString(); lsSet(LS_ENDED, endedAt);
@@ -1742,6 +1745,10 @@ function finishWorkout(){
       <div class="tile"><small>${all.length ? "Sets" : "Cardio"}</small><strong>${all.length || cardioMin}</strong><em>${all.length ? "opgeslagen" : "minuten"}</em></div>
       <div class="tile"><small>Duur</small><strong>${mins >= 1 ? mins : "—"}</strong><em>${mins >= 1 ? "min, eerste tot laatste set" : "één set"}</em></div>
     </div>
+    ${(shareSum.kcal || topMuscles.length) ? `<div class="tiles" style="margin-top:10px">
+      ${shareSum.kcal ? `<div class="tile"><small>Calorieën</small><strong>±${shareSum.kcal}</strong><em>kcal, geschat</em></div>` : ""}
+      ${topMuscles.length ? `<div class="tile" style="grid-column:span ${shareSum.kcal ? 2 : 3}"><small>Meest getrainde spieren</small><strong class="small">${esc(topMuscles.map(m => m[0]).join(" · "))}</strong><em>${esc(topMuscles.map(m => m[1]).join(" · "))}</em></div>` : ""}
+    </div>` : ""}
     ${volume ? `<p class="fin-line">Totaal getild: <b>${fw(Math.round(volume))}</b> <span>(gewicht × reps, alle sets samen)</span></p>` : ""}
     ${prs.length ? `<p class="fin-line pr">▲ Nieuw record: <b>${esc(prs.join(", "))}</b></p>` : ""}
     ${skipped.length ? `<p class="fin-line">Overgeslagen: ${esc(skipped.join(", "))}</p>` : ""}
