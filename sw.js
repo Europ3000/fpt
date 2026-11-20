@@ -1,9 +1,9 @@
 // Offline support. The app opens from the cache at once (also without network); a new version is fetched in
 // the background as soon as this file changes, and the app offers to reload into it.
-const CACHE = "fpt-20261120130712", FILES = "fpt-files";
-const SHELL = ["./", "app.js?v=22bbac5d43", "manifest.webmanifest", "favicon-32.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"];
+const CACHE = "fpt-20261120134345", FILES = "fpt-files";
+const SHELL = ["./", "app.js?v=d3ed51e6a2", "manifest.webmanifest", "favicon-32.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"];
 // Fonts and languages: fetched when the page needs them, then kept (their names change when their content does).
-const KEPT = new Set(["fonts/barlowcondensed-3787a5a419.woff2", "fonts/barlowcondensed-3ce6b38d56.woff2", "fonts/barlowcondensed-3e91132781.woff2", "fonts/barlowcondensed-41897978bd.woff2", "fonts/barlowcondensed-59b4810062.woff2", "fonts/barlowcondensed-62bb43f8f7.woff2", "fonts/barlowcondensed-6c554f2dec.woff2", "fonts/barlowcondensed-6ed202b930.woff2", "fonts/barlowcondensed-9d351bd922.woff2", "fonts/fraunces-5847b622f5.woff2", "fonts/fraunces-7e74484902.woff2", "fonts/fraunces-e9521563d0.woff2", "fonts/inter-1be3448e29.woff2", "fonts/inter-3100e775e8.woff2", "fonts/inter-34b9c504ca.woff2", "fonts/inter-5c66f9e07e.woff2", "fonts/inter-6e9e020a25.woff2", "fonts/inter-71d5ee93cc.woff2", "fonts/inter-ca15706333.woff2", "fonts/orbitron-c25a9f9da5.woff2", "fonts/pressstart2p-3c7df3a15e.woff2", "fonts/pressstart2p-954380ff6f.woff2", "fonts/pressstart2p-afec86997f.woff2", "fonts/pressstart2p-c2a20dcb95.woff2", "fonts/pressstart2p-fb54a8f8c2.woff2", "i18n/en.js?v=8d45304a13", "i18n/fr.js?v=c248bbe1b4", "i18n/es.js?v=a2f3bd50c8", "i18n/de.js?v=3f9a0324f2", "i18n/it.js?v=d6291dab2b", "i18n/pt.js?v=123023949e", "i18n/ru.js?v=e88cfe0cd7", "i18n/zh.js?v=efe1b2f254", "i18n/ar.js?v=456d79cbcd", "i18n/hi.js?v=0041bee8df"].map(u => new URL(u, location).href));
+const KEPT = new Set(["fonts/barlowcondensed-3787a5a419.woff2", "fonts/barlowcondensed-3ce6b38d56.woff2", "fonts/barlowcondensed-3e91132781.woff2", "fonts/barlowcondensed-41897978bd.woff2", "fonts/barlowcondensed-59b4810062.woff2", "fonts/barlowcondensed-62bb43f8f7.woff2", "fonts/barlowcondensed-6c554f2dec.woff2", "fonts/barlowcondensed-6ed202b930.woff2", "fonts/barlowcondensed-9d351bd922.woff2", "fonts/fraunces-5847b622f5.woff2", "fonts/fraunces-7e74484902.woff2", "fonts/fraunces-e9521563d0.woff2", "fonts/inter-1be3448e29.woff2", "fonts/inter-3100e775e8.woff2", "fonts/inter-34b9c504ca.woff2", "fonts/inter-5c66f9e07e.woff2", "fonts/inter-6e9e020a25.woff2", "fonts/inter-71d5ee93cc.woff2", "fonts/inter-ca15706333.woff2", "fonts/orbitron-c25a9f9da5.woff2", "fonts/pressstart2p-3c7df3a15e.woff2", "fonts/pressstart2p-954380ff6f.woff2", "fonts/pressstart2p-afec86997f.woff2", "fonts/pressstart2p-c2a20dcb95.woff2", "fonts/pressstart2p-fb54a8f8c2.woff2", "i18n/en.js?v=2452630cfe", "i18n/fr.js?v=b1bf051a35", "i18n/es.js?v=e0563bb9a5", "i18n/de.js?v=f16ebec84d", "i18n/it.js?v=e8e91cae77", "i18n/pt.js?v=7523b3c4d8", "i18n/ru.js?v=1d057a3d51", "i18n/zh.js?v=c6f426c3c4", "i18n/ar.js?v=90876e834f", "i18n/hi.js?v=99cfa8a5a1"].map(u => new URL(u, location).href));
 const HOME = new URL("./", location).pathname;
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: "no-cache" })))).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil((async () => {
@@ -12,6 +12,10 @@ self.addEventListener("activate", e => { e.waitUntil((async () => {
   for (const r of await files.keys()) if (!KEPT.has(r.url)) await files.delete(r);
   await self.clients.claim();
 })()); });
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(l => l.length ? l[0].focus() : self.clients.openWindow("./")));
+});
 self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
