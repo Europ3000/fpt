@@ -1358,7 +1358,7 @@ function renderExercisesNow(){
       if (c.done) doneCount++; else if (c.skipped) skipCount++;
       list.appendChild(c.li); return;
     }
-    const [name, sets, baseReps, rest, type] = item, mode = item[5] || "", ss = !!item[6] && i < items.length - 1, orig = item[7] || "";
+    const [name, sets, baseReps, rest, type] = item, mode = item[5] || "", ss = !!item[6] && i < items.length - 1, orig = item[7] || "", vary = item[8] || "";
     const reps = pw && pw.reps && (!pw.mainOnly || i === 0) && !mode ? pw.reps : baseReps;   // program week can set the reps
     const ssUp = i > 0 && !!items[i - 1][6];                 // second half of a superset
     const k = keyOf(name), r = records[k];
@@ -1418,7 +1418,9 @@ function renderExercisesNow(){
       ${finished && !editing ? `<button class="ex-head" type="button" aria-expanded="${!collapsed}">${head}</button>` : `<div class="ex-head">${head}</div>`}
       <div class="ex-body">
         <div class="prescription"><span><b>${planned} × ${esc(reps)}${mode === "time" ? " sec" : ""}</b> · rust ${esc(rest)}${deloadActive() ? " · deload" : ""}${pw && pw.light ? " · lichte week" : ""}</span><span class="tag ${esc(type)}">${esc(({ mobility: "mobiliteit" })[type] || type)}</span></div>
-        ${orig ? `<p class="ex-swapped">Vervangt vandaag <b>${esc(orig)}</b> · <button type="button" class="link" data-unswap>Terugzetten</button></p>` : ""}
+        ${vary === "rot" ? `<p class="ex-swapped">Ter afwisseling in plaats van <b>${esc(orig)}</b>, tot ${esc(shortDate(item[9]))} · <button type="button" class="link" data-endrot>Niet afwisselen</button></p>`
+          : vary === "back" ? `<p class="ex-swapped">Vandaag de vorige oefening, in plaats van <b>${esc(item[9])}</b> · <button type="button" class="link" data-unswap>Terugzetten</button></p>`
+          : orig ? `<p class="ex-swapped">Vervangt vandaag <b>${esc(orig)}</b> · <button type="button" class="link" data-unswap>Terugzetten</button></p>` : ""}
         ${note ? `<p class="ex-note"><b>Notitie:</b> <span></span></p>` : ""}
         ${miniTrend(progCache[k])}
         <button type="button" class="sub-toggle rec-toggle" data-recs aria-expanded="${recsOpen}"><span aria-hidden="true">${recsOpen ? "▾" : "▸"}</span> Records</button>
@@ -1553,15 +1555,20 @@ function renderExercisesNow(){
     if (swapBtn) swapBtn.onclick = () => {
       let box = li.querySelector(".swap-box");
       if (box){ box.remove(); return; }
-      const base = orig || name, alts = alternativesFor(base);
+      const base = orig || name, prevEx = vary === "rot" ? orig : "";
+      // A rotated exercise: the previous one comes first.
+      const alts = (prevEx ? [{ n: prevEx, s2: (MUSCLES[prevEx] || [[]])[0].map(muscleGroup), prev: true }] : [])
+        .concat(alternativesFor(base).filter(a => a.n !== name));
       box = document.createElement("div"); box.className = "swap-box";
       box.innerHTML = `<p class="note">Toestel bezet? Kies een oefening voor dezelfde spieren. Alleen voor vandaag.</p>` +
-        (alts.length ? alts.map(a => `<button type="button" class="lib-hit" data-alt="${esc(a.n)}"><b>${esc(a.n)}</b><span>${esc((NL[a.n] || [""])[0])} · ${esc(a.s2.slice(0, 3).join(", "))}</span></button>`).join("") : `<p class="note">Geen alternatief gevonden.</p>`);
+        (alts.length ? alts.map(a => a.prev ? `<button type="button" class="lib-hit" data-alt="${esc(a.n)}"><b>${esc(a.n)}</b><span><em>Vorige oefening</em> · ${esc(a.s2.slice(0, 3).join(", "))}</span></button>` : `<button type="button" class="lib-hit" data-alt="${esc(a.n)}"><b>${esc(a.n)}</b><span>${esc((NL[a.n] || [""])[0])} · ${esc(a.s2.slice(0, 3).join(", "))}</span></button>`).join("") : `<p class="note">Geen alternatief gevonden.</p>`);
       swapBtn.closest(".entry-row").after(box);
       box.querySelectorAll("[data-alt]").forEach(b => b.onclick = () => setSwap(base, b.dataset.alt));
     };
     const unswap = li.querySelector("[data-unswap]");
-    if (unswap) unswap.onclick = () => setSwap(orig, "");
+    if (unswap) unswap.onclick = () => setSwap(orig || name, "");
+    const endRot = li.querySelector("[data-endrot]");
+    if (endRot) endRot.onclick = endRotation;
     const skipBtn = li.querySelector("[data-skip]");
     if (skipBtn) skipBtn.onclick = () => setSkip(k, true);
     const doneBtn = li.querySelector("[data-done]");
@@ -2984,6 +2991,7 @@ function renderSettings(){
   seg("segStyle", styleNow());
   seg("segUnit", prefs.unit === "lb" ? "lb" : "kg");
   seg("segBig", lsGet(LS_BIG, false) ? "on" : "off");
+  seg("segVary", prefs.vary === false ? "off" : "on");
 }
 
 // ---------- Recovery per muscle ----------
@@ -3528,18 +3536,69 @@ function renderTrainGoalPick(){
   box.innerHTML = goalButtons();
   box.querySelectorAll("[data-goal]").forEach(b => b.onclick = () => setTrainGoal(b.dataset.goal));
 }
+// ---------- Variation: now and then one exercise of a day makes way for a similar one ----------
+// prefs.rot["<scheme>:<day>"] = { ex, alt, at, until, hist: {name: times rotated} }. One rotation per training day
+// at a time, so a session never changes more than one exercise. It lasts ROT_DAYS, then the original returns for
+// at least ROT_GAP days. Only exercises you did in ROT_MIN sessions or more take part. prefs.vary === false: off.
+const ROT_DAYS = 28, ROT_GAP = 21, ROT_MIN = 6;
+const sessionsWith = name => { const k = keyOf(name); return Object.keys(log).filter(d => ((log[d].ex || {})[k] || { sets: [] }).sets.length).length; };
+function rotation(items){
+  if (prefs.vary === false || editing) return null;
+  const s = scheme(); if (s.youth) return null;
+  const dk = dayKey(s, view.day), all = prefs.rot || {}, r = all[dk], t = today(), plan = items.map(x => x[0]);
+  if (r && t < r.until) return plan.includes(r.ex) && !plan.includes(r.alt) ? r : null;
+  if (r && t < addDays(r.until, ROT_GAP)) return null;
+  // Never in the middle of a workout: only before the first set of this day.
+  if (plan.some(n => ((log[t] || { ex: {} }).ex[keyOf(n)] || { sets: [] }).sets.length)) return null;
+  const hist = (r && r.hist) || {};
+  const cand = items.filter(it => ["push", "pull", "legs"].includes(it[4]) && (it[5] || "") !== "time" && it[5] !== "cardio")
+    .map(it => ({ n: it[0], times: hist[it[0]] || 0, ses: sessionsWith(it[0]) }))
+    .filter(c => c.ses >= ROT_MIN && c.n !== (r && r.ex))
+    .sort((a, b) => a.times - b.times || b.ses - a.ses);
+  for (const c of cand){
+    const alt = rotationAlt(c.n, plan, c.times); if (!alt) continue;
+    const nr = { ex: c.n, alt, at: t, until: addDays(t, ROT_DAYS), hist: Object.assign({}, hist, { [c.n]: c.times + 1 }) };
+    prefs.rot = Object.assign({}, all, { [dk]: nr }); savePrefs();
+    return nr;
+  }
+  return null;
+}
+function endRotation(){
+  const dk = dayKey(scheme(), view.day), r = (prefs.rot || {})[dk]; if (!r) return;
+  prefs.rot = Object.assign({}, prefs.rot, { [dk]: Object.assign({}, r, { until: today() }) }); savePrefs();
+  renderExercises(); toast(`${r.ex} staat terug`);
+}
 function dayItemsBase(){
   const items = exercisesFor(scheme(), view.day);
   if (editing) return items;
-  const sw = swapMap();
-  return items.map(goalAdjust).map(it => {
-    const alt = sw[it[0]]; if (!alt) return it;
+  const sw = swapMap(), base = items.map(goalAdjust), rot = rotation(base);
+  return base.map(it => {
+    const r = rot && rot.ex === it[0] ? rot : null;
+    let alt = sw[it[0]], tag = "";
+    if (r && alt === it[0]){ const o = it.slice(); o[7] = ""; o[8] = "back"; o[9] = r.alt; return o; }   // "Toestel bezet": the previous exercise today
+    if (!alt && r){ alt = r.alt; tag = "rot"; }
+    if (!alt) return it;
     const k = knownExercise(alt) || { type: it[4], mode: it[5] || "" };
     const lib = LIB.find(l => l[0] === alt);
-    return [alt, it[1], lib ? lib[5] : it[2], it[3], k.type, k.mode, it[6], it[0]];
+    return [alt, it[1], lib ? lib[5] : it[2], it[3], k.type, k.mode, it[6], it[0], tag, r ? r.until : ""];
   });
 }
-function alternativesFor(name){
+// For the long-term variation: a close variant of the same movement (Bench Press → Dumbbell Bench Press), same kind
+// (weights stay weights), and nothing that looks like another exercise of the day (no Chest Dip next to Dips).
+const ROT_SKIPW = new Set(["dumbbell", "barbell", "cable", "machine", "band", "smith", "kettlebell", "ez", "bar", "seated", "standing", "single", "arm", "one", "two", "close", "wide", "grip", "neutral", "with", "the", "and", "on", "back", "front", "high", "low", "to", "leg", "added", "weight"]);
+const ROT_SHIFT = /close-grip|diamond|jump|knee push|assisted|band /i;   // variants that move the accent: last choice
+const moveWords = n => n.toLowerCase().split(/[^a-z]+/).map(w => w.endsWith("sses") ? w.slice(0, -2) : w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w).filter(w => w.length > 1 && !ROT_SKIPW.has(w));
+function rotationAlt(name, plan, nth){
+  const own = new Set(moveWords(name)), mode = (knownExercise(name) || {}).mode || "", prim = (MUSCLES[name] || [[]])[0];
+  const others = new Set(plan.filter(n => n !== name).flatMap(moveWords).filter(w => !own.has(w)));
+  const alts = alternativesFor(name, 40).filter(a => !plan.includes(a.n) && ((knownExercise(a.n) || {}).mode || "") === mode)
+    .map(a => { const w = moveWords(a.n), p = MUSCLES[a.n][0], both = p.filter(x => prim.includes(x)).length;
+      return Object.assign({}, a, { same: w.filter(x => own.has(x)).length, clash: w.some(x => others.has(x)), fit: both / (prim.length + p.length - both) }); })
+    .filter(a => !a.clash && a.same > 0 && a.fit >= 0.5)
+    .sort((a, b) => ROT_SHIFT.test(a.n) - ROT_SHIFT.test(b.n) || b.fit - a.fit || b.same - a.same || b.score - a.score || a.n.localeCompare(b.n));
+  return alts.length ? alts[nth % Math.min(3, alts.length)].n : "";
+}
+function alternativesFor(name, max = 5){
   const m = MUSCLES[name]; if (!m) return [];
   const strong = new Set(m[0].map(muscleGroup)), less = new Set(m[1].map(muscleGroup));
   const inDay = new Set(exercisesFor(scheme(), view.day).map(x => x[0]));
@@ -3547,7 +3606,7 @@ function alternativesFor(name){
     const s2 = MUSCLES[n][0].map(muscleGroup), l2 = MUSCLES[n][1].map(muscleGroup);
     const score = s2.filter(g => strong.has(g)).length * 3 + s2.filter(g => less.has(g)).length + l2.filter(g => strong.has(g)).length;
     return { n, score, s2 };
-  }).filter(x => x.score >= 3).sort((a, b) => b.score - a.score || a.n.localeCompare(b.n)).slice(0, 5);
+  }).filter(x => x.score >= 3).sort((a, b) => b.score - a.score || a.n.localeCompare(b.n)).slice(0, max);
 }
 function setSwap(orig, alt){
   const key = markKey("swap");
@@ -7618,6 +7677,7 @@ $("showWelcomeBtn").onclick = () => { $("settings").hidden = true; showWelcome(t
 $("segStyle").onclick = e => { const b = e.target.closest("button"); if (!b) return; devSet(LS_STYLE, b.dataset.v); applyTheme(); renderSettings(); };
 $("segTheme").onclick = e => { const b = e.target.closest("button"); if (!b) return; devSet(LS_THEME, b.dataset.v); applyTheme(); renderSettings(); };
 $("segBig").onclick = e => { const b = e.target.closest("button"); if (!b) return; devSet(LS_BIG, b.dataset.v === "on"); applyTheme(); renderSettings(); };
+$("segVary").onclick = e => { const b = e.target.closest("button"); if (!b) return; prefs.vary = b.dataset.v === "on"; savePrefs(); renderSettings(); render(); };
 $("segUnit").onclick = e => { const b = e.target.closest("button"); if (!b) return; prefs.unit = b.dataset.v; savePrefs(); renderSettings(); render(); if (page === "stats") renderStats(); toast("Gewichten in " + U()); };
 $("gEx").addEventListener("change", goalFormSync);
 $("gType").addEventListener("change", goalFormSync);

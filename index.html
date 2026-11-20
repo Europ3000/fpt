@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-NjNCU9QiEFoX4HZGHeMwhKLssheIHhcYG+REUcJZP5o=' 'sha256-3OiOd6Zgk9V6K0exQXDgFp+rWJD7KVUWAEAfUA4XWEQ='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-G7UM6Elk9tzlHjXEiidz3TZGzjsVx0uvUvuzYn/FCPs=' 'sha256-fIj254AkooGBvsrNjif3gYyL4VS/dCAwuFjykC0ieHs='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#16a34a">
@@ -16,12 +16,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FPT">
 <meta name="application-name" content="FPT">
-<link rel="preload" as="script" href="app.js?v=65457a0fb5">
+<link rel="preload" as="script" href="app.js?v=bc3a1c82fe">
 <script>window.FPT_STANDALONE = true;
 window.FPT_HOME = "https://fptfit.app/";
 window.FPT_MOVE_TO = "https://fptfit.app/";
 window.FPT_I18N = {"langs": ["en", "fr", "es", "de", "it", "pt", "ru", "zh", "ar", "hi"]};
-window.FPT_I18N_FILES = {"en": "i18n/en.js?v=b5d8c7c9db", "fr": "i18n/fr.js?v=a2337a9b1f", "es": "i18n/es.js?v=a9a0b9c494", "de": "i18n/de.js?v=615435745d", "it": "i18n/it.js?v=092a92c6b0", "pt": "i18n/pt.js?v=a4d1bcd9e1", "ru": "i18n/ru.js?v=acafa7fbf1", "zh": "i18n/zh.js?v=180bd2a6c1", "ar": "i18n/ar.js?v=296103c373", "hi": "i18n/hi.js?v=6bb9acedce"};
+window.FPT_I18N_FILES = {"en": "i18n/en.js?v=5d429e5517", "fr": "i18n/fr.js?v=3c9c52a835", "es": "i18n/es.js?v=14919f7f82", "de": "i18n/de.js?v=dc4dcf19f7", "it": "i18n/it.js?v=ec37f6e7c7", "pt": "i18n/pt.js?v=0eccd22d11", "ru": "i18n/ru.js?v=1defd9a0db", "zh": "i18n/zh.js?v=a34fdba652", "ar": "i18n/ar.js?v=c16e9d6167", "hi": "i18n/hi.js?v=118de93b55"};
 (() => {
   // Not inside someone else's page (clickjacking): break out, or show nothing.
   if (top !== self){ try { top.location.replace(location.href); } catch {} document.documentElement.style.display = "none"; }
@@ -1528,6 +1528,8 @@ h1,h2,h3{overflow-wrap:anywhere}
     <div class="set-row"><span>Gewicht in</span><div class="seg" id="segUnit"><button type="button" data-v="kg">kg</button><button type="button" data-v="lb">lb</button></div></div>
     <div class="set-row"><span>Grote knoppen</span><div class="seg" id="segBig"><button type="button" data-v="off">Uit</button><button type="button" data-v="on">Aan</button></div></div>
     <p class="note">Grote knoppen maakt cijfers, invulvakken en knoppen groter, handig in de fitness. Thema en grote knoppen gelden voor dit toestel; kg of lb voor je account.</p>
+    <div class="set-row"><span>Oefeningen afwisselen</span><div class="seg" id="segVary"><button type="button" data-v="off">Uit</button><button type="button" data-v="on">Aan</button></div></div>
+    <p class="note">Om de paar weken neemt één oefening van een trainingsdag een maand lang de plaats in van een gelijkaardige, tegen stagnatie. Nooit meer dan één per training; de vorige staat bovenaan onder ⇄.</p>
     <div class="set-row" id="installRow" hidden><span>App installeren</span><button class="save" type="button" id="installBtn" hidden>Installeren</button></div>
     <p class="note" id="installNote" hidden></p>
     <div class="set-profile">
@@ -2040,6 +2042,6 @@ h1,h2,h3{overflow-wrap:anywhere}
     <button type="button" id="restStop">Stop</button>
   </div>
 </div>
-<script>[window.FPT_LANG_FILE, "app.js?v=65457a0fb5"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
+<script>[window.FPT_LANG_FILE, "app.js?v=bc3a1c82fe"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
 </body>
 </html>
