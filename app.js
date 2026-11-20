@@ -258,6 +258,13 @@ const $ = id => document.getElementById(id);
 // with a backup file instead of account sync, and it installs as an app with its own icon.
 const STANDALONE = !!window.FPT_STANDALONE;
 const APP_HOME = window.FPT_HOME || "https://europ3000.github.io/fpt/", APP_HOST = APP_HOME.replace(/^https?:\/\//, "").replace(/\/$/, "");
+// The native app (Capacitor, native/): the app shell puts window.Capacitor there before the page runs; a website never
+// has it, so everything behind NATIVE stays off on the web. Plugins are called through the bridge itself (no bundler).
+const CAP = (() => { try { const c = window.Capacitor; return c && c.isNativePlatform && c.isNativePlatform() && c.nativePromise ? c : null; } catch { return null; } })();
+const NATIVE = !!CAP, NATIVE_OS = NATIVE ? CAP.getPlatform() : "", NATIVE_ID = "app.fptfit.twa", NATIVE_BACK = NATIVE_ID + "://login";
+const capCall = (plugin, method, opts) => NATIVE ? CAP.nativePromise(plugin, method, opts || {}) : Promise.reject(new Error("web"));
+const capOn = (plugin, event, fn) => { try { if (NATIVE) CAP.addListener(plugin, event, fn); } catch {} };
+const HEALTH_NAME = NATIVE_OS === "ios" ? "Apple Health" : "Health Connect", healthState = () => lsGet("ppl.health", null);
 const keyOf = name => name.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || "x" + [...name].map(c => c.codePointAt(0).toString(36)).join("");
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = n => (Math.round(n*100)/100).toString().replace(".", DEC());
@@ -2063,10 +2070,15 @@ function startRest(sec, name){
   $("restBar").classList.remove("over");
   $("restBar").hidden = false; document.body.classList.add("resting");
   clearInterval(restTimer); restTimer = setInterval(tickRest, 250); tickRest();
+  restPlan();
 }
 function tickRest(){
   const left = Math.ceil((restEnd - Date.now()) / 1000);
-  if (left > 0){ $("restTime").textContent = Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0"); updateRestChips(); return; }
+  if (left > 0){
+    $("restTime").textContent = Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0"); updateRestChips();
+    if (left <= 1 && !document.hidden) restUnplan();   // you are looking at it: the beep is enough
+    return;
+  }
   clearInterval(restTimer); restTimer = null;
   $("restTime").textContent = "0:00";
   $("restLabel").textContent = "Tijd voor je volgende set";
@@ -2079,17 +2091,49 @@ function tickRest(){
 // A notification when the rest is over while FPT is in the background (another app in front). The page has to stay
 // alive for it: there is no server push, so a phone that freezes the page (iOS with the screen locked) stays silent.
 const canNotify = () => "Notification" in window && "serviceWorker" in navigator;
-const restNoteOn = () => lsGet("ppl.restNote", false) && canNotify() && Notification.permission === "granted";
+const restNoteOn = () => lsGet("ppl.restNote", false) && (NATIVE ? restNoteOk : canNotify() && Notification.permission === "granted");
+// The native app hands the notification to the phone at the start of the rest, set for the second it ends: it then
+// comes with the screen off or the app frozen too. Android only keeps to the second with "Wekkers en herinneringen"
+// allowed (restExact); without it the phone may deliver it a little later.
+const REST_NOTE_ID = 4711;
+let restNoteOk = false, restExact = false, restPlanned = false;
+async function nativeNoteState(){
+  if (!NATIVE) return;
+  try { restNoteOk = (await capCall("LocalNotifications", "checkPermissions")).display === "granted"; } catch { restNoteOk = false; }
+  try { restExact = NATIVE_OS !== "android" || (await capCall("LocalNotifications", "checkExactNotificationSetting")).exact_alarm === "granted"; } catch { restExact = false; }
+}
+function restPlan(){
+  if (!NATIVE || !restNoteOn() || restEnd - Date.now() < 1500) return;
+  restPlanned = true;
+  // the same id again (a new rest, +30 s) replaces the one that was waiting
+  capCall("LocalNotifications", "schedule", { notifications: [{ id: REST_NOTE_ID, title: tr("Rust voorbij"), body: tr("Tijd voor je volgende set") + (restName ? " · " + restName : ""),
+    schedule: { at: new Date(restEnd), allowWhileIdle: true }, isExactNotification: restExact }] }).catch(() => {});
+}
+function restUnplan(){
+  if (!NATIVE || !restPlanned) return;
+  restPlanned = false;
+  capCall("LocalNotifications", "cancel", { notifications: [{ id: REST_NOTE_ID }] }).catch(() => {});
+}
 function restNotify(){
-  if (!document.hidden || !restNoteOn()) return;
+  if (NATIVE || !document.hidden || !restNoteOn()) return;
   const body = tr("Tijd voor je volgende set") + (restName ? " · " + restName : "");
   navigator.serviceWorker.ready.then(r => r.showNotification(tr("Rust voorbij"), { body, tag: "fpt-rest", renotify: true, icon: "icon-192.png", badge: "icon-192.png", vibrate: [200, 100, 200] })).catch(() => {});
 }
 function clearRestNote(){
+  if (NATIVE){ if (restNoteOk) capCall("LocalNotifications", "removeAllDeliveredNotifications").catch(() => {}); return; }
   if (!canNotify() || !navigator.serviceWorker.controller) return;
   navigator.serviceWorker.ready.then(r => r.getNotifications({ tag: "fpt-rest" })).then(l => l.forEach(n => n.close())).catch(() => {});
 }
 async function setRestNote(on){
+  if (NATIVE){
+    if (on){
+      let ok = ""; try { ok = (await capCall("LocalNotifications", "requestPermissions")).display; } catch {}
+      await nativeNoteState();
+      if (ok !== "granted") return void toast("Meldingen staan uit voor FPT. Zet ze aan in de instellingen van je telefoon.");
+      if (!restExact) toast("Sta Wekkers en herinneringen toe voor FPT, dan komt de melding precies op tijd.", () => capCall("LocalNotifications", "changeExactNotificationSetting").then(nativeNoteState, () => {}), "Toestaan");
+    } else restUnplan();
+    devSet("ppl.restNote", !!on); renderSettings(); return;
+  }
   if (on){
     if (!canNotify()) return void toast("Op dit toestel kan FPT geen meldingen sturen. Op iPhone en iPad: zet FPT eerst op je beginscherm.");
     let ok = Notification.permission;
@@ -2099,7 +2143,7 @@ async function setRestNote(on){
   devSet("ppl.restNote", !!on); renderSettings();
 }
 function stopRest(){
-  clearRestNote();
+  restUnplan(); clearRestNote();
   clearInterval(restTimer); restTimer = null;
   $("restBar").hidden = true; document.body.classList.remove("resting"); restName = "";
   updateRestChips();
@@ -2920,7 +2964,8 @@ function renderLangSlide(){
 }
 // First open: skip the pitch slides (hero, trainen, vooruitgang, inzicht) and go straight to your profile.
 // "Uitleg opnieuw tonen" in Instellingen: show that pitch again, skip language/days/scheme (already set).
-const WL_SKIP_FIRST = ["hero", "trainen", "vooruitgang", "inzicht"], WL_SKIP_REPLAY = ["lang", "summary", "days", "start"];
+// The first open is the quick start (language, then a short film: pick a scheme, tick off your sets): profile, goal and days per week are asked later in the app.
+const WL_SKIP_FIRST = ["summary", "hero", "trainen", "vooruitgang", "inzicht", "about", "goal", "days", "start"], WL_SKIP_REPLAY = ["lang", "film", "summary", "days", "start"];
 const wlSlides = () => [...document.querySelectorAll(".wl-slide")].filter(sl => !sl.hidden);
 function showWelcome(replay){
   const wireDays = () => $("wlDays").querySelectorAll("[data-days]").forEach(b => b.onclick = () => { setDaysPerWeek(+b.dataset.days); $("wlDays").innerHTML = dayButtons(); wireDays(); welcomeSchemeList(); wlGo(wlAt + 1); });
@@ -2947,6 +2992,7 @@ function wlGo(i){
   const slides = wlSlides(), n = slides.length;
   wlAt = Math.max(0, Math.min(n - 1, i));
   if (slides[wlAt].dataset.wl === "start") welcomeSchemeList();   // follows the goal picked a few slides earlier
+  obFilm(slides[wlAt].dataset.wl === "film");
   $("wlTrack").parentElement.scrollLeft = 0; // focus moving inside a slide must not shift the strip
   $("wlTrack").style.transform = `translateX(${(document.documentElement.dir === "rtl" ? 1 : -1) * wlAt * 100}%)`;
   slides.forEach((sl, j) => { sl.setAttribute("aria-hidden", j !== wlAt); sl.inert = j !== wlAt; });
@@ -2956,7 +3002,7 @@ function wlGo(i){
   $("wlNext").hidden = wlAt === n - 1;
   $("wlNext").textContent = slides[wlAt].dataset.wl === "hero" ? "Laten we beginnen" : "Volgende";
 }
-function closeWelcome(){ $("welcome").hidden = true; if (!lsGet("ppl.welcomed", false) || !(prefs.dev || {})["ppl.welcomed"]) devSet("ppl.welcomed", true); }
+function closeWelcome(){ $("welcome").hidden = true; obFilm(false); if (!lsGet("ppl.welcomed", false) || !(prefs.dev || {})["ppl.welcomed"]) devSet("ppl.welcomed", true); }
 // "Over jou": the answers go through the same saving as the profile in Instellingen.
 [["wBirth", "pBirth"], ["wHeight", "pHeight"], ["wWeight", "pWeight"]].forEach(([w, p]) => $(w).addEventListener("change", () => { $(p).value = $(w).value; saveProfileField(p); }));
 $("wlNext").onclick = () => { if (document.activeElement && document.activeElement.closest(".wl-fields")) document.activeElement.blur(); wlGo(wlAt + 1); };
@@ -2967,6 +3013,64 @@ $("welcome").addEventListener("keydown", e => {
   if (e.key === "ArrowLeft") wlGo(wlAt + (rtl ? 1 : -1));
   if (e.key === "Escape") closeWelcome();
 });
+
+// ---------- Onboarding: first start in two steps (language, a short film), then straight to the first set ----------
+// No account needed, and the scheme is already there: a new device starts with Push / Pull (see the start-up code).
+// OB_HINT holds the moment you pressed start; the hint at the first set stays until a set is logged after it.
+// OB_ACCT is set once the account proposal (after a finished workout) was answered.
+const OB_HINT = "ppl.obHint", OB_ACCT = "ppl.obAcct", OB_SCHEME = "pp2";
+// The film: three scenes in a loop (pick scheme and day, tick off a set, rest timer); CSS draws each scene from data-step.
+let obFilmTimer = 0;
+function obFilm(on){
+  clearInterval(obFilmTimer); obFilmTimer = 0;
+  if (!on) return;
+  let i = 0;
+  const show = () => { $("obFilm").dataset.step = i; [...$("obCaps").children].forEach((li, j) => li.classList.toggle("on", j === i)); };
+  show();
+  obFilmTimer = setInterval(() => { i = (i + 1) % 3; show(); }, 3000);
+}
+function obStart(){
+  editing = false;
+  lsSet(OB_HINT, new Date().toISOString());
+  focusKey = null;   // focus mode starts at the first exercise
+  closeWelcome(); showPage("train"); render();
+  // Straight to the first set, past the scheme lists. Not a smooth scroll: a render during start-up would stop it halfway.
+  obMark();
+  const ex = document.querySelector("#exercises .ob-first"), top = document.querySelector(".top");
+  window.scrollTo({ top: ex ? Math.max(0, ex.getBoundingClientRect().top + window.scrollY - (top ? top.getBoundingClientRect().height + 10 : 10)) : 0, behavior: "instant" });
+}
+$("obGo").onclick = obStart;
+// Mark the first open set row after every render of the exercise list, until the first set is in the log.
+function obMark(){
+  const since = lsGet(OB_HINT, ""); if (!since) return;
+  if (Object.values((log[today()] || {}).ex || {}).some(e => e.sets.some(x => x.t > since))){ try { localStorage.removeItem(OB_HINT); } catch {} return; }
+  const f = editing ? null : $("exercises").querySelector("li.focused form.sr.act") || $("exercises").querySelector("form.sr.act"); if (!f || f.closest(".ob-first")) return;
+  f.closest("li").classList.add("ob-first");
+  const p = document.createElement("p"); p.className = "ob-hint";
+  p.textContent = "Doe je eerste set en tik op ✓. Laat je de vakjes leeg, dan telt het grijze voorstel.";
+  (f.closest(".sets") || f).before(p);
+}
+new MutationObserver(obMark).observe($("exercises"), { childList: true });
+// After a finished workout, without a login: propose an account once, no obligation.
+function obAccount(){
+  const p = $("finishPanel");
+  if (p.hidden || !STANDALONE || sbSession || lsGet(OB_ACCT, 0) || p.querySelector(".ob-acct") || !p.lastElementChild) return;
+  const d = document.createElement("div"); d.className = "ob-acct";
+  d.innerHTML = `<b>Bewaar je gegevens op al je toestellen</b><p>Met een gratis account staan je trainingen veilig en op elk toestel. Het hoeft niet: zonder account blijft alles op dit toestel.</p>
+    <div class="entry-row"><button class="ghost wide" type="button" data-ob-later>Later</button><button class="save" type="button" data-ob-acct>Account maken</button></div>`;
+  p.lastElementChild.before(d);
+  d.querySelector("[data-ob-later]").onclick = () => { lsSet(OB_ACCT, 1); d.remove(); };
+  d.querySelector("[data-ob-acct]").onclick = () => {
+    lsSet(OB_ACCT, 1); p.hidden = true;
+    if ($("settings").hidden) $("settingsBtn").click();
+    renderAccount();
+    // once Instellingen has its full height: the account block just under the top bar
+    setTimeout(() => { const top = document.querySelector(".top"); window.scrollTo({ top: Math.max(0, $("acctBox").getBoundingClientRect().top + window.scrollY - (top ? top.getBoundingClientRect().height + 10 : 10)), behavior: "instant" }); }, 250);
+  };
+}
+new MutationObserver(obAccount).observe($("finishPanel"), { childList: true, attributes: true, attributeFilter: ["hidden"] });
+$("obRestartBtn").onclick = () => { $("settings").hidden = true; $("settingsBtn").setAttribute("aria-expanded", false); showWelcome(); };
+
 let wlX = null;
 $("wlTrack").addEventListener("touchstart", e => { wlX = e.touches[0].clientX; }, { passive: true });
 $("wlTrack").addEventListener("touchend", e => {
@@ -7667,7 +7771,7 @@ function merge(a, b){
   return out;
 }
 
-$("restPlus").onclick = () => { restEnd = Math.max(restEnd, Date.now()) + 30000; $("restBar").classList.remove("over"); if (!restTimer) restTimer = setInterval(tickRest, 250); tickRest(); };
+$("restPlus").onclick = () => { restEnd = Math.max(restEnd, Date.now()) + 30000; $("restBar").classList.remove("over"); if (!restTimer) restTimer = setInterval(tickRest, 250); tickRest(); restPlan(); };
 $("restStop").onclick = stopRest;
 $("finishBtn").onclick = finishWorkout;
 $("focusToggle").onclick = () => { focusOn = !focusOn; devSet("ppl.focus", focusOn); focusKey = null; stopRest(); sessionOn = focusOn; watchAt = Date.now(); renderExercises();
@@ -7880,7 +7984,9 @@ if (STANDALONE){
   $("wipeBtn").onclick = wipeDevice;
   $("backupDl").onclick = exportBackup;
   $("backupFile").addEventListener("change", e => { const f = e.target.files[0]; if (f) importBackup(f); e.target.value = ""; });
-  if ("serviceWorker" in navigator){
+  // The native app has its files on the device already: no service worker there (and none left from an older build).
+  if (NATIVE){ try { navigator.serviceWorker.getRegistrations().then(l => l.forEach(r => r.unregister())).catch(() => {}); } catch {} }
+  else if ("serviceWorker" in navigator){
     // sw.js serves the app from the cache; when a new version has taken over, offer to switch to it now
     const hadSw = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadSw) toast("Er is een nieuwe versie van FPT.", () => location.reload(), "Vernieuwen"); });
@@ -7895,7 +8001,7 @@ let installEvt = window.FPT_INSTALL || null;
 const appMode = () => ["standalone", "window-controls-overlay", "minimal-ui"].some(m => matchMedia(`(display-mode: ${m})`).matches) || navigator.standalone === true;
 function renderInstall(){
   const row = $("installRow"), note = $("installNote");
-  if (!STANDALONE || appMode()){ row.hidden = note.hidden = true; return; }
+  if (!STANDALONE || NATIVE || appMode()){ row.hidden = note.hidden = true; return; }
   const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   const macSafari = !ios && /Macintosh/.test(ua) && /Safari\//.test(ua) && !/Chrome|Chromium|Edg|Firefox|OPR/.test(ua);
   const tip = installEvt ? "Dan opent FPT in een eigen venster, zonder adresbalk, en werkt hij ook zonder internet."
@@ -8086,7 +8192,7 @@ $("friendsClose").onclick = closeFriends;
 // Your data lives per web address, so it travels inside the link (after the #: it never reaches a server).
 // build.py sets FPT_MOVE_TO; the card only shows once the new address really serves FPT (not a registrar's parking page).
 const MOVE_TO = window.FPT_MOVE_TO || "";
-if (STANDALONE && MOVE_TO && new URL(MOVE_TO).origin !== location.origin){
+if (STANDALONE && !NATIVE && MOVE_TO && new URL(MOVE_TO).origin !== location.origin){
   fetch(MOVE_TO + "manifest.webmanifest", { cache: "no-store" }).then(r => r.json()).then(m => {
     if (m.name !== "Fitness Progress Tracker") return;
     const box = $("moveCard");
@@ -8098,6 +8204,7 @@ if (STANDALONE && MOVE_TO && new URL(MOVE_TO).origin !== location.origin){
     $("moveBtn").onclick = async () => { location.href = MOVE_TO + "#move=" + await packShare(backupData()); };
   }).catch(() => {});
 }
+const obByLink = /^#(move=|(.*&)?(access_token|error|error_description)=)/.test(location.hash);   // a move or login link: never the onboarding
 (async () => {
   const m = /^#move=([A-Za-z0-9_-]{2,8000000})$/.exec(location.hash); if (!m) return;
   try { history.replaceState(null, "", location.pathname + location.search); } catch {}
@@ -8116,7 +8223,13 @@ if (!inWorkout()){ const nx = nextDayIndex(scheme()); if (nx) view.day = nx.idx;
 if (autoClosed) setTimeout(() => toast("Je vorige training werd automatisch afgesloten."), 400);
 if (devRestore()){ focusOn = lsGet("ppl.focus", true); applyTheme(); }
 const answeredBefore = lsGet("ppl.welcomed", false) || Object.keys(log).length || prefs.trainGoal || prefs.daysPerWeek || (prefs.profile && (prefs.profile.age || prefs.profile.birth));
-if (!answeredBefore) showWelcome();
+// Onboarding only for a really new device: no data, no login, not arriving through a move or login link.
+const obExisting = answeredBefore || obByLink || lsGet("fpt.sb", null) || Object.keys(records).length || Object.keys(layouts).length || (prefs.custom || []).length;
+if (!obExisting){
+  // a new device starts with Push / Pull, whether you watch the film or skip it
+  if (localStorage.getItem(LS_VIEW) === null && findScheme(OB_SCHEME)){ view = { scheme: OB_SCHEME, day: 0 }; lsSet(LS_VIEW, view); }
+  showWelcome();
+}
 render();
 showPage(inWorkout() ? "train" : "today");
 setStore(false, "Opgeslagen op dit toestel.");
@@ -8142,12 +8255,14 @@ function sbDone(j, type){
   sbKeep(j); sbMail = ""; sbNewPass = type === "recovery";
   toast("Ingelogd. Je gegevens worden gesynchroniseerd."); renderAccount(); connectStore();
 }
+// The native app asks Supabase to send you back to the app itself (app.fptfit.twa://login) instead of to the website.
+const sbBack = path => NATIVE ? path + (path.includes("?") ? "&" : "?") + "redirect_to=" + encodeURIComponent(NATIVE_BACK) : path;
 async function sbMailSend(email, path, body, type = "email"){
-  try { await sbAuth(path, { email, ...body }); sbAsked(); sbMail = email; sbMailType = type; renderAccount(); toast("Mail verstuurd. Kijk in je mailbox."); }
+  try { await sbAuth(sbBack(path), { email, ...body }); sbAsked(); sbMail = email; sbMailType = type; renderAccount(); toast("Mail verstuurd. Kijk in je mailbox."); }
   catch (err) { toast(err.status === 429 ? "Je vroeg te veel codes aan. Probeer het over een uur opnieuw." : "Versturen lukt niet. Controleer je e-mailadres en je verbinding."); }
 }
 // Passkeys: the browser's own WebAuthn JSON helpers do the conversion, so a browser without them simply gets no passkey button.
-const sbPasskeys = () => sbOn.passkey && window.PublicKeyCredential && PublicKeyCredential.parseRequestOptionsFromJSON && PublicKeyCredential.parseCreationOptionsFromJSON;
+const sbPasskeys = () => !NATIVE && sbOn.passkey && window.PublicKeyCredential && PublicKeyCredential.parseRequestOptionsFromJSON && PublicKeyCredential.parseCreationOptionsFromJSON;
 async function sbPasskeyIn(){
   try {
     const o = await sbAuth("passkeys/authentication/options", {});
@@ -8289,7 +8404,10 @@ function renderAccount(){
       <button class="ghost wide" type="button" id="acctLinkBtn">Stuur inloglink</button>`;
     box.querySelectorAll("[data-sb]").forEach(b => b.onclick = () => {
       sbAsked();
-      location.href = `${SB_URL}/auth/v1/authorize?provider=${b.dataset.sb}&redirect_to=${encodeURIComponent(location.origin + location.pathname)}`;
+      const url = `${SB_URL}/auth/v1/authorize?provider=${b.dataset.sb}&redirect_to=${encodeURIComponent(NATIVE ? NATIVE_BACK : location.origin + location.pathname)}`;
+      // Google refuses to log in inside an app's own web view: the native app opens the phone's browser on top instead
+      if (NATIVE) capCall("Browser", "open", { url }).catch(() => toast("Inloggen lukt niet. Controleer je verbinding."));
+      else location.href = url;
     });
     if ($("acctKeyIn")) $("acctKeyIn").onclick = sbPasskeyIn;
     const mail = () => $("acctMail").value.trim();
@@ -8307,7 +8425,7 @@ function renderAccount(){
       const email = mail(), password = $("acctPass").value;
       if (password.length < 8){ toast("Kies een wachtwoord van minstens 8 tekens."); return; }
       try {
-        const j = await sbAuth("signup", { email, password });
+        const j = await sbAuth(sbBack("signup"), { email, password });
         if (j.access_token) return sbDone(j);
         // An address that already has an account answers like a new one, but with no identities and no mail.
         if ((j.user || j).identities && !(j.user || j).identities.length){ toast("Dit e-mailadres heeft al een account. Log in, of kies Wachtwoord vergeten."); return; }
@@ -8335,7 +8453,7 @@ function wipeDevice(){
   if (!confirm(tr(sbSession ? "Alle gegevens van FPT op dit toestel wissen en uitloggen? Je account en wat erin staat, blijven bestaan." : "Alle gegevens van FPT op dit toestel wissen? Dit kan niet ongedaan worden. Download eerst een back-up als je ze wilt bewaren."))) return;
   const keys = []; for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (k && /^(ppl|fpt)\./.test(k)) keys.push(k); }
   keys.forEach(k => localStorage.removeItem(k));
-  try { sessionStorage.clear(); } catch {}
+  try { const seen = sessionStorage.getItem("fpt.capUrl"); sessionStorage.clear(); if (seen) sessionStorage.setItem("fpt.capUrl", seen); } catch {}   // native app: not the login link it was started with again
   toast("Alles op dit toestel is gewist. De app laadt opnieuw.");
   setTimeout(() => location.reload(), 900);
 }
@@ -8825,7 +8943,7 @@ async function icuPull(manual){
   icuBusy = false;
 }
 // New activities from the linked apps: on start, after syncing and when the app comes back to the front.
-function pullLinks(){ if (!STANDALONE) return; stravaPull(); icuPull(); }
+function pullLinks(){ if (!STANDALONE) return; stravaPull(); icuPull(); healthPull(); }
 // Analytics always shows fresh Garmin numbers: fetch when you open it (at most once a minute) and every 5 minutes while the app is open.
 function statsSync(){ if (!STANDALONE || !(prefs.links || {}).intervals || Date.now() - icuAt < 60000) return; icuAt = 0; icuPull(); }
 setInterval(() => { if (!document.hidden) pullLinks(); }, 5 * 60000);
@@ -8878,7 +8996,7 @@ function lastSummary(){
 function renderLinks(){
   const sec = $("linksSec"); if (!sec) return;
   sec.hidden = !STANDALONE; if (!STANDALONE) return;
-  const S = links().strava, I = links().intervals, viaS = S && S.read !== false;
+  const S = links().strava, I = links().intervals, viaS = S && S.read !== false, H = NATIVE && healthState();
   const row = (ic, cls, name, txt, pill, on, act = "") => `<div class="lk"><span class="lk-ic ${cls}" aria-hidden="true">${ic}</span><span class="lk-txt"><b>${name}</b>${txt}</span><span class="lk-pill${on ? " on" : ""}">${pill}</span>${act ? `<div class="lk-act">${act}</div>` : ""}</div>`;
   $("linksBox").innerHTML =
     row("▲", "strava", "Strava", S ? `<small>Gekoppeld met je Strava-account.</small>${S.name ? `<small translate="no">${esc(S.name)}</small>` : ""}${S.read === false ? "<small>Koppel opnieuw en vink het lezen van je activiteiten aan, dan komen je activiteiten (ook van je Garmin) in je logboek.</small>" : ""}`
@@ -8896,11 +9014,18 @@ function renderLinks(){
       I ? (I.bad ? "Opnieuw koppelen" : "Gekoppeld") : "Niet gekoppeld", !!(I && !I.bad),
       I && !I.bad ? `<label class="lk-auto"><input type="checkbox" id="lkIcuPull"${I.pull !== false ? " checked" : ""}>Activiteiten in je logboek zetten</label><label class="lk-auto"><input type="checkbox" id="lkIcuWell"${I.well !== false ? " checked" : ""}>Gewicht en fysiologie ophalen</label><button class="ghost" type="button" id="lkIcuGet">Nu ophalen</button><button class="ghost" type="button" id="lkIcuOff">Ontkoppelen</button>`
         : `<form class="lk-form" id="lkIcuForm"><input id="lkIcuId" autocomplete="off" spellcheck="false" placeholder="Athlete ID (bv. i123456)" aria-label="Athlete ID" value="${I ? esc(I.id) : ""}"><input id="lkIcuKey" type="password" autocomplete="off" spellcheck="false" placeholder="API key" aria-label="API key" required><button class="save" type="submit">intervals.icu koppelen</button></form>${I ? `<button class="ghost" type="button" id="lkIcuOff">Ontkoppelen</button>` : ""}`) +
-    row("♥", "hc", "Samsung Health · Health Connect", "<small>Komt met de Android-app van FPT: je training gaat dan vanzelf naar Health Connect, en Samsung Health en Google Fit nemen ze daar over. Een website kan daar niet bij.</small>",
-      "Android-app", false) +
-    row("♥", "apple", "Apple Health", "<small>Komt met de iPhone-app van FPT.</small>", "iPhone-app", false) +
+    (NATIVE ? row("♥", NATIVE_OS === "ios" ? "apple" : "hc", HEALTH_NAME, H ? "<small>Gekoppeld. Je gewicht en je activiteiten (lopen, fietsen, zwemmen …) van je horloge of andere apps komen vanzelf in de app.</small>"
+          : "<small>Haalt je gewicht en je activiteiten (lopen, fietsen, zwemmen …) van je horloge of andere apps op. Ze blijven op je toestel en in je eigen account.</small>",
+        H ? "Gekoppeld" : "Niet gekoppeld", !!H,
+        H ? `<button class="ghost" type="button" id="lkHealthGet">Nu ophalen</button><button class="ghost" type="button" id="lkHealthOff">Ontkoppelen</button>` : `<button class="save" type="button" id="lkHealthOn">Koppelen</button>`)
+      : row("♥", "hc", "Samsung Health · Health Connect", "<small>Komt met de Android-app van FPT: je training gaat dan vanzelf naar Health Connect, en Samsung Health en Google Fit nemen ze daar over. Een website kan daar niet bij.</small>",
+          "Android-app", false) +
+        row("♥", "apple", "Apple Health", "<small>Komt met de iPhone-app van FPT.</small>", "iPhone-app", false)) +
     row("⇄", "other", "Andere apps", "<small>Veel apps, zoals TrainingPeaks, halen je trainingen uit Strava. Anders werkt het bestand (.tcx) bij bijna elke sport-app.</small>", "Via Strava", false);
   const on = $("lkStravaOn"); if (on) on.onclick = () => stravaConnect();
+  const ho = $("lkHealthOn"); if (ho) ho.onclick = async () => { ho.disabled = true; await healthLink(); ho.disabled = false; };
+  const hg = $("lkHealthGet"); if (hg) hg.onclick = async () => { hg.disabled = true; await healthPull(true); hg.disabled = false; };
+  const hx = $("lkHealthOff"); if (hx) hx.onclick = () => { try { localStorage.removeItem("ppl.health"); } catch {} renderLinks(); toast(`${HEALTH_NAME} ontkoppeld.`); };
   const au = $("lkStravaAuto"); if (au) au.onchange = () => { links().strava.auto = au.checked; savePrefs(); };
   const pu = $("lkStravaPull"); if (pu) pu.onchange = () => { links().strava.pull = pu.checked; savePrefs(); if (pu.checked) stravaPull(true); };
   const gt = $("lkStravaGet"); if (gt) gt.onclick = async () => { gt.disabled = true; await stravaPull(true); gt.disabled = false; };
@@ -8926,6 +9051,94 @@ function renderLinks(){
 if (STANDALONE){
   stravaFromUrl();
   document.addEventListener("visibilitychange", () => { if (document.hidden) return; if (!$("friends").hidden) refreshLinks(); pullLinks(); });
+}
+// ---------- Native app: Health Connect (Android; Samsung Health and Google Fit write there) and Apple Health (iPhone) ----------
+// First route: reading. Weight goes to your own measurements (prefs.body), workouts go through importActivity like the
+// ones from Strava and intervals.icu. Which device is linked stays on that device (ppl.health), not in your account.
+const HEALTH_SPORT = { running: "Run", runningTreadmill: "VirtualRun", walking: "Walk", hiking: "Hike", cycling: "Ride", handCycling: "Ride", bikingStationary: "VirtualRide",
+  swimming: "Swim", swimmingPool: "Swim", swimmingOpenWater: "Swim", rowing: "Rowing", rowingMachine: "Rowing", elliptical: "Elliptical",
+  stairClimbing: "StairStepper", stairClimbingMachine: "StairStepper", stairs: "StairStepper", highIntensityIntervalTraining: "HighIntensityIntervalTraining" };
+// w = a workout of the health plugin: { workoutType, duration (s), startDate, endDate, totalDistance (m), totalEnergyBurned (kcal), sourceName, sourceId, platformId }.
+// Returns it in the shape importActivity expects, or null for a sport FPT has no cardio type for (strength training too).
+function healthActivity(w){
+  const sport_type = HEALTH_SPORT[w.workoutType], start = Date.parse(w.startDate);
+  const secs = Math.round(w.duration > 0 ? w.duration : (Date.parse(w.endDate) - start) / 1000);
+  if (!sport_type || !(start > 0) || !(secs > 0)) return null;
+  const a = { id: "hc" + (w.platformId || start), sport_type, trainer: /Treadmill|Stationary|Machine/.test(w.workoutType), start_date: new Date(start).toISOString(), start_date_local: isoAt(start),
+    moving_time: secs, elapsed_time: secs, device_name: w.sourceName || "" };
+  if (w.totalDistance > 0){ a.distance = w.totalDistance; a.average_speed = w.totalDistance / secs; }
+  if (w.totalEnergyBurned > 0) a.calories = w.totalEnergyBurned;
+  return a;
+}
+async function healthLink(){
+  try {
+    const av = await capCall("Health", "isAvailable");
+    if (!av.available){ toast(NATIVE_OS === "android" ? "Health Connect staat niet op dit toestel. Installeer Health Connect uit de Play Store en probeer opnieuw." : "Apple Health is op dit toestel niet beschikbaar."); return; }
+    const st = await capCall("Health", "requestAuthorization", { read: ["weight", "workouts", "distance", "calories"], write: [] });
+    const ok = st.readAuthorized || [];
+    if (!ok.includes("weight") && !ok.includes("workouts")){ toast(`FPT kreeg geen toegang. Sta bij ${HEALTH_NAME} het lezen van gewicht en trainingen toe.`, NATIVE_OS === "android" ? () => capCall("Health", "openHealthConnectSettings").catch(() => {}) : null, "Openen"); return; }
+    lsSet("ppl.health", { on: true, from: Date.now() - 7 * 864e5, got: [], wAt: 0 });   // a week back, like the other links
+    renderLinks(); toast(`${HEALTH_NAME} gekoppeld.`);
+    healthAt = 0; await healthPull(true);
+  } catch { toast(`Koppelen met ${HEALTH_NAME} lukte niet. Probeer het later opnieuw.`); }
+}
+let healthAt = 0, healthBusy = false;
+async function healthPull(manual){
+  const H = NATIVE && healthState();
+  if (!H || healthBusy || (sbSession && !logCol) || (!manual && Date.now() - healthAt < 5 * 60000)) return;
+  healthBusy = true; healthAt = Date.now();
+  try {
+    const now = new Date().toISOString();
+    // Weight: without extra permission Health Connect goes 30 days back. Only measurements newer than the last one taken
+    // over count, so a weight you corrected by hand is not put back.
+    const ws = (await capCall("Health", "readSamples", { dataType: "weight", startDate: new Date(Date.now() - 30 * 864e5).toISOString(), endDate: now, limit: 500, ascending: true }).catch(() => ({}))).samples || [];
+    const B = Object.assign({}, prefs.body); let nw = 0, last = H.wAt || 0;
+    ws.forEach(s => {
+      const at = Date.parse(s.startDate), kg = Math.round((s.unit === "gram" ? s.value / 1000 : s.value) * 10) / 10;
+      if (!(at > (H.wAt || 0)) || !(kg > 20 && kg < 400)) return;
+      last = Math.max(last, at);
+      const d = isoAt(at).slice(0, 10); if (B[d] !== kg){ B[d] = kg; nw++; }
+    });
+    if (nw){ prefs.body = B; savePrefs(); if (page === "stats"){ renderBodyWeight(); renderProfile(); } }
+    const from = Math.max(H.from || 0, Date.now() - 14 * 864e5);
+    const list = (await capCall("Health", "queryWorkouts", { startDate: new Date(from).toISOString(), endDate: now, limit: 100, ascending: true })).workouts || [];
+    const seen = new Set(H.got || []), got = [], added = [];
+    list.forEach(w => {
+      const a = w.sourceId === NATIVE_ID ? null : healthActivity(w);   // not what FPT wrote there itself
+      if (!a || seen.has(a.id)) return;
+      got.push(a.id);
+      const e = importActivity(a, "health"); if (e) added.push(e);
+    });
+    if (healthState()) lsSet("ppl.health", Object.assign({}, H, { wAt: last, got: (H.got || []).concat(got).slice(-120) }));   // not when you unlinked meanwhile
+    imported(added);
+    if (manual && !added.length) toast(nw ? "Gewicht bijgewerkt. Geen nieuwe activiteiten." : `Geen nieuwe activiteiten in ${HEALTH_NAME}.`);
+  } catch { if (manual) toast(`Ophalen uit ${HEALTH_NAME} lukte niet. Probeer het later opnieuw.`); }
+  healthBusy = false;
+}
+// ---------- Native app: back in the app from a link ----------
+// app.fptfit.twa://login#access_token=… (after the mail link or Google) and https://fptfit.app/#… (app links: login, share, move).
+function nativeUrl(url){
+  let u = null; try { u = new URL(url); } catch {}
+  if (!u || (u.protocol !== NATIVE_ID + ":" && u.origin !== new URL(APP_HOME).origin)) return;
+  // the link the app was started with is handed over once, not again after a reload (kept as a number: no tokens in storage)
+  const mark = String([...url].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, url.length));
+  try { if (sessionStorage.getItem("fpt.capUrl") === mark) return; sessionStorage.setItem("fpt.capUrl", mark); } catch {}
+  capCall("Browser", "close").catch(() => {});   // the browser sheet of the Google login (iPhone)
+  const h = new URLSearchParams(u.hash.slice(1));
+  if (h.get("access_token") || h.get("error") || h.get("error_description")){
+    try { history.replaceState(null, "", location.pathname + u.hash); } catch {}
+    const was = sbSession && sbSession.access_token;
+    sbFromHash(); renderAccount();
+    if (sbSession && sbSession.access_token !== was) connectStore();
+  } else if (/^#(share|move)=/.test(u.hash)){ location.hash = u.hash; location.reload(); }
+}
+if (NATIVE){
+  document.documentElement.classList.add("native", "native-" + NATIVE_OS);
+  $("restNoteHelp").textContent = "Tijdens je training blijft het scherm vanzelf aan en trilt je telefoon als de rusttijd om is. Met de melding weet je het ook als FPT op de achtergrond staat of je scherm uit is.";
+  nativeNoteState().then(renderSettings);
+  capOn("App", "appUrlOpen", e => nativeUrl(e && e.url));
+  capOn("App", "resume", () => nativeNoteState());
+  capCall("App", "getLaunchUrl").then(r => { if (r && r.url) nativeUrl(r.url); }).catch(() => {});
 }
 async function claudeStore(){
   const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);

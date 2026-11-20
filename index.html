@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-UKSoeyjt0GaUrWO/8YxCIdIrcMllZHi9NRjKm61pOJ8=' 'sha256-AGPVcox3TUmKR8lBvk8FNvMcyJ1CgIKYrN5nv+Zp3gQ='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-qMhH9Z0oXHpavXJXYfdiKxkpRJY6rEMyjWZDD8n57kA=' 'sha256-eKOPtdA9y3mjz7D2cdqppq4P3dmL/383kY5lH0Mk/2Y='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#16a34a">
@@ -16,12 +16,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FPT">
 <meta name="application-name" content="FPT">
-<link rel="preload" as="script" href="app.js?v=afad987b21">
+<link rel="preload" as="script" href="app.js?v=c3b52c0356">
 <script>window.FPT_STANDALONE = true;
 window.FPT_HOME = "https://fptfit.app/";
 window.FPT_MOVE_TO = "https://fptfit.app/";
 window.FPT_I18N = {"langs": ["en", "fr", "es", "de", "it", "pt", "ru", "zh", "ar", "hi"]};
-window.FPT_I18N_FILES = {"en": "i18n/en.js?v=e796b36312", "fr": "i18n/fr.js?v=fd5e3b1ff9", "es": "i18n/es.js?v=819774a4c7", "de": "i18n/de.js?v=cbf19ff019", "it": "i18n/it.js?v=5c20c65c6a", "pt": "i18n/pt.js?v=c7d477262a", "ru": "i18n/ru.js?v=e5adc14f16", "zh": "i18n/zh.js?v=0ddf549954", "ar": "i18n/ar.js?v=9885014c92", "hi": "i18n/hi.js?v=d767456f69"};
+window.FPT_I18N_FILES = {"en": "i18n/en.js?v=fd8cba5f76", "fr": "i18n/fr.js?v=96f4b518ef", "es": "i18n/es.js?v=3d47de3d84", "de": "i18n/de.js?v=4174785289", "it": "i18n/it.js?v=be5dd3a85c", "pt": "i18n/pt.js?v=9ac314bba2", "ru": "i18n/ru.js?v=bb63196d81", "zh": "i18n/zh.js?v=690de41fee", "ar": "i18n/ar.js?v=8d92abb601", "hi": "i18n/hi.js?v=06e987b189"};
 (() => {
   // Not inside someone else's page (clickjacking): break out, or show nothing.
   if (top !== self){ try { top.location.replace(location.href); } catch {} document.documentElement.style.display = "none"; }
@@ -995,6 +995,54 @@ body.big .badge{font-size:1rem}
 .wl-dots{flex:1;justify-content:center}
 .wl-back{min-height:46px}
 .wl-next-btn{min-height:46px;white-space:nowrap}
+/* Onboarding: quick start (scheme pick), hint at the first set, account proposal after the first workout */
+.ob-film{position:relative;height:150px;flex:none;border-radius:14px;background:var(--paper);border:1.5px solid color-mix(in srgb,var(--ink) 14%,transparent);overflow:hidden}
+.ob-scene{position:absolute;inset:0;padding:12px 14px;display:flex;flex-direction:column;justify-content:center;gap:9px;opacity:0;transition:opacity .35s}
+.ob-film[data-step="0"] .ob-s1,.ob-film[data-step="1"] .ob-s2,.ob-film[data-step="2"] .ob-s3{opacity:1}
+.ob-lbl{font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ember)}
+.ob-chips{display:flex;gap:6px;overflow:hidden}
+.ob-chip{flex:none;font-size:.78rem;font-weight:700;padding:6px 11px;border-radius:999px;background:var(--card);color:var(--ink);border:1.5px solid var(--line);white-space:nowrap}
+.ob-chip.pick{background:var(--ember);color:var(--on-accent);border-color:var(--ember)}
+.ob-film[data-step="0"] .ob-chip.pick{animation:ob-pick 3s both}
+@keyframes ob-pick{0%,42%{background:var(--card);color:var(--ink);border-color:var(--line)}52%,100%{background:var(--ember);color:var(--on-accent);border-color:var(--ember)}}
+.ob-exh{display:flex;justify-content:space-between;align-items:baseline;font-size:.9rem}
+.ob-exh span{color:var(--muted);font-size:.78rem}
+.ob-row{display:grid;grid-template-columns:20px 1fr 1fr 38px;gap:8px;align-items:center}
+.ob-row i{font-style:normal;font-weight:800;color:var(--muted);text-align:center}
+.ob-in{padding:6px 0;text-align:center;border-radius:9px;background:var(--card);border:1.5px solid var(--line);color:var(--muted);font-size:.9rem;font-weight:700;font-variant-numeric:tabular-nums}
+.ob-ck{height:32px;border-radius:9px;border:1.5px solid var(--teal);color:var(--teal);display:grid;place-items:center;font-weight:800}
+.ob-row.dim{opacity:.45}
+.ob-row.dim .ob-ck{border-style:dashed;border-color:var(--line)}
+.ob-row.did .ob-in{color:var(--ink)}
+.ob-row.did .ob-ck{background:var(--teal);color:var(--on-accent)}
+.ob-film[data-step="1"] .ob-row.tap .ob-ck{animation:ob-ck 3s both}
+@keyframes ob-ck{0%,48%{background:transparent;color:var(--teal)}58%,100%{background:var(--teal);color:var(--on-accent)}}
+.ob-rest{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;background:var(--ember-soft);font-size:.85rem;font-weight:700;position:relative;overflow:hidden}
+.ob-rest b{margin-inline-start:auto;font-variant-numeric:tabular-nums}
+.ob-rest::after{content:"";position:absolute;inset-inline-start:0;bottom:0;height:3px;width:100%;background:var(--ember);transform-origin:left}
+.ob-film[data-step="2"] .ob-rest::after{animation:ob-rest 3s linear both}
+@keyframes ob-rest{from{transform:scaleX(1)}to{transform:scaleX(.3)}}
+.ob-finger{position:absolute;width:26px;height:26px;border-radius:50%;background:color-mix(in srgb,var(--ink) 38%,transparent);border:2px solid var(--card);opacity:0;pointer-events:none}
+.ob-s1 .ob-finger{inset-inline-start:44px;top:44px}
+.ob-s2 .ob-finger{inset-inline-end:20px;top:60px}
+.ob-film[data-step="0"] .ob-s1 .ob-finger,.ob-film[data-step="1"] .ob-s2 .ob-finger{animation:ob-tap 3s both}
+@keyframes ob-tap{0%{opacity:0;transform:translate(14px,46px)}32%{opacity:1;transform:none}45%{opacity:1;transform:scale(.72)}58%{opacity:1;transform:none}85%,100%{opacity:0;transform:none}}
+.ob-caps{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;counter-reset:ob}
+.ob-caps li{counter-increment:ob;display:flex;gap:9px;align-items:baseline;font-size:.88rem;line-height:1.35;color:var(--muted);transition:color .3s}
+.ob-caps li::before{content:counter(ob);flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:.72rem;font-weight:800;background:var(--line);color:var(--ink);transition:background .3s}
+.ob-caps li.on{color:var(--ink);font-weight:600}
+.ob-caps li.on::before{background:var(--ember);color:var(--on-accent)}
+.ob-go{min-height:48px;margin-top:auto}
+@media (prefers-reduced-motion:reduce){.ob-film *,.ob-film ::after{animation:none!important;transition:none!important}.ob-finger{display:none}}
+.ob-hint{margin:10px 0 6px;padding:9px 12px;border-radius:12px;background:var(--ember-soft);border:1.5px solid var(--ember);color:var(--ink);font-size:.9rem;font-weight:600;line-height:1.35;position:relative}
+.ob-hint::after{content:"";position:absolute;bottom:-7px;inset-inline-end:22px;width:12px;height:12px;background:var(--ember-soft);border:solid var(--ember);border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
+.ob-first form.sr.act .sr-ck.go{animation:ob-pulse 1.6s ease-in-out infinite}
+@keyframes ob-pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ember) 55%,transparent)}50%{box-shadow:0 0 0 9px transparent}}
+@media (prefers-reduced-motion:reduce){.ob-first form.sr.act .sr-ck.go{animation:none;outline:2px solid var(--ember);outline-offset:2px}}
+.ob-acct{margin:12px 0;padding:12px 14px;border-radius:14px;background:var(--teal-soft);border:1.5px solid var(--teal);display:flex;flex-direction:column;gap:6px}
+.ob-acct b{font-size:1rem}
+.ob-acct p{margin:0;font-size:.88rem;line-height:1.4}
+.ob-acct .entry-row{margin-top:4px}
 .wl-dots{display:flex;gap:6px}
 .wl-dots i{width:8px;height:8px;border-radius:50%;background:var(--line);transition:width .2s}
 .wl-dots i.on{width:22px;border-radius:5px;background:var(--ember)}
@@ -1561,7 +1609,7 @@ h1,h2,h3{overflow-wrap:anywhere}
     <div class="set-row"><span>Oefeningen afwisselen</span><div class="seg" id="segVary"><button type="button" data-v="off">Uit</button><button type="button" data-v="on">Aan</button></div></div>
     <p class="note">Om de paar weken neemt één oefening van een trainingsdag een maand lang de plaats in van een gelijkaardige, tegen stagnatie. Nooit meer dan één per training; de vorige staat bovenaan onder ⇄.</p>
     <div class="set-row"><span>Melding na je rust</span><div class="seg" id="segRestNote"><button type="button" data-v="off">Uit</button><button type="button" data-v="on">Aan</button></div></div>
-    <p class="note">Tijdens je training blijft het scherm vanzelf aan en trilt je telefoon als de rusttijd om is. Met de melding weet je het ook als FPT op de achtergrond staat, bv. achter je muziekapp. Op iPhone en iPad kan dat alleen als FPT op je beginscherm staat, en iOS zet de timer stil zodra het scherm vergrendelt: houd FPT daar open.</p>
+    <p class="note" id="restNoteHelp">Tijdens je training blijft het scherm vanzelf aan en trilt je telefoon als de rusttijd om is. Met de melding weet je het ook als FPT op de achtergrond staat, bv. achter je muziekapp. Op iPhone en iPad kan dat alleen als FPT op je beginscherm staat, en iOS zet de timer stil zodra het scherm vergrendelt: houd FPT daar open.</p>
     <div class="set-row" id="installRow" hidden><span>App installeren</span><button class="save" type="button" id="installBtn" hidden>Installeren</button></div>
     <p class="note" id="installNote" hidden></p>
     <div class="set-profile">
@@ -1587,6 +1635,7 @@ h1,h2,h3{overflow-wrap:anywhere}
     <p class="note" id="backupNote" hidden>Je gegevens staan alleen op dit toestel, in deze browser. Download af en toe een back-up (bv. naar Google Drive) zodat je niets verliest als je van telefoon wisselt.</p>
     </div>
     <div class="entry-row"><button class="ghost wide sum-btn" type="button" id="settingsSummary">Samenvatting</button></div>
+    <div class="entry-row"><button class="ghost wide" type="button" id="obRestartBtn">Snelle start opnieuw doen</button></div>
     <div class="entry-row"><button class="ghost wide" type="button" id="showWelcomeBtn">Uitleg opnieuw tonen</button><button class="save" type="button" id="settingsClose">Klaar</button></div>
   </section>
 
@@ -1988,6 +2037,37 @@ h1,h2,h3{overflow-wrap:anywhere}
         <h2 id="wlLangTitle" translate="no"></h2>
         <div class="wl-langgrid" id="wlLangs" role="group" translate="no"></div>
       </section>
+      <section class="wl-slide" data-wl="film">
+        <p class="wl-kicker">Zo werkt het</p>
+        <h2>Kies je schema, vink je sets af</h2>
+        <div class="ob-film" id="obFilm" data-step="0" aria-hidden="true">
+          <div class="ob-scene ob-s1">
+            <span class="ob-lbl">Schema</span>
+            <div class="ob-chips"><span class="ob-chip pick" translate="no">Push / Pull</span><span class="ob-chip" translate="no">Push / Pull / Legs</span><span class="ob-chip" translate="no">Upper / Lower</span></div>
+            <span class="ob-lbl">Dag</span>
+            <div class="ob-chips"><span class="ob-chip pick" translate="no">Push</span><span class="ob-chip" translate="no">Pull</span></div>
+            <span class="ob-finger"></span>
+          </div>
+          <div class="ob-scene ob-s2">
+            <div class="ob-exh"><b translate="no">Bench Press</b><span translate="no">3 × 8</span></div>
+            <div class="ob-row tap"><i>1</i><span class="ob-in">40</span><span class="ob-in">8</span><span class="ob-ck">✓</span></div>
+            <div class="ob-row dim"><i>2</i><span class="ob-in">40</span><span class="ob-in">8</span><span class="ob-ck"></span></div>
+            <span class="ob-finger"></span>
+          </div>
+          <div class="ob-scene ob-s3">
+            <div class="ob-rest"><span>Rust</span><b>1:30</b></div>
+            <div class="ob-row did"><i>1</i><span class="ob-in">40</span><span class="ob-in">8</span><span class="ob-ck">✓</span></div>
+            <div class="ob-row"><i>2</i><span class="ob-in">40</span><span class="ob-in">8</span><span class="ob-ck">✓</span></div>
+          </div>
+        </div>
+        <ol class="ob-caps" id="obCaps">
+          <li>Kies bij Training je schema en je dag.</li>
+          <li>Doe je set en tik op ✓. Het grijze voorstel staat al klaar.</li>
+          <li>De rusttimer start vanzelf. Daarna volgt je volgende set.</li>
+        </ol>
+        <p class="note">Je begint met Push / Pull. Geen account nodig.</p>
+        <button class="save ob-go" type="button" id="obGo">Start met je eerste set</button>
+      </section>
       <section class="wl-slide wl-sum" data-wl="summary">
         <p class="wl-kicker">Fitness Progress Tracker</p>
         <h2>Wat doet FPT voor jou?</h2>
@@ -2093,6 +2173,6 @@ h1,h2,h3{overflow-wrap:anywhere}
     <button type="button" id="restStop">Stop</button>
   </div>
 </div>
-<script>[window.FPT_LANG_FILE, "app.js?v=afad987b21"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
+<script>[window.FPT_LANG_FILE, "app.js?v=c3b52c0356"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
 </body>
 </html>
