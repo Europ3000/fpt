@@ -708,7 +708,7 @@ function renderStats(){
   if (!dates.length){
     $("bodyMap").innerHTML = bodyMapSvg({}); wireBodyMap({});
     $("musBars").innerHTML = `<p class="note">Nog geen sets in de laatste 7 dagen. Na je eerste training kleurt de kaart.</p>`;
-    renderCalendar(); renderBodyWeight(); renderGoals(); renderProfile();
+    renderCalendar(); renderBodyWeight(); renderGoals(); renderProfile(); renderAdvice();
     return;
   }
 
@@ -7548,7 +7548,8 @@ function renderAdvice(){
   const box = $("advice"); if (!box) return;
   const pr = prefs.profile || {}, age = profileAge(pr) || 30, sex = sexOf();
   const b = trainingBalance(), T = balanceTargets(age, sex);
-  if (!b.logged){ box.innerHTML = `<p class="note">Train een paar keer, dan zie je hier hoe evenwichtig je traint en wat je kan toevoegen.</p>`; return; }
+  if (!b.logged){ box.innerHTML = `<p class="note">Train een paar keer, dan zie je hier hoe evenwichtig je traint en wat je kan toevoegen.</p>
+    <p class="note">Richtlijnen per week: ${T.strDays}× kracht, ${T.area} sets per spiergroep (duwen, trekken, benen), ${T.core} sets core, ${T.mobDays}× ${T.balance ? "stretchen en balans" : "stretchen"} en ${T.cardio} minuten conditie.</p>`; return; }
   const lowArea = ["push", "pull", "legs"].sort((x, y) => b[x] - b[y])[0];
   const AREA = { push: "Duwen", pull: "Trekken", legs: "Benen" };
   const rows = [
