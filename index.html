@@ -64,6 +64,8 @@ window.FPT_I18N_FILES = {"en": "i18n/en.js?v=8f607b6a66", "fr": "i18n/fr.js?v=a8
 *{box-sizing:border-box}
 /* Every phone: no font inflation when turned sideways, and no double-tap zoom on buttons you tap quickly (+/−, sets). */
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{overflow-x:hidden;max-width:100%}
+@media (max-width:760px){:root[data-style="plain"] .top .views{left:0;right:0;width:auto;max-width:100vw;box-sizing:border-box;overflow:hidden}}
 button,a,label,input,select,textarea,summary{touch-action:manipulation}
 body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
