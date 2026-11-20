@@ -2006,7 +2006,12 @@ function suggestBase(k, sets, reps, mode){
   if (!repsAtW.length) out = { w: W, r: lo, why: `Vorige keer ${fw(W)}. Vul ook je reps in, dan kan de app zien wanneer je zwaarder mag.` };
   else {
     const minR = Math.min(...repsAtW), done = repsAtW.join("-");
-    if (atW.length >= planned && minR >= hi)
+    // Only go up after two sessions in a row at this weight with every set at the top of the range.
+    const prevS = sessions.length > 1 ? sessions[sessions.length - 2] : null;
+    const prevOk = prevS && Math.max(...prevS.map(s => s.w)) === W && prevS.filter(s => s.w === W).length >= planned && Math.min(...prevS.filter(s => s.w === W).map(s => s.r || 0)) >= hi;
+    if (atW.length >= planned && minR >= hi && !prevOk)
+      out = { w: W, r: hi, why: `Vorige keer ${atW.length}×${minR} op ${fw(W)}: sterk! Haal je dit nog een keer, dan ga je ${fw(step)} zwaarder. Zo bouw je rustig en veilig op.` };
+    else if (atW.length >= planned && minR >= hi)
       out = { w: W + step, r: lo, up: true, why: `Vorige keer ${atW.length}×${minR} op ${fw(W)}: alle sets gehaald, dus ${fw(step)} zwaarder.` };
     else if (minR < lo - 1)
       out = { w: Math.max(0, W - step), r: lo, why: `Vorige keer zwaar (${done} reps op ${fw(W)}). Iets lichter en ${lo} nette reps.` };
