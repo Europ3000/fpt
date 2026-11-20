@@ -84,6 +84,9 @@ window.FPT_I18N_FILES = %s;
 # At the end of the page: the language (if any) and then the app, in that order.
 load_js = """[window.FPT_LANG_FILE, %s].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });""" % json.dumps(app_src)
 
+# The native apps (native/, Capacitor) load this same index.html from https://localhost (Android) or capacitor://localhost
+# (iOS): 'self' is that origin there, and the Capacitor bridge is injected by the app shell itself, outside this policy.
+# So nothing extra is allowed here for them. sw.js is not copied into the apps and the page does not register it there.
 csp = "; ".join([
     "default-src 'self'",
     "script-src 'self' " + " ".join(csp_hash(js) for js in (theme_js, boot_js, load_js)),

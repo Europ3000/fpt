@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">FPT</string>
+    <string name="title_activity_main">FPT</string>
+    <string name="package_name">app.fptfit.twa</string>
+    <string name="custom_url_scheme">app.fptfit.twa</string>
+</resources>

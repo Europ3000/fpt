@@ -1,0 +1,17 @@
+{
+  "appId": "app.fptfit.twa",
+  "appName": "FPT",
+  "webDir": "www",
+  "backgroundColor": "#f3e8d2",
+  "server": {
+    "androidScheme": "https",
+    "iosScheme": "capacitor",
+    "hostname": "localhost"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_fpt",
+      "iconColor": "#16a34a"
+    }
+  }
+}

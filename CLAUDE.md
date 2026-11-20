@@ -84,7 +84,41 @@ Phone-first training app (Dutch source text, translated in the page to 10 more l
   `build.py` adds it to `connect-src`) with the user's own API key in `prefs.links.intervals = {id, key, name,
   got, from, pull}`. Activities that intervals.icu got from Strava come back as stubs and are skipped.
   One-off: a .fit/.tcx/.gpx/.zip file (`importFile`). Health Connect (Samsung Health) and Apple Health need
-  the native apps (Capacitor).
+  the native apps (see Native apps).
+
+## Native apps (Capacitor, `native/`)
+
+- `native/` wraps the built web app (repo root) as an Android and an iOS app: app id `app.fptfit.twa`, name FPT,
+  Capacitor 8. The apps load the files from the device (`native/www`, not committed), not from fptfit.app, so a web
+  change only reaches them through a new build and a store update. `native/README.md` (Dutch) has the status, the
+  owner's to-do list (Supabase, Play Console, Apple, signing keys) and the known gaps.
+- Build steps (Node 22+; once `npm install` in `native/`):
+  1. `py src/build.py` in the repo root.
+  2. `cd native` and `npm run sync` (`scripts/copy-web.mjs` copies the web files to `native/www`, then `cap sync`).
+  3. Android: `npm run apk` (needs a JDK 21 and the Android SDK, e.g. from Android Studio) writes
+     `native/android/app/build/outputs/apk/debug/app-debug.apk`. iOS: only on a Mac, `npm run open:ios`, then in Xcode
+     set the Team and add the HealthKit capability.
+  The Android project has not been built yet (no JDK/SDK on the machine that made it); the iOS project was generated
+  on Windows.
+- In `src/training-log.html` everything native sits behind `NATIVE` (`window.Capacitor.isNativePlatform()`; a website
+  never has it). Plugins are called through the bridge, `capCall("LocalNotifications", "schedule", {...})` =
+  `Capacitor.nativePromise`, and `capOn` for events: no bundler, no new script, so the CSP stays as it is.
+- Rest notification: `restPlan` schedules a local notification for `restEnd` at the start of each rest (and at +30 s),
+  `restUnplan` cancels it when you stop the rest or are looking at the app in its last second. Android delivers on the
+  second only with "Wekkers en herinneringen" allowed (`restExact`, `SCHEDULE_EXACT_ALARM`); the setting offers that.
+- Health Connect (Android) and Apple Health (iOS) through `@capgo/capacitor-health`, reading only: `healthLink` asks
+  access, `healthPull` puts weight in `prefs.body` and workouts through `healthActivity` into `importActivity(a, "health")`.
+  The link is per device (`ppl.health = {on, from, got, wAt}`). `AndroidManifest.xml` removes every health permission
+  of the plugin except reading weight, exercise, distance and active calories; add one there before using it.
+- Login back into the app: `sbBack` and the Google button ask Supabase for `redirect_to=app.fptfit.twa://login`
+  (must be in the dashboard's Redirect URLs); Google opens in the phone's browser (`@capacitor/browser`). `nativeUrl`
+  takes the session from that link, and also `https://fptfit.app/#share=…`/`#move=…` (Android app links, verified by
+  `src/store/assetlinks.json` when the build is signed with a listed key).
+- Not in the native app: the service worker (`sw.js` is not copied and not registered), the move card, the install
+  row and passkeys. The Edge Functions `account` and `strava` also accept the origins `https://localhost` (Android)
+  and `capacitor://localhost` (iOS): redeploy them after changing `index.ts`.
+- `py native/scripts/icons.py` redraws the app icons and splash screens from `src/icons/`. `_config.yml` keeps
+  `native/` off GitHub Pages.
 
 ## Import, rest notification, heatmap
 
