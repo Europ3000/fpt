@@ -174,6 +174,8 @@ Image.open(icons / "fpt-apple.png").convert("RGB").resize((180, 180), Image.LANC
 
 # The privacy policy (stores require a URL for it): a page of its own, no scripts.
 shutil.copyfile(ROOT / "privacy.html", OUT / "privacy.html")
+# robots.txt: without one GitHub answers 404, which Lighthouse (SEO) sometimes reports as invalid.
+(OUT / "robots.txt").write_bytes(b"User-agent: *\nAllow: /\n")
 
 # Own domain for GitHub Pages; the Play Store check (Digital Asset Links) must sit at the root of that domain.
 if DOMAIN: (OUT / "CNAME").write_text(DOMAIN + "\n", encoding="utf-8")
