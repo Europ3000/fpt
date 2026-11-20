@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-G7UM6Elk9tzlHjXEiidz3TZGzjsVx0uvUvuzYn/FCPs=' 'sha256-fIj254AkooGBvsrNjif3gYyL4VS/dCAwuFjykC0ieHs='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-npoCznPHd3xlEr+2HnAlIK8lunOMzGA1XSxpU/+NZec=' 'sha256-uJGi/u7s4fo4ire9HI6wojTwUHzT32ls7+2GLo9zHzU='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#16a34a">
@@ -16,12 +16,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FPT">
 <meta name="application-name" content="FPT">
-<link rel="preload" as="script" href="app.js?v=bc3a1c82fe">
+<link rel="preload" as="script" href="app.js?v=22bbac5d43">
 <script>window.FPT_STANDALONE = true;
 window.FPT_HOME = "https://fptfit.app/";
 window.FPT_MOVE_TO = "https://fptfit.app/";
 window.FPT_I18N = {"langs": ["en", "fr", "es", "de", "it", "pt", "ru", "zh", "ar", "hi"]};
-window.FPT_I18N_FILES = {"en": "i18n/en.js?v=5d429e5517", "fr": "i18n/fr.js?v=3c9c52a835", "es": "i18n/es.js?v=14919f7f82", "de": "i18n/de.js?v=dc4dcf19f7", "it": "i18n/it.js?v=ec37f6e7c7", "pt": "i18n/pt.js?v=0eccd22d11", "ru": "i18n/ru.js?v=1defd9a0db", "zh": "i18n/zh.js?v=a34fdba652", "ar": "i18n/ar.js?v=c16e9d6167", "hi": "i18n/hi.js?v=118de93b55"};
+window.FPT_I18N_FILES = {"en": "i18n/en.js?v=8d45304a13", "fr": "i18n/fr.js?v=c248bbe1b4", "es": "i18n/es.js?v=a2f3bd50c8", "de": "i18n/de.js?v=3f9a0324f2", "it": "i18n/it.js?v=d6291dab2b", "pt": "i18n/pt.js?v=123023949e", "ru": "i18n/ru.js?v=e88cfe0cd7", "zh": "i18n/zh.js?v=efe1b2f254", "ar": "i18n/ar.js?v=456d79cbcd", "hi": "i18n/hi.js?v=0041bee8df"};
 (() => {
   // Not inside someone else's page (clickjacking): break out, or show nothing.
   if (top !== self){ try { top.location.replace(location.href); } catch {} document.documentElement.style.display = "none"; }
@@ -1098,6 +1098,25 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--teal);outline-o
 .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
 .dot.ok{background:var(--teal)}
 
+/* Own number keypad (Instellingen → Eigen cijfertoetsenbord): replaces the phone keyboard, so no autofill bar */
+.kb{position:fixed;left:0;right:0;bottom:0;z-index:40;max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:6px;
+  background:var(--card);border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -6px 18px rgba(0,0,0,.14);
+  padding:8px max(10px,env(safe-area-inset-left,0px)) calc(8px + env(safe-area-inset-bottom,0px));
+  touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.kb button{font:inherit;font-size:1.3rem;font-weight:600;min-height:42px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer;padding:0 6px}
+.kb button:active{background:var(--ember-soft)}
+.kb button:disabled{opacity:.3}
+.kb-top{display:flex;gap:6px}
+.kb-top button{flex:1 1 0;min-width:0;font-size:1.05rem;white-space:nowrap}
+.kb-top .kb-x{flex:0 0 56px}
+.kb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.kb .kb-go{background:var(--ember);border-color:var(--ember);color:var(--on-accent);font-size:1.1rem;font-weight:700}
+.kb .kb-go:active{filter:brightness(.92)}
+body.kb-open{padding-bottom:calc(48px + var(--kb-h,0px))}
+body.kb-open .rest{bottom:var(--kb-h,0px)}
+body.kb-open .toast{bottom:calc(var(--kb-h,0px) + 20px)}
+body.kb-open .sheet{padding-bottom:calc(12px + var(--kb-h,0px))}
+body.big .kb button{min-height:58px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);
   background:var(--ink);color:var(--paper);padding:12px 18px;border-radius:12px;font-weight:600;opacity:0;pointer-events:none;
   transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);text-align:center}
@@ -1528,6 +1547,7 @@ h1,h2,h3{overflow-wrap:anywhere}
     <div class="set-row"><span>Gewicht in</span><div class="seg" id="segUnit"><button type="button" data-v="kg">kg</button><button type="button" data-v="lb">lb</button></div></div>
     <div class="set-row"><span>Grote knoppen</span><div class="seg" id="segBig"><button type="button" data-v="off">Uit</button><button type="button" data-v="on">Aan</button></div></div>
     <p class="note">Grote knoppen maakt cijfers, invulvakken en knoppen groter, handig in de fitness. Thema en grote knoppen gelden voor dit toestel; kg of lb voor je account.</p>
+    <div class="set-row"><span>Eigen cijfertoetsenbord</span><div class="seg" id="segKb"><button type="button" data-v="off">Uit</button><button type="button" data-v="on">Aan</button></div></div>
     <div class="set-row"><span>Oefeningen afwisselen</span><div class="seg" id="segVary"><button type="button" data-v="off">Uit</button><button type="button" data-v="on">Aan</button></div></div>
     <p class="note">Om de paar weken neemt één oefening van een trainingsdag een maand lang de plaats in van een gelijkaardige, tegen stagnatie. Nooit meer dan één per training; de vorige staat bovenaan onder ⇄.</p>
     <div class="set-row" id="installRow" hidden><span>App installeren</span><button class="save" type="button" id="installBtn" hidden>Installeren</button></div>
@@ -2035,6 +2055,21 @@ h1,h2,h3{overflow-wrap:anywhere}
   <div class="sheet-card"><button class="sheet-x" type="button" id="shareSheetClose" aria-label="Sluiten">×</button><div class="ss-body"></div></div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="kb" id="kb" role="group" aria-label="Cijfertoetsenbord" hidden>
+  <div class="kb-top">
+    <button type="button" data-k="dec">−</button>
+    <button type="button" data-k="inc">+</button>
+    <button type="button" data-k="sug" aria-label="Voorstel" hidden>=</button>
+    <button type="button" class="kb-x" data-k="close" aria-label="Toetsenbord sluiten">▾</button>
+  </div>
+  <div class="kb-grid">
+    <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+    <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+    <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+    <button type="button" data-k="point">,</button><button type="button" data-k="0">0</button><button type="button" data-k="back" aria-label="Wissen">⌫</button>
+  </div>
+  <button type="button" class="kb-go" data-k="go">Volgende</button>
+</div>
 <div class="rest" id="restBar" hidden>
   <div class="rest-in">
     <div class="rest-txt"><small id="restLabel">Rust</small><strong id="restTime" role="timer">0:00</strong></div>
@@ -2042,6 +2077,6 @@ h1,h2,h3{overflow-wrap:anywhere}
     <button type="button" id="restStop">Stop</button>
   </div>
 </div>
-<script>[window.FPT_LANG_FILE, "app.js?v=bc3a1c82fe"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
+<script>[window.FPT_LANG_FILE, "app.js?v=22bbac5d43"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
 </body>
 </html>

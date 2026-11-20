@@ -363,7 +363,7 @@ const fmtDate = iso => { try { return new Date(iso).toLocaleDateString(LOC(),{da
 function lsGet(k, fallback){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v, (key, x) => key === "__proto__" ? undefined : x) : fallback; } catch { return fallback; } }
 function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 // Layout, theme, focus and welcome: on this device and in your prefs, so a new version or device keeps them.
-const DEV_KEYS = ["ppl.style", "ppl.theme", "ppl.big", "ppl.storyStyle", "ppl.storyFmt", "ppl.focus", "ppl.welcomed"];
+const DEV_KEYS = ["ppl.style", "ppl.theme", "ppl.big", "ppl.kbd", "ppl.storyStyle", "ppl.storyFmt", "ppl.focus", "ppl.welcomed"];
 function devSet(k, v){ lsSet(k, v); prefs.dev = Object.assign({}, prefs.dev, { [k]: v }); savePrefs(); }
 function devRestore(){
   let n = 0;
@@ -2991,6 +2991,7 @@ function renderSettings(){
   seg("segStyle", styleNow());
   seg("segUnit", prefs.unit === "lb" ? "lb" : "kg");
   seg("segBig", lsGet(LS_BIG, false) ? "on" : "off");
+  seg("segKb", kbOn() ? "on" : "off");
   seg("segVary", prefs.vary === false ? "off" : "on");
 }
 
@@ -7677,6 +7678,90 @@ $("showWelcomeBtn").onclick = () => { $("settings").hidden = true; showWelcome(t
 $("segStyle").onclick = e => { const b = e.target.closest("button"); if (!b) return; devSet(LS_STYLE, b.dataset.v); applyTheme(); renderSettings(); };
 $("segTheme").onclick = e => { const b = e.target.closest("button"); if (!b) return; devSet(LS_THEME, b.dataset.v); applyTheme(); renderSettings(); };
 $("segBig").onclick = e => { const b = e.target.closest("button"); if (!b) return; devSet(LS_BIG, b.dataset.v === "on"); applyTheme(); renderSettings(); };
+
+// ---------- Own number keypad ----------
+// Chrome on Android puts a bar (passwords / cards / addresses) above the phone keyboard and ignores autocomplete="off",
+// so number fields get this keypad instead: inputmode="none" keeps the system keyboard (and its bar) away.
+// Default on for touch screens; Instellingen → Eigen cijfertoetsenbord switches it per device.
+const LS_KBD = "ppl.kbd";
+function kbOn(){ const v = lsGet(LS_KBD, null); return v === null ? !!(window.matchMedia && matchMedia("(pointer:coarse)").matches) : !!v; }
+const kbEl = $("kb");
+let kbCur = null;
+const kbCand = el => !!el && el.tagName === "INPUT" && !el.dataset.nokb && el.getAttribute("autocomplete") !== "one-time-code" && !!(el.dataset.kbm || /^(decimal|numeric)$/.test(el.getAttribute("inputmode") || ""));
+function kbMark(el){
+  if (!kbCand(el)) return;
+  if (!el.dataset.kbm) el.dataset.kbm = el.getAttribute("inputmode");
+  const want = kbOn() ? "none" : el.dataset.kbm;
+  if (el.getAttribute("inputmode") !== want) el.setAttribute("inputmode", want);
+}
+const kbNum = t => /^\s*\d+([.,]\d+)?\s*$/.test(t) ? parseFloat(String(t).replace(",", ".")) : NaN;
+const kbStep = el => /^w-/.test(el.id) ? (isLb() ? 5 : 2.5) : el.dataset.kbm === "numeric" ? 1 : 0.5;
+function kbHide(){ kbEl.hidden = true; document.body.classList.remove("kb-open"); document.documentElement.style.removeProperty("--kb-h"); kbCur = null; }
+function kbSync(){
+  const el = kbCur; if (!el) return;
+  const dec = el.dataset.kbm === "decimal", st = kbStep(el), ph = kbNum(el.placeholder);
+  const q = k => kbEl.querySelector('[data-k="' + k + '"]');
+  q("dec").textContent = "−" + fmt(st); q("inc").textContent = "+" + fmt(st);
+  const sug = q("sug"); sug.hidden = !(isFinite(ph) && !el.value.trim()); sug.textContent = "= " + (isFinite(ph) ? fmt(ph) : "");
+  const point = q("point"); point.textContent = DEC(); point.disabled = !dec;
+  const form = el.form, list = form ? [...form.querySelectorAll("input")].filter(kbCand) : [];
+  const next = list.indexOf(el) >= 0 && list.indexOf(el) < list.length - 1;
+  q("go").textContent = next ? "Volgende" : form && form.classList.contains("sr") ? "Opslaan" : "Klaar";
+}
+function kbShow(el){
+  kbCur = el; kbEl.hidden = false; document.body.classList.add("kb-open"); kbSync();
+  document.documentElement.style.setProperty("--kb-h", kbEl.offsetHeight + "px");
+  setTimeout(() => { if (kbCur !== el) return; try { el.select(); } catch {} try { el.scrollIntoView({ block: "center" }); } catch {} }, 30);
+}
+function kbFire(el){ el.dispatchEvent(new Event("input", { bubbles: true })); kbSync(); }
+function kbType(ch){
+  const el = kbCur; if (!el) return;
+  const v = el.value; let a = el.selectionStart, b = el.selectionEnd; if (a == null){ a = b = v.length; }
+  if (ch === "back"){
+    if (a !== b) el.setRangeText("", a, b, "end"); else if (a > 0) el.setRangeText("", a - 1, a, "end"); else return;
+  } else {
+    if (ch === "point"){
+      if (el.dataset.kbm !== "decimal" || /[.,]/.test(v.slice(0, a) + v.slice(b))) return;
+      ch = (v.slice(0, a) ? "" : "0") + DEC();
+    }
+    if (el.maxLength > 0 && v.length - (b - a) + ch.length > el.maxLength) return;
+    el.setRangeText(ch, a, b, "end");
+  }
+  kbFire(el);
+}
+function kbBump(dir){
+  const el = kbCur; if (!el) return;
+  const cur = parseFloat(String(el.value).replace(",", ".")), ph = kbNum(el.placeholder);
+  const base = isFinite(cur) ? cur : isFinite(ph) ? ph : 0;
+  const n = Math.max(0, Math.round((base + dir * kbStep(el)) * 100) / 100);
+  el.value = el.dataset.kbm === "numeric" ? String(Math.round(n)) : fmt(n);
+  try { el.setSelectionRange(el.value.length, el.value.length); } catch {}
+  kbFire(el);
+}
+function kbGo(){
+  const el = kbCur; if (!el) return;
+  const form = el.form, list = form ? [...form.querySelectorAll("input")].filter(kbCand) : [], i = list.indexOf(el);
+  if (i >= 0 && i < list.length - 1){ list[i + 1].focus(); return; }
+  el.blur(); kbHide();
+  if (form && form.classList.contains("sr")) form.requestSubmit();
+}
+function kbApply(){ document.querySelectorAll("input").forEach(kbMark); if (!kbOn()) kbHide(); else if (kbCand(document.activeElement)) kbShow(document.activeElement); }
+// A tap on the keypad must not take the focus away from the field.
+kbEl.addEventListener("mousedown", e => e.preventDefault());
+kbEl.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || b.disabled) return;
+  const k = b.dataset.k;
+  if (k === "dec") kbBump(-1); else if (k === "inc") kbBump(1);
+  else if (k === "sug"){ const el = kbCur; if (el){ el.value = el.placeholder.trim().replace(".", DEC()); try { el.setSelectionRange(el.value.length, el.value.length); } catch {} kbFire(el); } }
+  else if (k === "close"){ if (kbCur) kbCur.blur(); kbHide(); }
+  else if (k === "go") kbGo();
+  else kbType(k);
+});
+document.addEventListener("focusin", e => { if (kbOn() && kbCand(e.target)){ kbMark(e.target); kbShow(e.target); } });
+document.addEventListener("focusout", () => setTimeout(() => { if (!kbOn() || !kbCand(document.activeElement)) kbHide(); }, 0));
+new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType !== 1) return; kbMark(n); n.querySelectorAll && n.querySelectorAll("input").forEach(kbMark); }))).observe(document.documentElement, { childList: true, subtree: true });
+kbApply();
+$("segKb").onclick = e => { const b = e.target.closest("button"); if (!b) return; devSet(LS_KBD, b.dataset.v === "on"); kbApply(); renderSettings(); };
 $("segVary").onclick = e => { const b = e.target.closest("button"); if (!b) return; prefs.vary = b.dataset.v === "on"; savePrefs(); renderSettings(); render(); };
 $("segUnit").onclick = e => { const b = e.target.closest("button"); if (!b) return; prefs.unit = b.dataset.v; savePrefs(); renderSettings(); render(); if (page === "stats") renderStats(); toast("Gewichten in " + U()); };
 $("gEx").addEventListener("change", goalFormSync);
