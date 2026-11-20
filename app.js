@@ -488,8 +488,8 @@ function logSet(name, w, r, timed){
   return session.ex[k].sets.filter(x => !endedAt || x.t > endedAt).length;   // sets of this workout
 }
 
-function saveSession(date){
-  lsSet(LS_LOG, log);
+function saveSession(date){ lsSet(LS_LOG, log); syncSession(date); }
+function syncSession(date){
   if (logCol) syncDoc("log/" + date, logCol.doc(date), () => log[date], v => {
     log = Object.assign({}, log); if (v) log[date] = v; else delete log[date]; lsSet(LS_LOG, log);
   });
@@ -2074,8 +2074,32 @@ function tickRest(){
   updateRestChips();
   beep();
   try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch {}
+  restNotify();
+}
+// A notification when the rest is over while FPT is in the background (another app in front). The page has to stay
+// alive for it: there is no server push, so a phone that freezes the page (iOS with the screen locked) stays silent.
+const canNotify = () => "Notification" in window && "serviceWorker" in navigator;
+const restNoteOn = () => lsGet("ppl.restNote", false) && canNotify() && Notification.permission === "granted";
+function restNotify(){
+  if (!document.hidden || !restNoteOn()) return;
+  const body = tr("Tijd voor je volgende set") + (restName ? " · " + restName : "");
+  navigator.serviceWorker.ready.then(r => r.showNotification(tr("Rust voorbij"), { body, tag: "fpt-rest", renotify: true, icon: "icon-192.png", badge: "icon-192.png", vibrate: [200, 100, 200] })).catch(() => {});
+}
+function clearRestNote(){
+  if (!canNotify() || !navigator.serviceWorker.controller) return;
+  navigator.serviceWorker.ready.then(r => r.getNotifications({ tag: "fpt-rest" })).then(l => l.forEach(n => n.close())).catch(() => {});
+}
+async function setRestNote(on){
+  if (on){
+    if (!canNotify()) return void toast("Op dit toestel kan FPT geen meldingen sturen. Op iPhone en iPad: zet FPT eerst op je beginscherm.");
+    let ok = Notification.permission;
+    if (ok === "default") try { ok = await Notification.requestPermission(); } catch {}
+    if (ok !== "granted") return void toast("Meldingen staan uit voor FPT. Zet ze aan in de instellingen van je browser of telefoon.");
+  }
+  devSet("ppl.restNote", !!on); renderSettings();
 }
 function stopRest(){
+  clearRestNote();
   clearInterval(restTimer); restTimer = null;
   $("restBar").hidden = true; document.body.classList.remove("resting"); restName = "";
   updateRestChips();
@@ -2111,6 +2135,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
   if (autoCloseWorkout()){ stopRest(); render(); toast("Je vorige training werd automatisch afgesloten."); }
   if (training) keepAwake();
+  clearRestNote();
   if (restTimer) tickRest();
 });
 
@@ -2154,6 +2179,18 @@ function plannedSessions(untilIso, max = 400){
     if (!main.stay) idx = (idx + 1) % main.days.length;
   }
   return out;
+}
+// One square per day of the past year (a column is a week, Monday on top): darker = more sets or more minutes.
+// A phone shows the most recent weeks, a wide screen the whole year.
+function renderHeat(){
+  const end = today(); let html = "", n = 0;
+  for (let d = addDays(weekOf(end), -52 * 7); d <= end; d = addDays(d, 1)){
+    const s = log[d]; let load = 0;
+    if (s){ n++; load = 1 + Object.values(s.ex || {}).reduce((a, e) => a + e.sets.length, 0) + (s.cardio || []).reduce((a, c) => a + (c.min || 0) / 3, 0); }
+    html += load ? `<i class="l${load < 9 ? 1 : load < 17 ? 2 : load < 25 ? 3 : 4}"></i>` : "<i></i>";
+  }
+  $("heat").innerHTML = html; $("heat").hidden = $("heatCap").hidden = !n;
+  $("heatCap").innerHTML = `<span>${n === 1 ? "1 trainingsdag in het afgelopen jaar" : `${n} trainingsdagen in het afgelopen jaar`}</span><span class="heat-key"><span>minder</span><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>meer</span></span>`;
 }
 function renderCalendar(){
   const dates = new Set(Object.keys(log));
@@ -2208,6 +2245,7 @@ function renderCalendar(){
   let best = 0, run = 0, prevW = "";
   [...weeks].sort().forEach(x => { run = prevW && addDays(prevW, 7) === x ? run + 1 : 1; best = Math.max(best, run); prevW = x; });
   $("streak").innerHTML = `<b>${streak}</b> ${streak === 1 ? "week" : "weken"} op rij getraind · langste reeks ${best} ${best === 1 ? "week" : "weken"} · ${inMonth} ${inMonth === 1 ? "training" : "trainingen"} deze maand`;
+  renderHeat();
 }
 
 // Anatomical front and back figure. Shapes are drawn for the left half and mirrored; each muscle is a
@@ -2993,6 +3031,7 @@ function renderSettings(){
   seg("segBig", lsGet(LS_BIG, false) ? "on" : "off");
   seg("segKb", kbOn() ? "on" : "off");
   seg("segVary", prefs.vary === false ? "off" : "on");
+  seg("segRestNote", restNoteOn() ? "on" : "off");
 }
 
 // ---------- Recovery per muscle ----------
@@ -7603,11 +7642,14 @@ function saveWeight(name, raw, repsRaw, mode){
   if (String(repsRaw).trim() && !(reps > 0 && reps < 200)){ toast("Reps moet een getal zijn, bv. 8"); return 0; }
   const k = keyOf(name), prev = records[k];
   const isBest = !prev || w > prev.best;
+  // More reps with a weight you lifted before can also be a record: compare the estimated 1RM with everything in the log.
+  const rmBefore = reps > 0 && w > 0 ? Math.max(0, ...Object.values(log).flatMap(d => ((d.ex || {})[k] || { sets: [] }).sets.filter(x => x.w > 0).map(e1rm))) : 0;
+  const isRm = rmBefore > 0 && e1rm({ w, r: reps }) > rmBefore * 1.001;
   records = Object.assign({}, records, { [k]: { best: prev ? Math.max(prev.best, w) : w, last: w, date: new Date().toISOString(), name } });
   saveRecords();
   const setNo = logSet(name, w, reps > 0 ? reps : undefined);
   renderExercises();
-  toast((isBest && prev ? `Nieuw record! ${fw(w)}` : `Set ${setNo} opgeslagen: ${fw(w)}`) + (reps > 0 ? ` × ${reps}` : ""));
+  toast((isBest && prev ? `Nieuw record! ${fw(w)}` : isRm ? `Nieuw geschat 1RM-record! ${fw(w)}` : `Set ${setNo} opgeslagen: ${fw(w)}`) + (reps > 0 ? ` × ${reps}` : ""));
   return setNo;
 }
 
@@ -7763,6 +7805,8 @@ new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.nod
 kbApply();
 $("segKb").onclick = e => { const b = e.target.closest("button"); if (!b) return; devSet(LS_KBD, b.dataset.v === "on"); kbApply(); renderSettings(); };
 $("segVary").onclick = e => { const b = e.target.closest("button"); if (!b) return; prefs.vary = b.dataset.v === "on"; savePrefs(); renderSettings(); render(); };
+$("segRestNote").onclick = e => { const b = e.target.closest("button"); if (b) setRestNote(b.dataset.v === "on"); };
+$("csvFile").addEventListener("change", e => { const f = e.target.files[0]; if (f) importCsv(f); e.target.value = ""; });
 $("segUnit").onclick = e => { const b = e.target.closest("button"); if (!b) return; prefs.unit = b.dataset.v; savePrefs(); renderSettings(); render(); if (page === "stats") renderStats(); toast("Gewichten in " + U()); };
 $("gEx").addEventListener("change", goalFormSync);
 $("gType").addEventListener("change", goalFormSync);
@@ -8559,6 +8603,114 @@ function pickActivityFile(){
   inp.type = "file"; inp.accept = ".fit,.tcx,.gpx,.zip";
   inp.onchange = () => { if (inp.files[0]) importFile(inp.files[0]); };
   inp.click();
+}
+
+// ---------- Moving from another training app: the csv export of Hevy, Strong, FitNotes or JEFIT ----------
+function csvRows(text){
+  text = text.replace(/^﻿/, "");
+  const head = text.split(/\r?\n/, 1)[0];
+  const sep = [",", ";", "\t"].sort((a, b) => head.split(b).length - head.split(a).length)[0];
+  const rows = []; let row = [], cell = "", q = false;
+  const endRow = () => { row.push(cell); cell = ""; if (row.length > 1 || row[0]) rows.push(row); row = []; };
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){ if (c !== '"') cell += c; else if (text[i + 1] === '"'){ cell += '"'; i++; } else q = false; }
+    else if (c === '"') q = true;
+    else if (c === sep){ row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r"){ if (c === "\r" && text[i + 1] === "\n") i++; endRow(); }
+    else cell += c;
+  }
+  endRow();
+  return rows;
+}
+// "2023-11-17 18:05:00" (Strong, FitNotes, JEFIT) or "17 Nov 2023, 18:05" (Hevy) → ["2023-11-17", minutes into the day]
+function csvDate(v){
+  v = String(v || "").trim();
+  const p = n => String(n).padStart(2, "0");
+  let m = /^(\d{4})-(\d\d)-(\d\d)(?:[T ](\d\d):(\d\d))?/.exec(v);
+  if (m) return [`${m[1]}-${m[2]}-${m[3]}`, m[4] ? +m[4] * 60 + +m[5] : 720];
+  m = /^(\d{1,2}) ([A-Za-z]{3})[a-z]*\.? (\d{4}),? +(\d{1,2}):(\d\d)/.exec(v);
+  const mo = m ? "janfebmaraprmayjunjulaugsepoctnovdec".indexOf(m[2].toLowerCase()) / 3 : -1;
+  return m && mo >= 0 && mo % 1 === 0 ? [`${m[3]}-${p(mo + 1)}-${p(m[1])}`, +m[4] * 60 + +m[5]] : null;
+}
+// Every set in the file as { date, min, title, name, w (kg), r } or { …, w: 0, sec } for a timed set.
+function csvSets(rows){
+  const low = r => r.map(c => String(c).trim().toLowerCase()), num = v => parseFloat(String(v || "").replace(",", ".")) || 0, sets = [];
+  const kg = (w, lb) => Math.round((lb ? w / 2.20462 : w) * 100) / 100;
+  // JEFIT: several tables in one file; the log table has one line per exercise per day, the sets as "60x8,60x8"
+  const ji = rows.findIndex(r => { const h = low(r); return h.includes("ename") && h.includes("logs") && h.includes("mydate"); });
+  if (ji >= 0){
+    const h = low(rows[ji]), cD = h.indexOf("mydate"), cN = h.indexOf("ename"), cL = h.indexOf("logs");
+    for (let i = ji + 1; i < rows.length && !/^#/.test(rows[i][0]) && rows[i].length > Math.max(cD, cN, cL); i++){
+      const dt = csvDate(rows[i][cD]), name = String(rows[i][cN]).trim(); if (!dt || !name) continue;
+      String(rows[i][cL]).split(",").forEach(x => { const m = /^\s*([\d.]+)\s*x\s*(\d+)/i.exec(x); if (m && +m[2] > 0 && +m[2] < 1000 && +m[1] <= 2000) sets.push({ date: dt[0], min: dt[1], title: "", name, w: kg(+m[1], isLb()), r: +m[2] }); });
+    }
+    return { src: "JEFIT", sets };
+  }
+  const h = low(rows[0] || []), col = (...names) => { for (const n of names){ const i = h.indexOf(n); if (i >= 0) return i; } return -1; };
+  const cD = col("start_time", "date"), cN = col("exercise_title", "exercise name", "exercise"), cR = col("reps"), cW = h.findIndex(x => /^weight(?![ _]unit)/.test(x));
+  if (cD < 0 || cN < 0 || cR < 0) return null;
+  const cU = col("weight unit", "weight_unit"), cT = col("title", "workout name"), cS = col("duration_seconds", "seconds", "time"), cK = col("set_type", "set order"), cDist = h.findIndex(x => /^distance(?![ _]unit)/.test(x));
+  const fixed = cW < 0 ? false : /lb/.test(h[cW]) ? true : /kg/.test(h[cW]) ? false : null;   // the unit in the column name, else per line, else your own setting
+  const src = h.includes("exercise_title") ? "Hevy" : h.includes("exercise name") ? "Strong" : h.includes("category") ? "FitNotes" : "Import";
+  rows.slice(1).forEach(r => {
+    const dt = csvDate(r[cD]), name = String(r[cN] || "").trim(); if (!dt || !name) return;
+    if (cK >= 0 && /^w|rest|note/i.test(String(r[cK]).trim())) return;   // warm-up sets, Strong's rest timer and note lines
+    const base = { date: dt[0], min: dt[1], title: cT >= 0 ? String(r[cT] || "").trim() : "", name };
+    const reps = Math.round(num(r[cR])), lb = fixed != null ? fixed : cU >= 0 && r[cU] ? /lb/i.test(r[cU]) : isLb(), w = cW >= 0 ? kg(Math.max(0, num(r[cW])), lb) : 0;
+    const t = cS >= 0 ? String(r[cS] || "").split(":").map(num) : [0], sec = Math.round(t.reduce((a, b) => a * 60 + b, 0));
+    if (reps > 0 && reps < 1000 && w <= 1000) sets.push(Object.assign(base, { w, r: reps }));
+    else if (sec > 0 && sec < 36000 && !(cDist >= 0 && num(r[cDist]) > 0)) sets.push(Object.assign(base, { w: 0, sec }));
+  });
+  return { src, sets };
+}
+// "Bench Press (Barbell)" and "Bicep Curl (Dumbbell)" → FPT's own exercise when it has one, so muscles, tips and records line up.
+const IMPORT_ALIAS = { "squat": "Back Squat", "barbell-squat": "Back Squat", "barbell-back-squat": "Back Squat", "bent-over-row": "Barbell Row", "barbell-bent-over-row": "Barbell Row",
+  "military-press": "Overhead Press", "barbell-overhead-press": "Overhead Press", "barbell-shoulder-press": "Overhead Press", "shoulder-press": "Overhead Press",
+  "barbell-bicep-curl": "Barbell Curl", "barbell-biceps-curl": "Barbell Curl", "bicep-curl": "Barbell Curl", "dumbbell-shoulder-press": "Seated Dumbbell Shoulder Press",
+  "seated-row": "Seated Cable Row", "seated-leg-curl": "Leg Curl", "tricep-pushdown": "Triceps Pushdown", "triceps-extension": "Overhead Triceps Extension",
+  "pull-up-weighted": "Pull-up (added weight)", "pull-up-assisted": "Assisted Pull-up", "lateral-raise-dumbbell": "Dumbbell Lateral Raise", "chest-fly-dumbbell": "Dumbbell Fly" };
+function importName(raw){
+  const idx = importName.idx = importName.idx || new Map(Object.keys(MUSCLES).map(n => [keyOf(n), n]));
+  const n = String(raw).trim().replace(/\s+/g, " ").slice(0, 60), m = /^(.*?)\s*\(([^)]+)\)$/.exec(n);
+  // without the equipment only where that is the usual version here (not "Bench Press (Dumbbell)" → Bench Press)
+  const tries = [n].concat(m ? [m[2] + " " + m[1], m[1] + " " + m[2]] : [], m && /^(barbell|cable|machine|bodyweight)$/i.test(m[2]) ? [m[1]] : []);
+  for (const t of tries){ const k = keyOf(t), hit = idx.get(k) || (idx.has(keyOf(IMPORT_ALIAS[k] || "")) && IMPORT_ALIAS[k]); if (hit) return hit; }
+  return n;
+}
+async function importCsv(file){
+  const bad = () => toast("In dit bestand vond FPT geen trainingen. Gebruik de csv-export van Hevy, Strong, FitNotes of JEFIT.");
+  let got = null;
+  try { if (file.size < 40e6) got = csvSets(csvRows(await file.text())); } catch {}
+  if (!got || !got.sets.length) return void bad();
+  const sn = takeSnapshot(), wasIn = inWorkout(), now = today(), nowMs = Date.now() - 1000;
+  const nlog = Object.assign({}, log), nrec = Object.assign({}, records), days = new Set();
+  let count = 0;
+  got.sets.slice().sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.min - b.min).forEach(s => {
+    const name = importName(s.name), k = keyOf(name);
+    if (s.date > now || (log[s.date] && (log[s.date].ex || {})[k])) return;   // what is in the log already stays as it is
+    if (!days.has(s.date)){
+      const d0 = nlog[s.date] || { date: s.date, days: [], ex: {} };
+      nlog[s.date] = Object.assign({}, d0, { days: (d0.days || []).slice(), ex: Object.assign({}, d0.ex) }); days.add(s.date);
+    }
+    const day = nlog[s.date], label = got.src + (s.title ? " · " + s.title.slice(0, 40) : "");
+    if (!day.days.includes(label)) day.days.push(label);
+    const e = day.ex[k] || (day.ex[k] = { name, order: Object.keys(day.ex).length, sets: [] });
+    const nth = Object.values(day.ex).reduce((a, x) => a + x.sets.length, 0);
+    const t = new Date(Math.min(nowMs, new Date(s.date + "T00:00:00").getTime() + (s.min * 60 + nth * 90) * 1000)).toISOString();
+    e.sets.push(s.sec ? { w: 0, t, r: s.sec, u: "s" } : { w: s.w, t, r: s.r });
+    count++;
+    if (s.w > 0){
+      const p = nrec[k], newer = !p || !p.date || t >= p.date;
+      nrec[k] = { best: Math.max(p ? p.best : 0, s.w), last: newer ? s.w : p.last, date: newer ? t : p.date, name: (p && p.name) || name };
+    }
+  });
+  if (!count) return void toast("Alles uit dit bestand staat al in je logboek.");
+  log = nlog; lsSet(LS_LOG, log); days.forEach(syncSession);
+  records = nrec; saveRecords();
+  if (days.has(now) && !wasIn){ endedAt = new Date().toISOString(); lsSet(LS_ENDED, endedAt); }   // not a training you are doing now
+  render(); if (page === "stats") renderStats();
+  undoToast(`${count} sets uit ${got.src} geïmporteerd (${days.size} trainingsdagen).`, sn);
 }
 
 // ---------- intervals.icu: Garmin → intervals.icu → FPT, free and automatic ----------

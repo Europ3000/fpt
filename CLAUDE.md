@@ -86,6 +86,17 @@ Phone-first training app (Dutch source text, translated in the page to 10 more l
   One-off: a .fit/.tcx/.gpx/.zip file (`importFile`). Health Connect (Samsung Health) and Apple Health need
   the native apps (Capacitor).
 
+## Import, rest notification, heatmap
+
+- Instellingen → Back-up en gegevens → Importeren (`importCsv`): the csv export of Hevy, Strong, FitNotes or JEFIT.
+  `csvSets` finds the columns by header name, `importName` maps names such as `Bench Press (Barbell)` to FPT's own
+  exercises (`IMPORT_ALIAS`), warm-up sets are skipped, and an exercise that is already in the log on that day stays
+  untouched (so importing twice adds nothing). The JEFIT reader is written from the documented format, not tested
+  with a real export.
+- Instellingen → Melding na je rust (`ppl.restNote`, per device): `restNotify` shows a notification through the service
+  worker when the rest ends while the page is hidden. No server push: a frozen page (iOS, screen locked) stays silent.
+- `renderHeat`: one square per day of the past year above the calendar (Planning).
+
 ## Translations
 
 - All visible text is written in Dutch. `src/i18n/*.tsv` holds one line per Dutch string:

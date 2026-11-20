@@ -199,6 +199,10 @@ self.addEventListener("activate", e => { e.waitUntil((async () => {
   for (const r of await files.keys()) if (!KEPT.has(r.url)) await files.delete(r);
   await self.clients.claim();
 })()); });
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(l => l.length ? l[0].focus() : self.clients.openWindow("./")));
+});
 self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;

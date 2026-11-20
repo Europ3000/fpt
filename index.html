@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-npoCznPHd3xlEr+2HnAlIK8lunOMzGA1XSxpU/+NZec=' 'sha256-uJGi/u7s4fo4ire9HI6wojTwUHzT32ls7+2GLo9zHzU='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-UKSoeyjt0GaUrWO/8YxCIdIrcMllZHi9NRjKm61pOJ8=' 'sha256-AGPVcox3TUmKR8lBvk8FNvMcyJ1CgIKYrN5nv+Zp3gQ='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#16a34a">
@@ -16,12 +16,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FPT">
 <meta name="application-name" content="FPT">
-<link rel="preload" as="script" href="app.js?v=22bbac5d43">
+<link rel="preload" as="script" href="app.js?v=afad987b21">
 <script>window.FPT_STANDALONE = true;
 window.FPT_HOME = "https://fptfit.app/";
 window.FPT_MOVE_TO = "https://fptfit.app/";
 window.FPT_I18N = {"langs": ["en", "fr", "es", "de", "it", "pt", "ru", "zh", "ar", "hi"]};
-window.FPT_I18N_FILES = {"en": "i18n/en.js?v=8d45304a13", "fr": "i18n/fr.js?v=c248bbe1b4", "es": "i18n/es.js?v=a2f3bd50c8", "de": "i18n/de.js?v=3f9a0324f2", "it": "i18n/it.js?v=d6291dab2b", "pt": "i18n/pt.js?v=123023949e", "ru": "i18n/ru.js?v=e88cfe0cd7", "zh": "i18n/zh.js?v=efe1b2f254", "ar": "i18n/ar.js?v=456d79cbcd", "hi": "i18n/hi.js?v=0041bee8df"};
+window.FPT_I18N_FILES = {"en": "i18n/en.js?v=e796b36312", "fr": "i18n/fr.js?v=fd5e3b1ff9", "es": "i18n/es.js?v=819774a4c7", "de": "i18n/de.js?v=cbf19ff019", "it": "i18n/it.js?v=5c20c65c6a", "pt": "i18n/pt.js?v=c7d477262a", "ru": "i18n/ru.js?v=e5adc14f16", "zh": "i18n/zh.js?v=0ddf549954", "ar": "i18n/ar.js?v=9885014c92", "hi": "i18n/hi.js?v=d767456f69"};
 (() => {
   // Not inside someone else's page (clickjacking): break out, or show nothing.
   if (top !== self){ try { top.location.replace(location.href); } catch {} document.documentElement.style.display = "none"; }
@@ -413,6 +413,16 @@ body.focus .ex.focused{margin-top:0}
 .cal-nav button{font:inherit;font-size:1.2rem;font-weight:700;width:38px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
 .streak{margin:0;font-size:.88rem;color:var(--muted)}
 .streak b{color:var(--ember);font-size:1.1rem}
+.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,10px);grid-auto-columns:10px;gap:2px;justify-content:end;overflow:hidden;margin:10px 0 4px}
+.heat i,.heat-key i{display:block;border-radius:2px;background:var(--line)}
+.heat i.l1,.heat-key i.l1{background:color-mix(in srgb,var(--ember) 30%,var(--line))}
+.heat i.l2,.heat-key i.l2{background:color-mix(in srgb,var(--ember) 55%,var(--line))}
+.heat i.l3,.heat-key i.l3{background:color-mix(in srgb,var(--ember) 80%,var(--line))}
+.heat i.l4,.heat-key i.l4{background:var(--ember)}
+.heat-cap{display:flex;justify-content:space-between;align-items:center;gap:4px 10px;flex-wrap:wrap;margin:0 0 10px;font-size:.78rem;color:var(--muted)}
+.heat-key{display:inline-flex;align-items:center;gap:3px}
+.heat-key i{width:10px;height:10px}
+.heat[hidden],.heat-cap[hidden]{display:none}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-variant-numeric:tabular-nums}
 .cal-h{font-size:.7rem;font-weight:600;color:var(--muted);text-transform:uppercase}
 .cal-d{font-size:.85rem;padding:7px 0;border-radius:8px;color:var(--muted)}
@@ -1550,6 +1560,8 @@ h1,h2,h3{overflow-wrap:anywhere}
     <div class="set-row"><span>Eigen cijfertoetsenbord</span><div class="seg" id="segKb"><button type="button" data-v="off">Uit</button><button type="button" data-v="on">Aan</button></div></div>
     <div class="set-row"><span>Oefeningen afwisselen</span><div class="seg" id="segVary"><button type="button" data-v="off">Uit</button><button type="button" data-v="on">Aan</button></div></div>
     <p class="note">Om de paar weken neemt één oefening van een trainingsdag een maand lang de plaats in van een gelijkaardige, tegen stagnatie. Nooit meer dan één per training; de vorige staat bovenaan onder ⇄.</p>
+    <div class="set-row"><span>Melding na je rust</span><div class="seg" id="segRestNote"><button type="button" data-v="off">Uit</button><button type="button" data-v="on">Aan</button></div></div>
+    <p class="note">Tijdens je training blijft het scherm vanzelf aan en trilt je telefoon als de rusttijd om is. Met de melding weet je het ook als FPT op de achtergrond staat, bv. achter je muziekapp. Op iPhone en iPad kan dat alleen als FPT op je beginscherm staat, en iOS zet de timer stil zodra het scherm vergrendelt: houd FPT daar open.</p>
     <div class="set-row" id="installRow" hidden><span>App installeren</span><button class="save" type="button" id="installBtn" hidden>Installeren</button></div>
     <p class="note" id="installNote" hidden></p>
     <div class="set-profile">
@@ -1568,6 +1580,8 @@ h1,h2,h3{overflow-wrap:anywhere}
       <div class="store"><span class="dot" id="storeDot"></span><span id="storeText">Verbinden met je opgeslagen gegevens…</span></div>
     <div class="acct" id="acctBox" hidden></div>
     <div class="set-row" id="backupRow" hidden><span>Back-up</span><div class="bk-btns"><button class="ghost" type="button" id="backupDl">Downloaden</button><label class="ghost file-btn">Terugzetten<input type="file" id="backupFile" accept="application/json,.json" hidden></label></div></div>
+    <div class="set-row"><span>Importeren</span><div class="bk-btns"><label class="ghost file-btn">Csv-bestand kiezen<input type="file" id="csvFile" accept=".csv,text/csv,text/comma-separated-values,text/plain" hidden></label></div></div>
+    <p class="note">Neem je trainingen mee uit Hevy, Strong, FitNotes of JEFIT: exporteer ze daar als csv-bestand en kies dat bestand hier. Wat al in je logboek staat, blijft zoals het is.</p>
     <div class="set-row" id="wipeRow" hidden><span>Gegevens op dit toestel</span><button class="ghost danger-btn" type="button" id="wipeBtn">Wissen</button></div>
     <p class="note" id="privacyNote" hidden><a href="privacy.html" target="_blank" rel="noopener">Privacybeleid</a> · wat FPT bewaart, waar, en hoe je alles verwijdert.</p>
     <p class="note" id="backupNote" hidden>Je gegevens staan alleen op dit toestel, in deze browser. Download af en toe een back-up (bv. naar Google Drive) zodat je niets verliest als je van telefoon wisselt.</p>
@@ -1818,6 +1832,8 @@ h1,h2,h3{overflow-wrap:anywhere}
           <div class="panel-head"><b id="calTitle">Kalender</b>
             <div class="cal-nav"><button type="button" id="calPrev" aria-label="Vorige maand">‹</button><button type="button" id="calNext" aria-label="Volgende maand">›</button></div></div>
           <p class="streak" id="streak"></p>
+          <div class="heat" id="heat" role="img" aria-label="Je trainingsdagen van het afgelopen jaar" hidden></div>
+          <p class="heat-cap" id="heatCap" hidden></p>
           <div class="cal" id="cal"></div>
           <div class="cal-legend" id="calLegend"></div>
           <div id="calDetail"></div>
@@ -2077,6 +2093,6 @@ h1,h2,h3{overflow-wrap:anywhere}
     <button type="button" id="restStop">Stop</button>
   </div>
 </div>
-<script>[window.FPT_LANG_FILE, "app.js?v=22bbac5d43"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
+<script>[window.FPT_LANG_FILE, "app.js?v=afad987b21"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
 </body>
 </html>
