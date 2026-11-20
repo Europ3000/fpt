@@ -17,5 +17,5 @@ if (!process.env.JAVA_HOME && spawnSync("java", ["-version"], { shell: win }).st
 
 run("node", [join(native, "scripts", "copy-web.mjs")], native);
 run("npx", ["cap", "sync", "android"], native);
-run(win ? "gradlew.bat" : "./gradlew", ["assembleDebug"], android);
+run(win ? join(android, "gradlew.bat") : "./gradlew", ["assembleDebug"], android);
 console.log("APK: " + join(android, "app", "build", "outputs", "apk", "debug", "app-debug.apk"));

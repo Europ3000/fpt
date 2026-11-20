@@ -18,7 +18,7 @@ Wat de native app meer kan dan de website:
 | Onderdeel | Stand |
 | --- | --- |
 | Web-laag (`src/training-log.html`, achter `NATIVE`) | Getest in de browser met een nagebootste Capacitor-bridge: inplannen/annuleren van de melding, Health-import, login-terugkeer. De gewone website gedraagt zich ongewijzigd. |
-| Android-project (`android/`) | Aangemaakt en ingesteld. **Nog nooit gebouwd**: op de pc waar dit gemaakt is stonden geen JDK en geen Android SDK. De eerste `npm run apk` is dus ook de eerste echte test. |
+| Android-project (`android/`) | Bouwt: `npm run apk` geeft een debug-APK van ongeveer 10 MB (JDK 21, Android SDK 36). In de APK nagekeken: alleen de vier lees-permissies van Health Connect, het schema `app.fptfit.twa` en de app link naar fptfit.app, geen `sw.js`. De APK is **niet gestart** op een toestel of emulator. |
 | iOS-project (`ios/`) | Aangemaakt op Windows en ingesteld (`Info.plist`). **Bouwen kan alleen op een Mac met Xcode.** HealthKit en Associated Domains moet je daar in Xcode nog aanzetten (zie onder). |
 | Op een echt toestel | Niets getest: meldingen met scherm uit, Health Connect-toestemming, de login-redirect. |
 
@@ -34,8 +34,9 @@ npm run sync               # kopieert de web-app naar native/www en zet ze in he
 
 ### Android (Windows, macOS of Linux)
 
-Nodig: Android Studio (brengt de Android SDK en een JDK 21 mee). Zet `ANDROID_HOME`, of open het project één keer in
-Android Studio (`npm run open:android`), dat schrijft `android/local.properties`.
+Nodig: een JDK 21 en de Android SDK (platform 36, build-tools 36). Android Studio brengt beide mee; los kan ook
+(Temurin-JDK als zip en de command-line tools van Android met `sdkmanager`). Zet `JAVA_HOME` en `ANDROID_HOME`, of open
+het project één keer in Android Studio (`npm run open:android`), dat schrijft `android/local.properties`.
 
 ```
 npm run apk                # debug-APK: android/app/build/outputs/apk/debug/app-debug.apk
@@ -111,7 +112,7 @@ E-mail met wachtwoord en de code uit de mail werken zonder dit alles.
 ## Wat de eigenaar zelf moet doen
 
 - [ ] Supabase: redirect-URL `app.fptfit.twa://login` toevoegen; Edge Functions `account` en `strava` opnieuw deployen.
-- [ ] Android Studio installeren, `npm run apk`, en de app op een echt toestel testen (melding met scherm uit,
+- [ ] De debug-APK op een echt toestel zetten en testen (melding met scherm uit,
       Health Connect koppelen, inloggen met mail-link en met Google).
 - [ ] Signing key: de bestaande TWA-sleutel gebruiken (bewaar hem en de wachtwoorden buiten de repo) of een nieuwe
       maken en `assetlinks.json` aanvullen.

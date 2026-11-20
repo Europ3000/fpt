@@ -98,8 +98,9 @@ Phone-first training app (Dutch source text, translated in the page to 10 more l
   3. Android: `npm run apk` (needs a JDK 21 and the Android SDK, e.g. from Android Studio) writes
      `native/android/app/build/outputs/apk/debug/app-debug.apk`. iOS: only on a Mac, `npm run open:ios`, then in Xcode
      set the Team and add the HealthKit capability.
-  The Android project has not been built yet (no JDK/SDK on the machine that made it); the iOS project was generated
-  on Windows.
+  The debug APK builds (JDK 21, SDK platform 36) but has not been run on a device; the iOS project was generated on
+  Windows and never built. On the owner's PC the JDK and SDK are in `%LOCALAPPDATA%\Android` (`jdk-21…`, `Sdk`): set
+  `JAVA_HOME` and `ANDROID_HOME` to them before `npm run apk`.
 - In `src/training-log.html` everything native sits behind `NATIVE` (`window.Capacitor.isNativePlatform()`; a website
   never has it). Plugins are called through the bridge, `capCall("LocalNotifications", "schedule", {...})` =
   `Capacitor.nativePromise`, and `capOn` for events: no bundler, no new script, so the CSP stays as it is.
