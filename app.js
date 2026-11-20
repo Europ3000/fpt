@@ -5859,9 +5859,17 @@ function dmBodyFit(){
 }
 // Solve all joints of a pose.
 function dmSolve(P, front){
-  const H = [P.x, P.y], t = P.t, S = dmAdd(H, dmDir(t), DM_LEN.t), fwd = dmDir(t + 90), down = dmDir(t + 180);
-  const J = { H, S, front, t };
-  J.head = dmAdd(S, dmDir(t + (P.n || 0)), 12.5);
+  const H = [P.x, P.y], t = P.t, tl = P.tl || 1, S = dmAdd(H, dmDir(t), DM_LEN.t * tl), fwd = dmDir(t + 90), down = dmDir(t + 180);
+  const J = { H, S, front, t, tl };
+  // Without a neck angle of its own the head does not follow the torso all the way: bending forward you keep
+  // looking ahead (squat, row), leaning back a little the chin comes forward.
+  let n = P.n;
+  if (n === undefined){
+    const lean = ((t + 90) % 360 + 540) % 360 - 180, cl = v => Math.max(0, Math.min(1, v));
+    n = front ? 0 : lean > 0 ? -Math.min(lean * .45, 16) * cl((100 - lean) / 40) : -lean * .4 * cl((50 + lean) / 25);
+  }
+  J.n = n;
+  J.head = dmAdd(S, dmDir(t + n), 12.5);
   const mirA = a => 180 - a, mirP = p => [2 * P.x - p[0], p[1]], B = dmBody;
   const side = front ? [11 * (B.f ? .86 : 1) * (1 + (B.w - 1) * .5), 6 * (B.f ? 1.3 : 1) * B.w] : [0, 0], perp = dmDir(t + 90);   // shoulder / hip half-widths in front view
   const el = P.el || 0;
@@ -5893,7 +5901,7 @@ function dmSolve(P, front){
   if (front && P.hr && !farArm){ const tg = mirP(rel(P.hr, J.S1)); [J.E2, J.W2] = dmIk(J.S2, tg, DM_LEN.ua, DM_LEN.fa, -eb); }
   [J.K1, J.A1] = leg(J.H1, P.th, P.sh, P.foot, kb, ts);
   const farLeg = P.tb !== undefined || P.foot2;
-  if (farLeg) [J.K2, J.A2] = leg(J.H2, P.tb, P.sb, P.foot2, P.kb2 || kb, ts);
+  if (farLeg) [J.K2, J.A2] = leg(J.H2, P.tb, P.sb, P.foot2, P.kb2 || kb, P.ts2 || ts);
   else if (front) [J.K2, J.A2] = leg(J.H2, P.th !== undefined ? mirA(P.th) : undefined, P.sh !== undefined ? mirA(P.sh) : undefined, P.foot ? mirP(P.foot) : undefined, -kb, ts);
   else { J.K2 = J.K1; J.A2 = J.A1; }
   // Feet: fr is the ankle angle (foot against shin: 90 = right angle, 0 = toes pointed along the shin), fd an absolute
@@ -5949,7 +5957,7 @@ function dmSmooth(pts, cls){
 // Torso outline from hips to shoulders. Side view: back and front profile (glutes, waist, chest, shoulders) that
 // bends with the spine; front view: hips, waist and shoulders. k < 1 gives the inner shape for a working muscle.
 function dmTorso(J, cls, k = 1){
-  const B = dmBody, f = B.f, w = 1 + (B.w - 1) * .9, belly = Math.pow(B.w, 1.8), u = dmDir(J.t), p = dmDir(J.t + 90), Lt = DM_LEN.t;
+  const B = dmBody, f = B.f, w = 1 + (B.w - 1) * .9, belly = Math.pow(B.w, 1.8), u = dmDir(J.t), p = dmDir(J.t + 90), Lt = DM_LEN.t * (J.tl || 1);
   const ax = s => { const c = Math.max(0, Math.min(1, s)); return dmAdd(dmAdd(J.H, u, Lt * s), p, 2 * c * (1 - c) * (J.cv || 0)); };
   const pts = [];
   if (J.front){
@@ -5972,7 +5980,7 @@ function dmTorso(J, cls, k = 1){
 }
 // Head with hair: short hair for a man, a ponytail (side view) or long hair (front view) for a woman.
 function dmHead(J){
-  const h = J.head, r = 7.2, up = J.t + (J.P.n || 0), back = up - 90, pt = (a, rr) => dmAdd(h, dmDir(a), rr);
+  const h = J.head, r = 7.2, up = J.t + J.n, back = up - 90, pt = (a, rr) => dmAdd(h, dmDir(a), rr);
   // the hair is the part of the head cut off by a chord between two angles
   const cap = (a1, a2) => { const R = r + .5, p = pt(a1, R), q = pt(a2, R); return `<path d="M${dmPt(p)}A${R} ${R} 0 ${Math.abs(a2 - a1) > 180 ? 1 : 0} ${a2 > a1 ? 1 : 0} ${dmPt(q)}Z" class="dm-hairf"/>`; };
   let s = dmCirc(h, r, "dm-skin");
@@ -6004,7 +6012,7 @@ function dmFigure(J, hl, gearBack, gearFront){
   const leg = (H, K, A, T, far, hot) => limb(H, K, "th", far, hot("th")) + limb(K, A, "sh", far, hot("sh")) + shoe(A, T, far);
   const near = seg => hl.includes(seg), farHot = seg => hl.includes(seg + "2");
   const torso = () => dmTorso(J, "dm-cloth") + (hl.includes("t") ? dmTorso(J, "dm-mus", .62) : "");
-  const neck = dmLimb(J.S, dmAdd(J.S, dmDir(J.t + (J.front ? 0 : J.P.n || 0)), 6), k(f ? 2.2 : 2.7), k(f ? 2 : 2.4), "dm-skin", 1);
+  const neck = dmLimb(J.S, dmAdd(J.S, dmDir(J.t + (J.front ? 0 : J.n)), 6), k(f ? 2.2 : 2.7), k(f ? 2 : 2.4), "dm-skin", 1);
   let s = gearBack || "";
   if (J.front){
     s += leg(J.H2, J.K2, J.A2, J.T2, false, near) + leg(J.H1, J.K1, J.A1, J.T1, false, near);
@@ -6028,7 +6036,15 @@ function dmScene(J){
 // gear pieces
 const DG = {
   plate: (p, r = 10) => `<circle cx="${dmF(p[0])}" cy="${dmF(p[1])}" r="${r}" class="dm-plate"/><circle cx="${dmF(p[0])}" cy="${dmF(p[1])}" r="${Math.max(1.6, r / 4.5)}" class="dm-hub"/>`,
-  db: p => DG.plate(p, 4.8),
+  // a dumbbell (handle with two heads) along angle a
+  db: (p, a = 0) => { const v = dmDir(a), n = dmDir(a + 90), h = s => { const c = dmAdd(p, v, 5 * s); return `<line x1="${dmF(c[0] + n[0] * 2.6)}" y1="${dmF(c[1] + n[1] * 2.6)}" x2="${dmF(c[0] - n[0] * 2.6)}" y2="${dmF(c[1] - n[1] * 2.6)}" stroke-width="4.2" class="dm-head"/>`; };
+    return `<line x1="${dmF(p[0] - v[0] * 5)}" y1="${dmF(p[1] - v[1] * 5)}" x2="${dmF(p[0] + v[0] * 5)}" y2="${dmF(p[1] + v[1] * 5)}" stroke-width="1.8" class="dm-bar"/>` + h(1) + h(-1); },
+  // a kettlebell hanging from the hand along angle a
+  kb: (p, a = 90) => { const c = dmAdd(p, dmDir(a), 7.4); return `<circle cx="${dmF(p[0])}" cy="${dmF(p[1])}" r="3.3" stroke-width="1.8" class="dm-bar"/><circle cx="${dmF(c[0])}" cy="${dmF(c[1])}" r="5.6" class="dm-plate"/>`; },
+  ball: (p, r = 7) => `<circle cx="${dmF(p[0])}" cy="${dmF(p[1])}" r="${r}" class="dm-plate"/>`,
+  // a barbell seen from the front: the bar through both hands, plates on edge at the ends
+  barFront: (a, b, r = 10) => { const y = (a[1] + b[1]) / 2, x1 = Math.min(a[0], b[0]) - 20, x2 = Math.max(a[0], b[0]) + 20, pl = x => `<rect x="${dmF(x - 1.8)}" y="${dmF(y - r)}" width="3.6" height="${2 * r}" rx="1.6" class="dm-plate"/>`;
+    return `<line x1="${dmF(x1 - 4)}" y1="${dmF(y)}" x2="${dmF(x2 + 4)}" y2="${dmF(y)}" stroke-width="2" class="dm-bar"/>` + pl(x1) + pl(x1 + 4.2) + pl(x2) + pl(x2 - 4.2); },
   handle: p => `<circle cx="${dmF(p[0])}" cy="${dmF(p[1])}" r="3.2" class="dm-handle"/>`,
   cable: (p, a) => `<line x1="${dmF(p[0])}" y1="${dmF(p[1])}" x2="${a[0]}" y2="${a[1]}" class="dm-cable"/><circle cx="${a[0]}" cy="${a[1]}" r="3.6" class="dm-pulley"/>`,
   tower: x => `<line x1="${x}" y1="-16" x2="${x}" y2="108" class="dm-frame"/>`,
@@ -6052,7 +6068,7 @@ const dmSeatGear = J => DG.rect(J.H[0] - 16, J.H[1] + 6, 30, 5) + `<line x1="${J
 const dmPair = (A, B, o) => Object.assign({ k: [A, B] }, o);
 
 const DEMOS = {
-  bench: dmPair(Object.assign({}, DLIE, { hand: [66, 62] }), Object.assign({}, DLIE, { hand: [62, 34] }),
+  bench: dmPair(Object.assign({}, DLIE, { hand: [69, 62] }), Object.assign({}, DLIE, { hand: [61, 34] }),
     { eq: "bb", back: dmBenchGear, hl: ["t", "ua"], ph: ["Uitduwen", "Gecontroleerd laten zakken"], tm: [1, 2] }),
   benchDb: null, // filled below (same motion, dumbbells)
   incline: dmPair({ x: 92, y: 78, t: -150, foot: [114, 105], hr: [8, 4] }, { x: 92, y: 78, t: -150, foot: [114, 105], hr: [36, -2] },
@@ -6092,7 +6108,7 @@ const DEMOS = {
   pushdown: dmPair(Object.assign({}, DS, { x: 77, t: -80, ua: 95, fa: -35 }), Object.assign({}, DS, { x: 77, t: -80, ua: 95, fa: 86 }),
     { eq: "handle", anchor: [94, -14], back: () => DG.tower(104), hl: ["ua"], ph: ["Naar beneden duwen", "Gecontroleerd terug"], tm: [1, 2] }),
   ohExt: dmPair(Object.assign({}, DS, { ua: -100, fa: 118 }), Object.assign({}, DS, { ua: -100, fa: -95 }),
-    { eq: "db", hl: ["ua"], ph: ["Onderarmen strekken", "Achter je hoofd laten zakken"], tm: [1, 2] }),
+    { eq: "db", dbA: "arm", hl: ["ua"], ph: ["Onderarmen strekken", "Achter je hoofd laten zakken"], tm: [1, 2] }),
   ohExtCable: dmPair(Object.assign({}, DS, { x: 74, t: -62, foot: [86, 105], ua: -40, fa: 150 }), Object.assign({}, DS, { x: 74, t: -62, foot: [86, 105], ua: -40, fa: -38 }),
     { eq: "handle", anchor: [26, 86], back: () => DG.tower(20), hl: ["ua"], ph: ["Naar voor strekken", "Gecontroleerd terug"], tm: [1, 2] }),
   skull: dmPair(Object.assign({}, DLIE, { ua: -104, fa: 172 }), Object.assign({}, DLIE, { ua: -100, fa: -98 }),
@@ -6121,8 +6137,8 @@ const DEMOS = {
     { eq: "none", front_: J => DG.line([150, 106], J.W1, 3.4) + DG.plate(dmAdd(J.W1, [8, 4]), 9), hl: ["t", "ua"], ph: ["Naar je borst roeien", "Laten zakken"], tm: [1, 2] }),
   cableRow: dmPair({ x: 60, y: 92, t: -72, foot: [104, 92], fd: -70, hand: [106, 74] }, { x: 60, y: 92, t: -94, foot: [104, 92], fd: -70, hand: [72, 76] },
     { eq: "handle", anchor: [128, 88], back: () => DG.tower(134) + DG.rect(40, 98, 30, 5) + DG.rect(106, 82, 6, 18), hl: ["t", "ua"], ph: ["Naar je buik trekken", "Armen gecontroleerd strekken"], tm: [1, 2] }),
-  dbRow: dmPair({ x: 62, y: 68, t: -8, foot: [66, 105], tb: 90, sb: 180, hand: [94, 96], hand2: [98, 82] }, { x: 62, y: 68, t: -8, foot: [66, 105], tb: 90, sb: 180, hand: [80, 74], hand2: [98, 82] },
-    { eq: "db1", back: () => DG.bench(46, 108, 82), hl: ["t", "ua"], ph: ["Elleboog naar je heup trekken", "Laten zakken"], tm: [1, 2] }),
+  dbRow: dmPair({ x: 60, y: 60, t: -5, foot: [66, 105], tb: 90, sb: 180, fd2: 180, hand: [92, 93], hand2: [95, 85] }, { x: 60, y: 60, t: -5, foot: [66, 105], tb: 90, sb: 180, fd2: 180, hand: [78, 68], hand2: [95, 85] },
+    { eq: "db1", back: () => DG.bench(30, 112, 88), hl: ["t", "ua"], ph: ["Elleboog naar je heup trekken", "Laten zakken"], tm: [1, 2] }),
   csRow: dmPair({ x: 70, y: 80, t: -38, foot: [56, 105], hand: [96, 98] }, { x: 70, y: 80, t: -38, foot: [56, 105], hand: [84, 76] },
     { eq: "db", back: J => DG.back(J, 4, -8) + `<line x1="74" y1="88" x2="74" y2="108" class="dm-frame"/>`, hl: ["t", "ua"], ph: ["Naar je ribben roeien", "Laten zakken"], tm: [1, 2] }),
   invRow: dmPair({ x: 84.5, y: 93, t: 192, foot: [130, 103], fr: 90, hand: [56, 54] }, { x: 89, y: 80, t: 209, foot: [130, 103], fr: 90, hand: [56, 54] },
@@ -6145,14 +6161,14 @@ const DEMOS = {
   frontSquat: dmPair(Object.assign({}, DS, { hr: [10, -1] }), { x: 68, y: 80, t: -68, foot: [80, 105], hr: [10, -1] },
     { eq: "bb", hl: ["th"], ph: ["Rechtop zakken", "Omhoog duwen"], tm: [2, 1] }),
   goblet: dmPair(Object.assign({}, DS, { hr: [9, 9] }), { x: 67, y: 80, t: -64, foot: [80, 105], hr: [9, 9] },
-    { eq: "db1", hl: ["th"], ph: ["Diep zakken, borst omhoog", "Omhoog duwen"], tm: [2, 1] }),
+    { eq: "db1", dbA: 90, hl: ["th"], ph: ["Diep zakken, borst omhoog", "Omhoog duwen"], tm: [2, 1] }),
   bwSquat: dmPair(Object.assign({}, DS, { ua: 0, fa: 0 }), { x: 65, y: 78, t: -58, foot: [80, 105], ua: -4, fa: -4 },
     { hl: ["th"], ph: ["Zakken: heupen naar achter", "Omhoog duwen"], tm: [2, 1] }),
-  hack: dmPair(Object.assign({}, DS, { t: -100, x: 78, hr: [4, -4], eb: -1 }), { x: 62, y: 80, t: -64, foot: [80, 105], hr: [4, -4], eb: -1 },
-    { back: J => DG.back(J, 8, 7.5), hl: ["th"], ph: ["Zakken", "Omhoog duwen"], tm: [2, 1] }),
+  hack: dmPair({ x: 72, y: 62, t: -108, foot: [93, 103], fd: -20, hr: [4, -4], eb: -1 }, { x: 78.8, y: 83, t: -108, foot: [93, 103], fd: -20, hr: [4, -4], eb: -1 },
+    { back: J => `<line x1="74" y1="110" x2="37" y2="-4" class="dm-frame"/><line x1="60" y1="108" x2="112" y2="108" class="dm-frame"/>` + DG.line([86, 109], [104, 100], 5) + DG.back(J, 7, 7.5), hl: ["th"], ph: ["Zakken", "Omhoog duwen"], tm: [2, 1] }),
   wallSit: dmPair({ x: 62, y: 84, t: -90, foot: [86, 105], ua: 90, fa: 90 }, { x: 62, y: 84, t: -90, foot: [86, 105], ua: 90, fa: 90, cv: 1 },
     { back: () => DG.wall(48), hl: ["th"], ph: ["Vasthouden met rug tegen de muur", "Rustig ademen"], tm: [2.5, 2.5] }),
-  deadlift: dmPair({ x: 64, y: 76, t: -28, foot: [80, 105], hand: [86, 96] }, Object.assign({}, DS, { hand: [83, 64] }),
+  deadlift: dmPair({ x: 62, y: 71, t: -20, foot: [80, 105], hand: [86, 96] }, Object.assign({}, DS, { hand: [83, 64] }),
     { eq: "bb", plateR: 11, hl: ["th", "t"], ph: ["Opstaan: duw de vloer weg", "Gecontroleerd laten zakken"], tm: [1.2, 2] }),
   rdl: dmPair(Object.assign({}, DS, { hand: [83, 64] }), { x: 68, y: 60, t: -14, foot: [80, 105], hand: [99, 88] },
     { eq: "bb", hl: ["th", "t"], ph: ["Heupen naar achter, rug recht", "Heupen naar voor"], tm: [2, 1] }),
@@ -6229,11 +6245,14 @@ const DEMOS = {
   cableCrunch: dmPair({ x: 64, y: 80, t: -64, th: 90, sh: 180, fd: 180, hr: [-2, -11], eb: -1 }, { x: 64, y: 80, t: 8, th: 90, sh: 180, fd: 180, hr: [-2, -11], eb: -1 },
     { eq: "handle", anchor: [104, -14], back: () => DG.tower(112), hl: ["t"], ph: ["Ellebogen naar je knieën krullen", "Gecontroleerd terug"], tm: [1, 2] }),
   burpee: { k: [
-      { x: 80, y: 56, t: -90, ua: -96, fa: -92, foot: [79, 103] },
-      { x: 74, y: 88, t: -40, hand: [106, 106], foot: [91, 105] },
-      { x: 72.6, y: 82.4, t: -23.6, hand: [102, 106], foot: [29.5, 101.2], fd: 50 },
-      { x: 74, y: 88, t: -40, hand: [106, 106], foot: [91, 105] }],
-    loop: true, tm: [.5, .6, .6, .5], mat: [20, 132], hl: ["th", "t"], ph: ["Hurken", "Benen naar achter", "Terug in hurkzit", "Opspringen"] },
+      { x: 88, y: 59, t: -90, ua: 92, fa: 88, foot: [88, 105] },
+      { x: 72, y: 88, t: -36, hand: [103, 106], foot: [88, 105] },
+      { x: 72.6, y: 82.4, t: -23.6, hand: [103, 106], foot: [29.5, 101.2], fd: 50 },
+      { x: 75.8, y: 92.9, t: -10, hand: [103, 106], foot: [29.5, 101.2], fd: 50 },
+      { x: 72.6, y: 82.4, t: -23.6, hand: [103, 106], foot: [29.5, 101.2], fd: 50 },
+      { x: 72, y: 88, t: -36, hand: [103, 106], foot: [88, 105] },
+      { x: 88, y: 49, t: -90, ua: -98, fa: -94, foot: [88, 96], fd: 70 }],
+    loop: true, tm: [.5, .5, .7, .5, .5, .45, .4], mat: [20, 132], hl: ["th", "t"], ph: ["Hurken", "Benen naar achter", "Laten zakken", "Uitduwen", "Terug in hurkzit", "Opspringen", "Zacht landen"] },
 };
 DEMOS.benchDb = Object.assign({}, DEMOS.bench, { eq: "db" });
 DEMOS.curlDb = Object.assign({}, DEMOS.curl, { eq: "db" });
@@ -6309,17 +6328,27 @@ const dmRun = (o, a = 1) => ({ k: [
   tm: [.38 / a, .38 / a], hl: ["th"], ph: ["Ritmisch lopen", "Ritmisch lopen"], ...o });
 const dmCrank = (cx, cy, r, base, arms) => ({ fn: p => {
     const a = p * 360, f1 = [cx + r * Math.cos(a * Math.PI / 180), cy + r * Math.sin(a * Math.PI / 180)], f2 = [cx - r * Math.cos(a * Math.PI / 180), cy - r * Math.sin(a * Math.PI / 180)];
-    const P = Object.assign({}, base, { foot: f1, foot2: f2, fd: 10, fd2: 10 });
+    const fd = base.fd === undefined ? 10 : base.fd, P = Object.assign({}, base, { foot: f1, foot2: f2, fd, fd2: fd });
     if (arms){ const s = Math.sin(a * Math.PI / 180) * arms; P.hand = [base.hand[0] + s, base.hand[1]]; P.hand2 = [base.hand[0] - s, base.hand[1]]; }
     return P;
   }, period: 1.1, ph: ["Rond trappen"], hl: ["th"] });
+// a stationary bike: flywheel in front, frame, saddle and handlebar post
+const dmBikeGear = (wx, wy, wr, bar) => `<circle cx="${wx}" cy="${wy}" r="${wr}" class="dm-cable"/><circle cx="${wx}" cy="${wy}" r="${wr - 3}" class="dm-cable"/><circle cx="${wx}" cy="${wy}" r="2.4" class="dm-handle"/>`
+  + `<line x1="84" y1="92" x2="${wx}" y2="${wy}" class="dm-frame"/><line x1="84" y1="92" x2="71" y2="69" class="dm-frame"/><line x1="62" y1="67.5" x2="78" y2="67.5" stroke-width="5" class="dm-padl"/>`
+  + (bar ? `<line x1="${wx}" y1="${wy}" x2="${bar[0]}" y2="${bar[1]}" class="dm-frame"/>` : "")
+  + `<line x1="84" y1="92" x2="70" y2="108" class="dm-frame"/><line x1="${wx}" y1="${wy}" x2="${wx + 10}" y2="108" class="dm-frame"/><line x1="62" y1="108" x2="${wx + 16}" y2="108" class="dm-frame"/>`;
+const dmPedals = (cx, cy) => J => `<line x1="${cx}" y1="${cy}" x2="${dmF(J.A2[0] + 2)}" y2="${dmF(J.A2[1] + 3)}" stroke-width="2.2" class="dm-bar"/><line x1="${cx}" y1="${cy}" x2="${dmF(J.A1[0] + 2)}" y2="${dmF(J.A1[1] + 3)}" stroke-width="2.2" class="dm-bar"/><circle cx="${cx}" cy="${cy}" r="2.6" class="dm-handle"/>`;
 Object.assign(DEMOS, {
   run: dmRun({}),
+  walk: dmRun({ ph: ["Stevig doorstappen", "Rechtop blijven"] }, .5),
   treadmill: dmRun({ back: () => `<rect x="28" y="104" width="104" height="6" rx="3" class="dm-pad"/><line x1="128" y1="104" x2="138" y2="34" class="dm-frame"/><line x1="138" y1="34" x2="118" y2="40" class="dm-frame"/>` }),
   inclineWalk: dmRun({ back: () => `<rect x="28" y="104" width="104" height="6" rx="3" class="dm-pad"/><line x1="128" y1="104" x2="138" y2="34" class="dm-frame"/>`, ph: ["Stevig stappen op helling", "Niet vasthouden"] }, .55),
-  bike: Object.assign(dmCrank(84, 92, 9, { x: 70, y: 62, t: -50, hand: [108, 48], kb: -1 }), { back: () => `<line x1="70" y1="66" x2="84" y2="92" class="dm-frame"/><line x1="84" y1="92" x2="108" y2="52" class="dm-frame"/><circle cx="84" cy="92" r="9" class="dm-cable"/><line x1="62" y1="66" x2="76" y2="66" stroke-width="5" class="dm-padl"/><line x1="70" y1="108" x2="104" y2="108" class="dm-frame"/>` }),
-  airbike: Object.assign(dmCrank(84, 92, 9, { x: 70, y: 62, t: -66, hand: [104, 40], kb: -1 }, 8), { back: () => `<circle cx="112" cy="84" r="20" class="dm-cable"/><line x1="70" y1="66" x2="84" y2="92" class="dm-frame"/><line x1="62" y1="66" x2="76" y2="66" stroke-width="5" class="dm-padl"/>` }),
-  elliptical: Object.assign(dmCrank(80, 98, 7, { x: 78, y: 52, t: -88, hand: [98, 40], kb: -1 }, 8), { back: () => `<line x1="40" y1="106" x2="128" y2="106" class="dm-frame"/><line x1="112" y1="106" x2="104" y2="26" class="dm-frame"/>` }),
+  bike: Object.assign(dmCrank(84, 92, 9, { x: 70, y: 62, t: -50, hand: [108, 48], kb: -1 }), { back: () => dmBikeGear(114, 90, 14, [110, 50]) + `<line x1="110" y1="50" x2="103" y2="47" class="dm-frame"/>`, front_: dmPedals(84, 92) }),
+  airbike: Object.assign(dmCrank(84, 92, 9, { x: 70, y: 62, t: -66, hand: [104, 40], kb: -1 }, 8), { back: () => dmBikeGear(114, 86, 19), front_: J => DG.line([106, 84], J.W1, 2.6) + DG.line([106, 84], J.W2, 2.6) + DG.handle(J.W1) + dmPedals(84, 92)(J) }),
+  recBike: Object.assign(dmCrank(98, 82, 7, { x: 58, y: 88, t: -118, hand: [62, 92], kb: -1, fd: -60 }), { back: J => DG.back(J, 6, 7.5) + DG.rect(44, 94, 28, 5) + `<line x1="54" y1="99" x2="98" y2="82" class="dm-frame"/><circle cx="98" cy="82" r="12" class="dm-cable"/><line x1="98" y1="94" x2="98" y2="108" class="dm-frame"/><line x1="54" y1="99" x2="54" y2="108" class="dm-frame"/><line x1="42" y1="108" x2="112" y2="108" class="dm-frame"/>`, front_: dmPedals(98, 82) }),
+  armErgo: { fn: p => { const v = dmDir(p * 360); return Object.assign({}, DSEAT, { hand: [102 + 7 * v[0], 50 + 7 * v[1]], hand2: [102 - 7 * v[0], 50 - 7 * v[1]] }); }, period: 1.2, ph: ["Rond draaien met je armen"], hl: ["ua"],
+    back: J => dmSeatGear(J) + `<line x1="116" y1="108" x2="104" y2="52" class="dm-frame"/><line x1="104" y1="108" x2="128" y2="108" class="dm-frame"/><circle cx="102" cy="50" r="7" class="dm-cable"/>`, front_: J => DG.line(J.W1, J.W2, 2) + DG.handle(J.W1) },
+  elliptical: Object.assign(dmCrank(80, 98, 7, { x: 78, y: 52, t: -88, hand: [98, 40], kb: -1 }, 8), { back: () => `<line x1="40" y1="106" x2="128" y2="106" class="dm-frame"/><line x1="112" y1="106" x2="104" y2="26" class="dm-frame"/><circle cx="56" cy="96" r="10" class="dm-cable"/>`, front_: J => DG.line([106, 92], J.W1, 2.6) + DG.line(J.A1, [58, 98], 2.6) + DG.rect(J.A1[0] - 5, J.A1[1] + 3, 16, 2.6) }),
   stairs: dmPair({ x: 80, y: 50, t: -84, foot: [92, 80], foot2: [78, 98], fd: 0, ua: 110, fa: 70 }, { x: 82, y: 46, t: -84, foot: [94, 76], foot2: [82, 94], fd: 0, ua: 70, fa: 0 },
     { back: () => `<path d="M60 108V98H78V88H96V78H114V68H132V108Z" class="dm-pad"/>`, hl: ["th"], ph: ["Trede per trede", "Rechtop blijven"], tm: [.55, .55] }),
   rower: dmPair({ x: 80, y: 94, t: -66, foot: [114, 92], fd: -70, hand: [112, 80] }, { x: 62, y: 94, t: -108, foot: [114, 92], fd: -70, hand: [80, 72] },
@@ -6328,6 +6357,163 @@ Object.assign(DEMOS, {
     { eq: "handle", anchor: [112, -14], back: () => DG.tower(118), hl: ["t", "ua"], ph: ["Krachtig naar beneden trekken", "Terug omhoog reiken"], tm: [.6, 1] }),
   rope: { fn: p => { const j = Math.abs(Math.sin(p * Math.PI)) * 5; return { x: 80, y: 57 - j, t: -90, foot: [80, 103 - j], fd: 20, hr: [8, 30], eb: 1 }; }, period: .7,
     rope: true, hl: ["sh"], ph: ["Kleine sprongetjes op je voorvoeten"] },
+});
+
+// ---------- more movements: each exercise its own pattern instead of a look-alike ----------
+const dmAlt = (A, B, o) => Object.assign({ k: [A, B] }, o);
+const DQUAD = { x: 62, y: 80, t: -22, th: 90, sh: 180, fd: 180, tb: 90, sb: 180, ua: 90, fa: 90 };   // on hands and knees
+const dmSled = x => DG.rect(x, 101, 34, 5) + `<line x1="${x + 8}" y1="101" x2="${x + 6}" y2="58" class="dm-frame"/><line x1="${x + 24}" y1="101" x2="${x + 24}" y2="80" class="dm-frame"/>` + DG.rect(x + 17, 89, 14, 5) + DG.rect(x + 17, 95, 14, 5);
+Object.assign(DEMOS, {
+  inclineBb: Object.assign({}, DEMOS.incline, { eq: "bb" }),
+  lungeBw: Object.assign({}, DEMOS.lunge, { eq: undefined }),
+  calfBw: Object.assign({}, DEMOS.calf, { eq: undefined }),
+  stepBw: Object.assign({}, DEMOS.stepUp, { eq: undefined }),
+  stepKnee: dmPair(DEMOS.stepUp.k[0], { x: 98, y: 36, t: -90, foot: [100, 80], tb: 5, sb: 95, hr: [1, 36] },
+    { back: DEMOS.stepUp.back, hl: ["th"], ph: ["Opstappen en knie heffen", "Gecontroleerd afstappen"], tm: [1, 1.5] }),
+  floorPress: dmPair({ x: 92, y: 100, t: 180, foot: [112, 105], hand: [68, 92] }, { x: 92, y: 100, t: 180, foot: [112, 105], hand: [62, 65] },
+    { eq: "db", mat: [20, 130], hl: ["t", "ua"], ph: ["Uitduwen", "Gecontroleerd laten zakken"], tm: [1, 2] }),
+  kneePushup: dmPair({ x: 66, y: 84, t: -22, th: 128, sh: 200, hand: [102, 106] }, { x: 74, y: 95.5, t: -8, th: 162, sh: 215, hand: [102, 106] },
+    { mat: [20, 132], hl: ["t", "ua"], ph: ["Laten zakken", "Uitduwen"], tm: [2, 1] }),
+  inclinePushup: dmPair({ x: 71, y: 72.2, t: -44, foot: [38, 104], hand: [106, 80] }, { x: 77.9, y: 79, t: -32, foot: [38, 104], hand: [106, 80] },
+    { back: () => DG.bench(98, 138, 82), hl: ["t", "ua"], ph: ["Laten zakken", "Uitduwen"], tm: [2, 1] }),
+  declinePushup: dmPair({ x: 74.2, y: 73.3, t: -6, n: -15, foot: [28, 78], fd: 60, hand: [108, 106] }, { x: 72.7, y: 87.4, t: 12, n: -18, foot: [28, 78], fd: 60, hand: [108, 106] },
+    { back: () => DG.bench(8, 44, 82), mat: [60, 140], hl: ["t", "ua"], ph: ["Laten zakken", "Uitduwen"], tm: [2, 1] }),
+  hindu: dmPair({ x: 66, y: 62, t: 40, n: 20, foot: [44, 104], hand: [116, 104] }, { x: 88, y: 97, t: -42, n: -15, foot: [44, 104], hand: [116, 104] },
+    { mat: [20, 140], hl: ["ua", "t"], ph: ["In een boog naar voor duiken", "Terug naar een omgekeerde V"], tm: [1.5, 1.5] }),
+  plankUpDown: dmPair({ x: 76, y: 95, t: -7, th: 172, sh: 172, fd: 50, hand: [124, 105] }, Object.assign({}, DPRONE, { hand: [108, 105] }),
+    { mat: [20, 134], hl: ["t", "ua"], ph: ["Opduwen tot gestrekte armen", "Terug op je onderarmen"], tm: [1, 1] }),
+  plankJack: dmAlt(Object.assign({}, DPRONE, { th: undefined, sh: undefined, hand: [102, 106], foot: [29.5, 101.2], foot2: [29.5, 101.2] }), Object.assign({}, DPRONE, { th: undefined, sh: undefined, y: 80.5, hand: [102, 106], foot: [33, 98.5], foot2: [26, 103] }),
+    { mat: [20, 132], hl: ["t"], ph: ["Voeten uit elkaar springen", "Voeten weer samen"], tm: [.35, .35] }),
+  revPlank: dmHold({ x: 80, y: 86, t: 205, foot: [122, 104], hand: [50, 105] }, { mat: [20, 140], hl: ["t"], ph: ["Vasthouden: lichaam in één lijn", "Rustig doorademen"] }, { y: 1 }),
+  hipDip: dmPair({ x: 74, y: 88, t: -19, th: 161, sh: 161, fd: 60, hand: [124, 105], hand2: [110, 14] }, { x: 77, y: 96, t: -34, th: 171, sh: 171, fd: 60, hand: [124, 105], hand2: [110, 14] },
+    { mat: [20, 134], hl: ["t"], ph: ["Laten zakken", "Heupen omhoog duwen"], tm: [1.5, 1] }),
+  bearHold: dmHold({ x: 58, y: 82, t: -14, hand: [94, 105], foot: [44, 104] }, { mat: [10, 140], hl: ["t"], ph: ["Knieën net boven de grond", "Rustig doorademen"] }, { y: 1 }),
+  bearCrawl: dmAlt({ x: 58, y: 82, t: -14, hand: [98, 105], hand2: [88, 105], foot: [36, 104], foot2: [48, 104] }, { x: 58, y: 82, t: -14, hand: [88, 105], hand2: [98, 105], foot: [48, 104], foot2: [36, 104] },
+    { mat: [10, 140], hl: ["t", "ua"], ph: ["Tegengestelde hand en voet samen", "Knieën net boven de grond"], tm: [.55, .55] }),
+  inchworm: { k: [
+      { x: 60, y: 59, t: -90, foot: [60, 105], ua: 90, fa: 90 },
+      { x: 56, y: 60, t: 55, n: 10, hand: [84, 105], foot: [60, 105] },
+      { x: 103, y: 82.4, t: -23.6, hand: [132.5, 106], foot: [60, 101.2] },
+      { x: 56, y: 60, t: 55, n: 10, hand: [84, 105], foot: [60, 105] }],
+    loop: true, tm: [1, 1.4, 1.4, 1], mat: [20, 152], hl: ["t", "th"], ph: ["Voorover buigen, handen op de grond", "Met je handen uitlopen tot plank", "Teruglopen naar je voeten", "Rechtop komen"] },
+  donkeyKick: dmPair(DQUAD, Object.assign({}, DQUAD, { th: 172, sh: -92 }),
+    { mat: [10, 140], hl: ["th"], ph: ["Hiel naar het plafond duwen", "Gecontroleerd terug"], tm: [1, 1.5] }),
+  fireHydrant: dmPair(Object.assign({}, DQUAD, { ts: 1, ts2: 1 }), Object.assign({}, DQUAD, { ts: .3, ts2: 1 }),
+    { mat: [10, 140], hl: ["th"], ph: ["Knie zijwaarts optillen", "Gecontroleerd terug"], tm: [1, 1.5] }),
+  sideLeg: dmPair({ x: 86, y: 99, t: 178, th: 2, sh: 2, tb: 2, sb: 2, hand: [70, 105], hand2: [40, 106] }, { x: 86, y: 99, t: 178, th: -32, sh: -32, tb: 2, sb: 2, hand: [70, 105], hand2: [40, 106] },
+    { mat: [20, 146], hl: ["th"], ph: ["Bovenste been heffen", "Langzaam laten zakken"], tm: [1, 2] }),
+  clam: dmPair({ x: 80, y: 99, t: 178, th: -12, sh: 158, ts: .72, tb: -12, sb: 158, ts2: .72, hand: [64, 105], hand2: [34, 106] }, { x: 80, y: 99, t: 178, th: -38, sh: 142, ts: .85, tb: -12, sb: 158, ts2: .72, hand: [64, 105], hand2: [34, 106] },
+    { mat: [20, 130], hl: ["th"], ph: ["Bovenste knie openen, voeten samen", "Gecontroleerd terug"], tm: [1, 1.5] }),
+  hollowRock: dmAlt({ x: 74, y: 101, t: -176, th: -24, sh: -24, ua: -178, fa: -180 }, { x: 74, y: 101, t: -156, th: -4, sh: -4, ua: -158, fa: -160 },
+    { mat: [20, 140], hl: ["t"], ph: ["Wiegen van schouders naar heupen", "Wiegen van schouders naar heupen"], tm: [.8, .8] }),
+  hundred: dmAlt({ x: 74, y: 101, t: -160, th: -40, sh: -40, ua: -8, fa: -6 }, { x: 74, y: 101, t: -160, th: -40, sh: -40, ua: 6, fa: 8 },
+    { mat: [20, 140], hl: ["t"], ph: ["Armen kort op en neer pompen", "Armen kort op en neer pompen"], tm: [.25, .25] }),
+  pilSwim: dmAlt({ x: 70, y: 101, t: -10, th: 166, sh: 166, tb: 178, sb: 178, fd: 180, ua: -4, fa: -4, ub: -24, fb: -24 }, { x: 70, y: 101, t: -10, th: 178, sh: 178, tb: 166, sb: 166, fd: 180, ua: -24, fa: -24, ub: -4, fb: -4 },
+    { mat: [10, 150], hl: ["t"], ph: ["Arm en tegenovergesteld been strekken", "Terug en wisselen"], tm: [.45, .45] }),
+  toeTouch: dmPair({ x: 74, y: 101, t: 180, th: -88, sh: -88, ua: -84, fa: -84 }, { x: 74, y: 101, t: -154, th: -88, sh: -88, ua: -47, fa: -47 },
+    { mat: [20, 130], hl: ["t"], ph: ["Reik naar je tenen", "Rustig terug"], tm: [1, 1.5] }),
+  situp: dmPair({ x: 72, y: 102, t: 180, foot: [100, 105], hr: [-4, -13] }, { x: 72, y: 102, t: -100, foot: [100, 105], hr: [-4, -13] },
+    { mat: [20, 130], hl: ["t"], ph: ["Helemaal tot zit komen", "Langzaam terugrollen"], tm: [1.2, 2] }),
+  rollUp: dmPair({ x: 76, y: 101, t: 180, th: 0, sh: 0, fd: -80, ua: 178, fa: 178 }, { x: 76, y: 100, t: -40, th: 0, sh: 0, fd: -80, ua: 10, fa: 10 },
+    { mat: [4, 140], hl: ["t"], ph: ["Wervel per wervel oprollen", "Langzaam terugrollen"], tm: [2.5, 2.5] }),
+  heelSlide: dmPair({ x: 76, y: 101, t: 180, foot: [122, 105], tb: 2, sb: 2, ua: 4, fa: 2 }, { x: 76, y: 101, t: 180, foot: [98, 105], tb: 2, sb: 2, ua: 4, fa: 2 },
+    { mat: [20, 140], hl: ["th"], ph: ["Hiel naar je bil schuiven", "Langzaam strekken"], tm: [1.5, 1.5] }),
+  slr: dmPair({ x: 76, y: 101, t: 180, th: 2, sh: 2, foot2: [100, 105], ua: 4, fa: 2 }, { x: 76, y: 101, t: 180, th: -45, sh: -45, foot2: [100, 105], ua: 4, fa: 2 },
+    { mat: [20, 140], hl: ["th"], ph: ["Gestrekt been heffen", "Langzaam laten zakken"], tm: [1, 2] }),
+  bridge1: dmPair({ x: 84, y: 101, t: 180, foot: [108, 105], tb: -35, sb: -20, ua: 4, fa: 2 }, { x: 86, y: 84, t: 153, foot: [108, 105], tb: -27, sb: -27, ua: 26, fa: 4 },
+    { mat: [20, 140], hl: ["th"], ph: ["Heupen omhoog", "Laten zakken"], tm: [1, 2] }),
+  pelvicTilt: dmHold({ x: 84, y: 101, t: 180, foot: [108, 105], ua: 4, fa: 2 }, { mat: [20, 130], hl: ["t"], ph: ["Onderrug in de mat drukken", "Loslaten"] }, { cv: 3 }),
+  hangKnee: dmPair({ x: 79, y: 52, t: -90, th: 92, sh: 92, hand: [82, -16] }, { x: 79, y: 51, t: -94, th: -5, sh: 95, hand: [82, -16] },
+    { back: () => DG.bar(82, -16), hl: ["t"], ph: ["Knieën optrekken tot heuphoogte", "Langzaam laten zakken"], tm: [1, 2] }),
+  cableLatRaise: dmPair({ x: 80, y: 59, t: -90, foot: [84, 105], ua: 80, fa: 84, ub: 100, fb: 96 }, { x: 80, y: 59, t: -90, foot: [84, 105], ua: -4, fa: 0, ub: 100, fb: 96 },
+    { front: true, anchor: [30, 102], back: () => DG.tower(24), front_: J => DG.handle(J.W1), hl: ["ua"], ph: ["Zijwaarts heffen tot schouderhoogte", "Langzaam laten zakken"], tm: [1, 2] }),
+  revFlyBent: dmPair({ x: 68, y: 62, t: -22, foot: [80, 105], ua: 92, fa: 88, as: 1 }, { x: 68, y: 62, t: -22, foot: [80, 105], ua: 100, fa: 96, as: .2 },
+    { eq: "db", hl: ["t", "ua"], ph: ["Armen naar achter openen", "Gecontroleerd terug"], tm: [1.2, 2] }),
+  extRot: dmPair({ x: 80, y: 59, t: -90, foot: [84, 105], ua: 88, fa: 0, hz: 82 }, { x: 80, y: 59, t: -90, foot: [84, 105], ua: 88, fa: 0, hz: 8 },
+    { front: true, front_: J => `<line x1="${dmF(J.W1[0])}" y1="${dmF(J.W1[1])}" x2="${dmF(J.W2[0])}" y2="${dmF(J.W2[1])}" class="dm-band"/>`, hl: ["ua"], ph: ["Onderarmen naar buiten draaien, ellebogen tegen je zij", "Gecontroleerd terug"], tm: [1.5, 1.5] }),
+  wristCurl: dmPair({ x: 70, y: 84, t: -55, foot: [97, 105], ua: 80, fa: 2, wr: 35 }, { x: 70, y: 84, t: -55, foot: [97, 105], ua: 80, fa: 2, wr: -35 },
+    { back: J => dmSeatGear(J), front_: J => { const p = dmAdd(J.W1, dmDir(J.P.wr), 5); return dmCirc(p, 2.2, "dm-skin") + DG.plate(p, 4.2); }, hl: ["fa"], ph: ["Pols omhoog krullen", "Langzaam laten zakken"], tm: [1, 2] }),
+  rackPull: dmPair({ x: 68, y: 63, t: -40, foot: [80, 105], hand: [86, 78] }, Object.assign({}, DS, { hand: [83, 64] }),
+    { eq: "bb", back: () => `<line x1="100" y1="-12" x2="100" y2="108" class="dm-frame"/><line x1="76" y1="90.5" x2="100" y2="90.5" class="dm-frame"/><line x1="88" y1="108" x2="112" y2="108" class="dm-frame"/>`, hl: ["th", "t"], ph: ["Opstaan: duw de vloer weg", "Gecontroleerd laten zakken"], tm: [1.2, 2] }),
+  sumoDl: dmPair({ x: 80, y: 79, t: -90, tl: .68, foot: [104, 105], hand: [91, 95] }, { x: 80, y: 61, t: -90, tl: 1, foot: [104, 105], hand: [90, 67] },
+    { front: true, eq: "bb", plateR: 11, hl: ["th", "t"], ph: ["Opstaan: duw de vloer weg", "Gecontroleerd laten zakken"], tm: [1.2, 2] }),
+  sumoSquat: dmPair({ x: 80, y: 61, t: -90, tl: 1, foot: [104, 105], hr: [-9, 10] }, { x: 80, y: 81, t: -90, tl: .9, foot: [104, 105], hr: [-9, 10] },
+    { front: true, hl: ["th"], ph: ["Zakken: heupen naar achter", "Omhoog duwen"], tm: [2, 1] }),
+  cossack: { k: [
+      { x: 80, y: 66, t: -90, tl: 1, foot: [106, 105], foot2: [54, 105], kb2: 1, hr: [-9, 10] },
+      { x: 98, y: 83, t: -90, tl: .9, foot: [106, 105], foot2: [54, 105], kb2: 1, hr: [-9, 10] },
+      { x: 80, y: 66, t: -90, tl: 1, foot: [106, 105], foot2: [54, 105], kb2: 1, hr: [-9, 10] },
+      { x: 62, y: 83, t: -90, tl: .9, foot: [106, 105], foot2: [54, 105], kb2: 1, hr: [-9, 10] }],
+    loop: true, front: true, tm: [1.2, 1, 1.2, 1], hl: ["th"], ph: ["Opzij zakken, andere been gestrekt", "Terug en wisselen", "Opzij zakken, andere been gestrekt", "Terug en wisselen"] },
+  latWalk: { k: [
+      { x: 78, y: 68, t: -90, tl: .92, foot: [94, 105], foot2: [66, 105], kb2: 1, hr: [-9, 10] },
+      { x: 84, y: 68, t: -90, tl: .92, foot: [106, 105], foot2: [66, 105], kb2: 1, hr: [-9, 10] },
+      { x: 90, y: 68, t: -90, tl: .92, foot: [106, 105], foot2: [78, 105], kb2: 1, hr: [-9, 10] },
+      { x: 84, y: 68, t: -90, tl: .92, foot: [106, 105], foot2: [66, 105], kb2: 1, hr: [-9, 10] }],
+    loop: true, front: true, tm: [.6, .6, .6, .6], front_: J => `<line x1="${dmF(J.K1[0])}" y1="${dmF(J.K1[1] - 4)}" x2="${dmF(J.K2[0])}" y2="${dmF(J.K2[1] - 4)}" class="dm-band"/>`, hl: ["th"],
+    ph: ["Kleine passen opzij, spanning op de band", "Kleine passen opzij, spanning op de band", "Kleine passen opzij, spanning op de band", "Kleine passen opzij, spanning op de band"] },
+  singleRdl: dmPair({ x: 80, y: 59, t: -90, foot: [80, 105], tb: 90, sb: 90, ua: 90, fa: 90 }, { x: 78, y: 59, t: -8, foot: [80, 105], tb: 172, sb: 174, ua: 90, fa: 90 },
+    { eq: "db", hl: ["th", "t"], ph: ["Heupen naar achter, rug recht", "Heupen naar voor"], tm: [2, 1] }),
+  kbSwing: dmPair({ x: 68, y: 66, t: -32, foot: [84, 105], ua: 128, fa: 124 }, Object.assign({}, DS, { x: 82, foot: [84, 105], ua: 2, fa: -2 }),
+    { eq: "kb", hl: ["th"], ph: ["Heupen krachtig naar voor", "Heupen naar achter"], tm: [.7, .9] }),
+  thruster: { k: [
+      { x: 68, y: 80, t: -68, foot: [80, 105], hr: [10, -1] },
+      Object.assign({}, DS, { hr: [10, -1] }),
+      Object.assign({}, DS, { hr: [3, -36] }),
+      Object.assign({}, DS, { hr: [10, -1] })],
+    loop: true, eq: "bb", tm: [.6, .5, .6, .8], hl: ["th", "ua"], ph: ["Omhoog duwen", "Boven je hoofd uitduwen", "Gecontroleerd laten zakken", "Rechtop zakken"] },
+  wallBall: { k: [
+      { x: 66, y: 80, t: -66, foot: [78, 105], hr: [9, 6], bf: 0 },
+      { x: 78, y: 59, t: -88, foot: [78, 105], hr: [10, -33], bf: 0 },
+      { x: 78, y: 59, t: -88, foot: [78, 105], hr: [10, -33], bf: 1 },
+      { x: 78, y: 59, t: -88, foot: [78, 105], hr: [10, -33], bf: 0 }],
+    loop: true, tm: [.6, .35, .35, .7], back: () => DG.wall(128) + `<rect x="124" y="-36" width="4" height="9" class="dm-handle"/>`,
+    front_: J => DG.ball(dmAdd(J.W1, [3 + 20 * J.P.bf, -5 - 21 * J.P.bf]), 6.5), hl: ["th", "ua"], ph: ["Omhoog duwen", "Bal naar het doel gooien", "Bal opvangen", "Diep zakken, borst omhoog"] },
+  clean: { k: [
+      { x: 62, y: 71, t: -20, foot: [80, 105], hand: [86, 96] },
+      { x: 80, y: 57, t: -94, foot: [80, 103], hand: [84, 58] },
+      { x: 70, y: 74, t: -72, foot: [80, 105], hand: [89.7, 45.7] },
+      { x: 80, y: 59, t: -90, foot: [80, 105], hand: [90, 26] }],
+    loop: true, eq: "bb", plateR: 11, tm: [.6, .35, .7, 1.3], hl: ["th", "t"], ph: ["Van de grond trekken", "Explosief strekken en onder de stang duiken", "Rechtop komen", "Gecontroleerd laten zakken"] },
+  squatJump: dmPair({ x: 65, y: 78, t: -58, foot: [80, 105], ua: 130, fa: 110 }, { x: 80, y: 47, t: -90, foot: [80, 94], fd: 75, ua: -100, fa: -95 },
+    { hl: ["th"], ph: ["Explosief omhoog springen", "Zacht landen en doorzakken"], tm: [.45, .7] }),
+  boxJump: { k: [
+      { x: 60, y: 76, t: -56, foot: [66, 105], ua: 150, fa: 140 },
+      { x: 82, y: 50, t: -72, foot: [92, 76], ua: 20, fa: -10 },
+      { x: 96, y: 62, t: -58, foot: [108, 81], ua: 60, fa: 30 },
+      { x: 108, y: 35, t: -90, foot: [108, 81], ua: 90, fa: 90 }],
+    loop: true, tm: [.4, .35, .6, .9], back: () => DG.rect(94, 84, 36, 24.5), hl: ["th"], ph: ["Explosief omhoog springen", "Zacht landen op de box", "Rechtop komen", "Rustig afstappen"] },
+  jumpingJack: dmAlt({ x: 80, y: 59, t: -90, foot: [84, 105], ua: 84, fa: 86 }, { x: 80, y: 57, t: -90, foot: [100, 104], ua: -62, fa: -72 },
+    { front: true, hl: ["sh", "ua"], ph: ["Spreiden: armen omhoog", "Sluiten"], tm: [.4, .4] }),
+  starJump: dmPair({ x: 80, y: 74, t: -90, tl: .9, foot: [86, 105], ua: 70, fa: 110 }, { x: 80, y: 46, t: -90, tl: 1, foot: [102, 94], ua: -40, fa: -40 },
+    { front: true, hl: ["th"], ph: ["Explosief omhoog springen", "Zacht landen en doorzakken"], tm: [.45, .7] }),
+  skater: dmAlt({ x: 100, y: 70, t: -90, tl: .92, foot: [106, 105], foot2: [118, 94], kb2: 1, ua: 120, fa: 165, ub: 165, fb: 150 }, { x: 60, y: 70, t: -90, tl: .92, foot: [42, 94], foot2: [54, 105], kb2: 1, ua: 15, fa: 30, ub: 60, fb: 15 },
+    { front: true, hl: ["th"], ph: ["Zijwaarts springen, landen op één been", "Zijwaarts springen, landen op één been"], tm: [.6, .6] }),
+  dance: dmAlt({ x: 72, y: 60, t: -90, foot: [80, 105], foot2: [60, 105], kb2: 1, ua: -50, fa: -80, ub: 110, fb: 60 }, { x: 88, y: 60, t: -90, foot: [100, 105], foot2: [80, 105], kb2: 1, ua: 70, fa: 120, ub: -130, fb: -100 },
+    { front: true, hl: ["th", "ua"], ph: ["Bewegen op de muziek", "Bewegen op de muziek"], tm: [.5, .5] }),
+  highKnees: dmAlt({ x: 80, y: 57, t: -88, th: 2, sh: 92, tb: 90, sb: 92, ua: 60, fa: -20, ub: 120, fb: 40 }, { x: 80, y: 57, t: -88, th: 90, sh: 92, tb: 2, sb: 92, ua: 120, fa: 40, ub: 60, fb: -20 },
+    { hl: ["th"], ph: ["Knieën om beurten naar je borst", "Rechtop blijven"], tm: [.28, .28] }),
+  sledPush: dmAlt({ x: 66, y: 72, t: -42, hand: [118, 63], foot: [46, 104], foot2: [74, 104] }, { x: 66, y: 72, t: -42, hand: [118, 63], foot: [74, 104], foot2: [46, 104] },
+    { back: () => dmSled(112), hl: ["th"], ph: ["Laag blijven, korte krachtige passen", "Armen gestrekt, rug recht"], tm: [.5, .5] }),
+  sledPull: dmAlt({ x: 74, y: 68, t: -106, foot: [90, 105], foot2: [78, 105], hand: [98, 52], hand2: [82, 54] }, { x: 74, y: 68, t: -106, foot: [90, 105], foot2: [78, 105], hand: [82, 54], hand2: [98, 52] },
+    { back: () => dmSled(126), front_: J => { const a = J.W1[0] > J.W2[0] ? J.W1 : J.W2, b = a === J.W1 ? J.W2 : J.W1; return `<path d="M${dmPt(b)}L${dmPt(a)}L134 92" class="dm-cable dm-thick"/>`; }, hl: ["t", "ua"], ph: ["Hand over hand naar je toe trekken", "Achterover leunen, benen gebogen"], tm: [.6, .6] }),
+  battleRopes: dmAlt({ x: 72, y: 72, t: -62, foot: [84, 105], hand: [112, 52], hand2: [110, 70] }, { x: 72, y: 72, t: -62, foot: [84, 105], hand: [110, 70], hand2: [112, 52] },
+    { front_: J => [J.W2, J.W1].map(W => { const d = W[1] < 61 ? 1 : -1; return `<path d="M${dmPt(W)}C${dmF(W[0] + 14)} ${dmF(W[1] - 18 * d)} ${dmF(W[0] + 28)} ${dmF(104 + 12 * d)} 158 105" class="dm-cable dm-thick"/>`; }).join(""), hl: ["ua", "t"], ph: ["Om beurten golven slaan", "Half gehurkt, rug recht"], tm: [.3, .3] }),
+  versa: dmAlt({ x: 76, y: 58, t: -80, hand: [98, 4], hand2: [96, 30], foot: [88, 84], foot2: [84, 104] }, { x: 76, y: 58, t: -80, hand: [96, 30], hand2: [98, 4], foot: [84, 104], foot2: [88, 84] },
+    { back: () => `<line x1="92" y1="108" x2="104" y2="-16" class="dm-frame"/><line x1="70" y1="108" x2="116" y2="108" class="dm-frame"/>`, front_: J => DG.handle(J.W1) + DG.handle(J.W2) + DG.rect(J.A1[0] - 4, J.A1[1] + 3, 14, 2.6), hl: ["th", "ua"], ph: ["Lange, vloeiende slagen", "Lange, vloeiende slagen"], tm: [.5, .5] }),
+  swim: { fn: p => { const a = p * 360, s = Math.sin(a * Math.PI / 180), b = x => 22 * Math.max(0, Math.sin(x * Math.PI / 180));
+      return { x: 62, y: 67, t: -3, th: 178 + 7 * s, sh: 181 + 12 * s, tb: 178 - 7 * s, sb: 181 - 12 * s, ua: a, fa: a + b(a), ub: a + 180, fb: a + 180 + b(a + 180) }; }, period: 1.7,
+    back: () => `<rect x="-90" y="64" width="340" height="44.5" class="dm-water"/><line x1="-90" y1="64" x2="250" y2="64" class="dm-edge"/>`, hl: ["ua", "t"], ph: ["Lange slagen, benen blijven trappen"] },
+  pendulum: dmAlt({ x: 60, y: 60, t: -5, foot: [66, 105], tb: 90, sb: 180, fd2: 180, ua: 78, fa: 78, hand2: [95, 85] }, { x: 60, y: 60, t: -5, foot: [66, 105], tb: 90, sb: 180, fd2: 180, ua: 102, fa: 102, hand2: [95, 85] },
+    { back: () => DG.bench(30, 112, 88), hl: ["ua"], ph: ["Arm ontspannen laten slingeren", "Arm ontspannen laten slingeren"], tm: [.9, .9] }),
+  neckStretch: dmHold({ x: 80, y: 59, t: -90, foot: [84, 105], ua: 86, fa: 88, n: 22 }, { front: true, hl: [] }, { n: 4 }),
+  chinTuck: dmPair(Object.assign({}, DS, { ua: 90, fa: 90, n: 16 }), Object.assign({}, DS, { ua: 90, fa: 90, n: -3 }),
+    { hl: [], ph: ["Kin recht naar achter trekken", "Ontspannen"], tm: [1.5, 1.5] }),
+  ankle: dmPair(Object.assign({}, DSEAT, { foot: undefined, th: 8, sh: 60, fr: 112, fr2: 90, foot2: [99, 105], ua: 96, fa: 96 }), Object.assign({}, DSEAT, { foot: undefined, th: 8, sh: 60, fr: 48, fr2: 90, foot2: [99, 105], ua: 96, fa: 96 }),
+    { back: J => dmSeatGear(J), hl: ["sh"], ph: ["Voet naar je toe trekken", "Tenen strekken"], tm: [1.2, 1.2] }),
+  tibRaise: dmPair(Object.assign({}, DS, { x: 76, foot: [84, 105], t: -96, ua: 90, fa: 90, fr: 84 }), Object.assign({}, DS, { x: 76, foot: [84, 105], t: -96, ua: 90, fa: 90, fr: 54 }),
+    { back: () => DG.wall(58), hl: ["sh"], ph: ["Tenen optrekken, hielen blijven staan", "Langzaam laten zakken"], tm: [1, 1.5] }),
+  camel: dmHold({ x: 74, y: 80, t: -110, n: -30, cv: 6, th: 90, sh: 180, fd: 180, hand: [68, 74] }, { mat: [20, 130], hl: ["t"] }, { t: -2 }),
 });
 
 // Exercise name → pattern (explicit first, then key words, then the exercise type).
@@ -6381,8 +6567,31 @@ HOME_EX.forEach(([n, , , , , demo]) => { DEMO_OF[n] = demo; });
 OUT_EX.forEach(([n, , , , , demo]) => { DEMO_OF[n] = demo; });
 MIND_EX.forEach(([n, , , demo]) => { if (demo) DEMO_OF[n] = demo; });
 Object.assign(DEMO_OF, DEMO_LATE);
+Object.assign(DEMO_OF, {
+  "Incline Barbell Bench Press": "inclineBb", "Smith Machine Incline Press": "inclineBb", "Dumbbell Floor Press": "floorPress", "Cable Lateral Raise": "cableLatRaise",
+  "Bent-Over Dumbbell Reverse Fly": "revFlyBent", "Band Pull-Apart": "revFly", "Scapular Squeeze": "revFly", "Band External Rotation": "extRot", "Band Internal Rotation": "extRot",
+  "Wrist Curl": "wristCurl", "Eccentric Wrist Extension": "wristCurl", "Eccentric Wrist Flexion": "wristCurl", "Forearm Rotation": "wristCurl", "Grip Squeeze": "wristCurl",
+  "Rack Pull": "rackPull", "Sumo Deadlift": "sumoDl", "Single-Leg Romanian Deadlift": "singleRdl", "Single-Leg RDL": "singleRdl", "Kettlebell Swing": "kbSwing",
+  "Thruster": "thruster", "Wall Ball": "wallBall", "Hyrox wall balls (100×)": "wallBall", "Power Clean": "clean", "Box Jump": "boxJump",
+  "Jump Squat": "squatJump", "Squat Jump": "squatJump", "Star Jump": "starJump", "Jumping Jack": "jumpingJack", "Skater Jump": "skater", "Lateral Hop": "skater",
+  "Sumo Squat": "sumoSquat", "Cossack Squat": "cossack", "Side Lunge": "cossack", "Band Lateral Walk": "latWalk", "Squat Pulse": "bwSquat",
+  "Bodyweight Lunge": "lungeBw", "Reverse Lunge": "lungeBw", "Curtsy Lunge": "lungeBw", "Calf Raise": "calfBw", "Single-Leg Calf Raise": "calfBw", "Eccentric Heel Drop": "calfBw",
+  "Step aerobics": "stepBw", "Basic Step": "stepBw", "Over the Top": "stepBw", "Step-down": "stepBw", "Step Knee Lift": "stepKnee",
+  "Sled Push": "sledPush", "Hyrox sled push (50 m)": "sledPush", "Sled Pull": "sledPull", "Hyrox sled pull (50 m)": "sledPull",
+  "Knee Push-up": "kneePushup", "Incline Push-up": "inclinePushup", "Decline Push-up": "declinePushup", "Hindu Push-up": "hindu", "Diamond Push-up": "pushup", "Wide Push-up": "pushup",
+  "Plank Up-Down": "plankUpDown", "Plank Jack": "plankJack", "Reverse Plank": "revPlank", "Hip Dip Plank": "hipDip", "Bear Plank Hold": "bearHold", "Bear Crawl": "bearCrawl",
+  "Inchworm": "inchworm", "Cross-Body Mountain Climber": "climber", "Donkey Kick": "donkeyKick", "Fire Hydrant": "fireHydrant", "Side-Lying Leg Lift": "sideLeg", "Clamshell": "clam",
+  "Hollow Rock": "hollowRock", "The Hundred": "hundred", "Pilates Swimming": "pilSwim", "Superman Pulse": "superman", "Prone Y Raise": "superman",
+  "Toe Touch Crunch": "toeTouch", "Decline Sit-up": "situp", "Roll-up": "rollUp", "Heel Touch": "crunch", "Scissor Kicks": "flutter", "Leg Drop": "legRaise", "Windshield Wipers": "legRaise",
+  "Heel Slide": "heelSlide", "Straight Leg Raise": "slr", "Single-Leg Glute Bridge": "bridge1", "Single-Leg Bridge": "bridge1", "Pelvic Tilt": "pelvicTilt", "Hanging Knee Raise": "hangKnee",
+  "Pendulum": "pendulum", "Upper Trapezius Stretch": "neckStretch", "Chin Tuck": "chinTuck", "Camel Pose": "camel", "Tibialis Raise": "tibRaise",
+  "Ankle Alphabet": "ankle", "Band Ankle Eversion": "ankle", "Towel Scrunch": "ankle", "Foot Roll": "ankle", "Plantar Fascia Stretch": "ankle",
+  "Wandelen": "walk", "Walking Meditation": "walk", "Air Walker": "walk", "High Knees": "highKnees", "Zwemmen": "swim", "Zwemintervallen": "swim",
+  "Ligfiets": "recBike", "Armergometer": "armErgo", "Battle ropes": "battleRopes", "VersaClimber": "versa", "Zumba": "dance",
+  "Belly Breathing": "savasana", "Alternate Nostril Breathing": "butterfly",
+});
 const DEMO_WORDS = [[/pull-?up|chin-?up/i, "pullup"], [/pulldown/i, "pulldown"], [/incline.*(press|bench)/i, "incline"], [/bench|chest press/i, "bench"],
-  [/push-?up/i, "pushup"], [/fly|flye/i, "fly"], [/dip/i, "dips"], [/shoulder press|overhead press|military/i, "ohp"], [/lateral/i, "latRaise"],
+  [/push-?up/i, "pushup"], [/fly|flye/i, "fly"], [/\bdips?\b/i, "dips"], [/shoulder press|overhead press|military/i, "ohp"], [/lateral/i, "latRaise"],
   [/pushdown/i, "pushdown"], [/extension.*tri|tri.*extension|skull/i, "ohExt"], [/curl/i, "curl"], [/row/i, "row"], [/squat/i, "squat"],
   [/deadlift|rdl/i, "deadlift"], [/lunge|split/i, "lunge"], [/calf/i, "calf"], [/hip thrust|bridge/i, "hipThrust"], [/leg press/i, "legPress"],
   [/plank/i, "plank"], [/crunch|sit-?up/i, "crunch"], [/raise/i, "frontRaise"], [/press/i, "ohp"], [/stretch/i, "hamStretch"]];
@@ -6443,7 +6652,9 @@ function demoPose(pat, sec){
   let x = sec % total, i = 0;
   while (x > tm[i] + hold){ x -= tm[i] + hold; i++; }
   const from = pat.loop ? i : i === 0 ? 0 : 1, to = pat.loop ? (i + 1) % n : i === 0 ? 1 : 0;
-  const u = Math.min(1, x / tm[i]), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+  // the slow (lowering) phase runs evenly, the quick (lifting) phase starts with a push and eases out
+  const u = Math.min(1, x / tm[i]), sm = (1 - Math.cos(Math.PI * u)) / 2, quick = !pat.loop && tm[i] < tm[1 - i];
+  const e = quick ? .55 * sm + .45 * (1 - (1 - u) * (1 - u)) : .8 * sm + .2 * u;
   return { P: dmTween(pat, from, to, e), ph: i };
 }
 function demoSvg(pat, P, path = "", over = ""){
@@ -6453,9 +6664,12 @@ function demoSvg(pat, P, path = "", over = ""){
   if (pat.cables){ back += DG.cable(J.W1, pat.cables[1]) + DG.cable(J.W2, pat.cables[0]); }
   let front = "";
   const eq = pat.eq;
-  if (eq === "bb") front += DG.plate(J.W1, pat.plateR || 10);
-  else if (eq === "db") front += J.front ? DG.db(J.W1) + DG.db(J.W2) : DG.db(J.W1);
-  else if (eq === "db1") front += DG.db(J.W1);
+  const dbA = pat.dbA === "arm" ? dmAng(J.E1, J.W1) + 90 : pat.dbA || 0;
+  if (eq === "bb") front += J.front ? DG.barFront(J.W1, J.W2, pat.plateR || 10) : DG.plate(J.W1, pat.plateR || 10);
+  else if (eq === "db") front += J.front ? DG.db(J.W1, dbA) + DG.db(J.W2, dbA) : DG.db(J.W1, dbA);
+  else if (eq === "db1") front += DG.db(J.W1, dbA);
+  else if (eq === "kb") front += DG.kb(J.W1, dmAng(J.E1, J.W1));
+  else if (eq === "ball") front += DG.ball(J.front ? dmMix(J.W1, J.W2, .5) : dmAdd(J.W1, dmDir(dmAng(J.E1, J.W1)), 4));
   else if (eq === "handle") front += J.front ? DG.handle(J.W1) + DG.handle(J.W2) : DG.handle(J.W1);
   if (pat.front_) front += pat.front_(J);
   if (pat.rope){

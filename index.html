@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-yNyNlE4PFDMcjV3jf2qZbAyPpiEp+MrCaODm1xPVo6E=' 'sha256-D5IiuOBSEdYAYJklQ2pYpzltoeGQKVwfkOh4tHal9go='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-Srxep3bXgPJStXGw6A5Gi2kMdn0gTK/dKSE2gobwBak=' 'sha256-NjNCU9QiEFoX4HZGHeMwhKLssheIHhcYG+REUcJZP5o=' 'sha256-3OiOd6Zgk9V6K0exQXDgFp+rWJD7KVUWAEAfUA4XWEQ='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://vcbyebuhmefyydevjsur.supabase.co https://intervals.icu https://fptfit.app; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#16a34a">
@@ -16,12 +16,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="FPT">
 <meta name="application-name" content="FPT">
-<link rel="preload" as="script" href="app.js?v=dc05e7c371">
+<link rel="preload" as="script" href="app.js?v=65457a0fb5">
 <script>window.FPT_STANDALONE = true;
 window.FPT_HOME = "https://fptfit.app/";
 window.FPT_MOVE_TO = "https://fptfit.app/";
 window.FPT_I18N = {"langs": ["en", "fr", "es", "de", "it", "pt", "ru", "zh", "ar", "hi"]};
-window.FPT_I18N_FILES = {"en": "i18n/en.js?v=8f607b6a66", "fr": "i18n/fr.js?v=a84b9d43ba", "es": "i18n/es.js?v=93c79f9e16", "de": "i18n/de.js?v=e9cf9bc687", "it": "i18n/it.js?v=4041c3ca45", "pt": "i18n/pt.js?v=5594f6ab31", "ru": "i18n/ru.js?v=8ee120161e", "zh": "i18n/zh.js?v=4bf2222d9a", "ar": "i18n/ar.js?v=f129e225cf", "hi": "i18n/hi.js?v=8f9de67e62"};
+window.FPT_I18N_FILES = {"en": "i18n/en.js?v=b5d8c7c9db", "fr": "i18n/fr.js?v=a2337a9b1f", "es": "i18n/es.js?v=a9a0b9c494", "de": "i18n/de.js?v=615435745d", "it": "i18n/it.js?v=092a92c6b0", "pt": "i18n/pt.js?v=a4d1bcd9e1", "ru": "i18n/ru.js?v=acafa7fbf1", "zh": "i18n/zh.js?v=180bd2a6c1", "ar": "i18n/ar.js?v=296103c373", "hi": "i18n/hi.js?v=6bb9acedce"};
 (() => {
   // Not inside someone else's page (clickjacking): break out, or show nothing.
   if (top !== self){ try { top.location.replace(location.href); } catch {} document.documentElement.style.display = "none"; }
@@ -1054,8 +1054,13 @@ body.big .badge{font-size:1rem}
 .dm-shadow{fill:color-mix(in srgb,var(--ink) 18%,transparent)}
 .dm-plate{fill:var(--teal);stroke:var(--paper);stroke-width:1.2}
 .dm-hub{fill:var(--paper)}
+.dm-bar{stroke:var(--muted);stroke-linecap:round;fill:none}
+.dm-head{stroke:var(--teal);stroke-linecap:round}
+.dm-water{fill:color-mix(in srgb,var(--teal) 20%,transparent)}
+.dm-band{stroke:var(--ember);stroke-width:1.6;stroke-linecap:round;fill:none;opacity:.75}
 .dm-handle,.dm-pulley{fill:var(--muted)}
 .dm-cable{stroke:var(--muted);stroke-width:1.2;fill:none}
+.dm-thick{stroke-width:2.4;stroke-linecap:round}
 .dm-frame{stroke:color-mix(in srgb,var(--muted) 55%,var(--paper));stroke-width:3;stroke-linecap:round}
 .dm-pad,.dm-wall{fill:color-mix(in srgb,var(--muted) 35%,var(--paper))}
 .dm-padl{stroke:color-mix(in srgb,var(--muted) 45%,var(--paper));stroke-linecap:round}
@@ -2035,6 +2040,6 @@ h1,h2,h3{overflow-wrap:anywhere}
     <button type="button" id="restStop">Stop</button>
   </div>
 </div>
-<script>[window.FPT_LANG_FILE, "app.js?v=dc05e7c371"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
+<script>[window.FPT_LANG_FILE, "app.js?v=65457a0fb5"].forEach(src => { if (!src) return; const s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s); });</script>
 </body>
 </html>
