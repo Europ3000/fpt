@@ -760,19 +760,19 @@ body.rest-each #restBar{display:none}
 .sb-strava{background:#fc4c02;color:#fff;border-color:transparent}
 .sb-wa{background:#25d366;color:#08331a;border-color:transparent}
 .share-out{display:flex;flex-direction:column;gap:10px;background:var(--paper);border:1.5px dashed var(--line);border-radius:14px;padding:12px}
-.adv-row{display:grid;gap:4px;padding:8px 0;border-bottom:1px solid var(--line)}
-.adv-row:last-of-type{border-bottom:0}
-.adv-top{display:flex;justify-content:space-between;gap:10px;font-size:.92rem}
-.adv-top span{color:var(--muted);font-size:.85rem;white-space:nowrap}
-.adv-track{height:8px;border-radius:8px;background:var(--line);overflow:hidden}
-.adv-track span{display:block;height:100%;border-radius:8px;background:var(--teal)}
-.adv-row.mid .adv-track span{background:var(--mustard)}
-.adv-row.low .adv-track span{background:var(--ember)}
-.adv-sub{font-size:.8rem;color:var(--muted)}
-.adv-tips{display:grid;gap:8px;margin-top:12px}
-.adv-tip{display:grid;gap:6px;padding:10px 12px;border-radius:12px;background:var(--teal-soft)}
-.adv-tip p{margin:0;font-size:.9rem}
-.adv-tip .ghost-sm{justify-self:start;font:inherit;font-size:.82rem;font-weight:700;border:1.5px solid var(--teal);background:var(--card);color:var(--teal);border-radius:9px;padding:7px 10px;cursor:pointer}
+.coach-row{display:grid;gap:4px;padding:8px 0;border-bottom:1px solid var(--line)}
+.coach-row:last-of-type{border-bottom:0}
+.coach-top{display:flex;justify-content:space-between;gap:10px;font-size:.92rem}
+.coach-top span{color:var(--muted);font-size:.85rem;white-space:nowrap}
+.coach-track{height:8px;border-radius:8px;background:var(--line);overflow:hidden}
+.coach-track span{display:block;height:100%;border-radius:8px;background:var(--teal)}
+.coach-row.mid .coach-track span{background:var(--mustard)}
+.coach-row.low .coach-track span{background:var(--ember)}
+.coach-sub{font-size:.8rem;color:var(--muted)}
+.coach-tips{display:grid;gap:8px;margin-top:12px}
+.coach-tip{display:grid;gap:6px;padding:10px 12px;border-radius:12px;background:var(--teal-soft)}
+.coach-tip p{margin:0;font-size:.9rem}
+.coach-tip .ghost-sm{justify-self:start;font:inherit;font-size:.82rem;font-weight:700;border:1.5px solid var(--teal);background:var(--card);color:var(--teal);border-radius:9px;padding:7px 10px;cursor:pointer}
 .set-profile{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:grid;gap:10px}
 .set-profile h3{margin:0;font-size:1rem}
 .story-pick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
@@ -1293,7 +1293,7 @@ body::before{background:var(--paper)}
 :root[data-style="future"] .edit-toggle{border-color:var(--ember);color:var(--ember);background:transparent}
 :root[data-style="future"] .edit-toggle[aria-pressed="true"]{background:var(--ember);color:var(--on-accent);box-shadow:0 0 14px var(--glow)}
 :root[data-style="future"] :is(.tile strong,.rec strong){font-family:var(--display);font-variation-settings:normal;background:linear-gradient(90deg,var(--ember),var(--teal));-webkit-background-clip:text;background-clip:text;color:transparent}
-:root[data-style="future"] :is(.mb-fill,.goal .mb-fill,.adv-track span,.bal-track span){background:linear-gradient(90deg,var(--ember),var(--teal));box-shadow:0 0 10px var(--glow)}
+:root[data-style="future"] :is(.mb-fill,.goal .mb-fill,.coach-track span,.bal-track span){background:linear-gradient(90deg,var(--ember),var(--teal));box-shadow:0 0 10px var(--glow)}
 :root[data-style="future"] .label{font-family:var(--display);letter-spacing:.16em;color:var(--ember)}
 :root[data-style="future"] :is(.icon-btn,.finish,.share-btn,.wl-scheme){background:var(--card);border:1px solid var(--line);box-shadow:none;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 :root[data-style="future"] .toast{background:color-mix(in srgb,var(--ink) 92%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 0 0 1px var(--line),0 12px 30px rgba(0,0,0,.35)}
@@ -9756,12 +9756,12 @@ function renderAdvice(){
   else if (r.area.pct < 100) add(55, "Spieropbouw: mik op 10–20 sets per spiergroep per week in 6–12 herhalingen.", "Push / Pull / Legs openen", open("ppl"));
   tips.sort((x, y) => x.score - y.score);
   const lvText = lvl == null ? "" : lvl < 0 ? "Starter" : LEVELS[Math.round(lvl)];
-  box.innerHTML = rows.map(x => `<div class="adv-row ${x.pct >= 100 ? "ok" : x.pct >= 60 ? "mid" : "low"}">
-      <div class="adv-top"><b>${esc(x.lab)}</b><span>${esc(`${fmt(x.v)} / ${fmt(x.t)} ${x.unit}`)}</span></div>
-      <div class="adv-track"><span style="width:${x.pct}%"></span></div>${x.sub ? `<span class="adv-sub">${esc(x.sub)}</span>` : ""}</div>`).join("")
+  box.innerHTML = rows.map(x => `<div class="coach-row ${x.pct >= 100 ? "ok" : x.pct >= 60 ? "mid" : "low"}">
+      <div class="coach-top"><b>${esc(x.lab)}</b><span>${esc(`${fmt(x.v)} / ${fmt(x.t)} ${x.unit}`)}</span></div>
+      <div class="coach-track"><span style="width:${x.pct}%"></span></div>${x.sub ? `<span class="coach-sub">${esc(x.sub)}</span>` : ""}</div>`).join("")
     + (lvText ? `<p class="note">Krachtniveau voor je leeftijd (${age}) en geslacht: <b>${esc(lvText)}</b>.</p>` : `<p class="note">Vul je lichaamsgewicht in voor een krachtniveau volgens leeftijd en geslacht.</p>`)
-    + `<div class="adv-tips">${tips.length ? tips.slice(0, 3).map((x, i) => `<div class="adv-tip"><p>${esc(x.text)}</p><button type="button" class="ghost-sm" data-adv="${i}">${esc(x.label)}</button></div>`).join("")
-      : `<div class="adv-tip"><p>Mooi in balans: kracht, core, stretchen en conditie zitten allemaal op niveau. Ga zo door!</p></div>`}</div>
+    + `<div class="coach-tips">${tips.length ? tips.slice(0, 3).map((x, i) => `<div class="coach-tip"><p>${esc(x.text)}</p><button type="button" class="ghost-sm" data-adv="${i}">${esc(x.label)}</button></div>`).join("")
+      : `<div class="coach-tip"><p>Mooi in balans: kracht, core, stretchen en conditie zitten allemaal op niveau. Ga zo door!</p></div>`}</div>
     <p class="note">Gemiddelde van de laatste 4 weken. Richtlijnen: 2× per week kracht, 150 minuten conditie, ${T.mobDays}× ${T.balance ? "stretchen en balans" : "stretchen"}.</p>`;
   box.querySelectorAll("[data-adv]").forEach(btn => { btn.onclick = tips[+btn.dataset.adv].act; });
 }

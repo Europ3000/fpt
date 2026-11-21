@@ -7615,12 +7615,12 @@ function renderAdvice(){
   else if (r.area.pct < 100) add(55, "Spieropbouw: mik op 10–20 sets per spiergroep per week in 6–12 herhalingen.", "Push / Pull / Legs openen", open("ppl"));
   tips.sort((x, y) => x.score - y.score);
   const lvText = lvl == null ? "" : lvl < 0 ? "Starter" : LEVELS[Math.round(lvl)];
-  box.innerHTML = rows.map(x => `<div class="adv-row ${x.pct >= 100 ? "ok" : x.pct >= 60 ? "mid" : "low"}">
-      <div class="adv-top"><b>${esc(x.lab)}</b><span>${esc(`${fmt(x.v)} / ${fmt(x.t)} ${x.unit}`)}</span></div>
-      <div class="adv-track"><span style="width:${x.pct}%"></span></div>${x.sub ? `<span class="adv-sub">${esc(x.sub)}</span>` : ""}</div>`).join("")
+  box.innerHTML = rows.map(x => `<div class="coach-row ${x.pct >= 100 ? "ok" : x.pct >= 60 ? "mid" : "low"}">
+      <div class="coach-top"><b>${esc(x.lab)}</b><span>${esc(`${fmt(x.v)} / ${fmt(x.t)} ${x.unit}`)}</span></div>
+      <div class="coach-track"><span style="width:${x.pct}%"></span></div>${x.sub ? `<span class="coach-sub">${esc(x.sub)}</span>` : ""}</div>`).join("")
     + (lvText ? `<p class="note">Krachtniveau voor je leeftijd (${age}) en geslacht: <b>${esc(lvText)}</b>.</p>` : `<p class="note">Vul je lichaamsgewicht in voor een krachtniveau volgens leeftijd en geslacht.</p>`)
-    + `<div class="adv-tips">${tips.length ? tips.slice(0, 3).map((x, i) => `<div class="adv-tip"><p>${esc(x.text)}</p><button type="button" class="ghost-sm" data-adv="${i}">${esc(x.label)}</button></div>`).join("")
-      : `<div class="adv-tip"><p>Mooi in balans: kracht, core, stretchen en conditie zitten allemaal op niveau. Ga zo door!</p></div>`}</div>
+    + `<div class="coach-tips">${tips.length ? tips.slice(0, 3).map((x, i) => `<div class="coach-tip"><p>${esc(x.text)}</p><button type="button" class="ghost-sm" data-adv="${i}">${esc(x.label)}</button></div>`).join("")
+      : `<div class="coach-tip"><p>Mooi in balans: kracht, core, stretchen en conditie zitten allemaal op niveau. Ga zo door!</p></div>`}</div>
     <p class="note">Gemiddelde van de laatste 4 weken. Richtlijnen: 2× per week kracht, 150 minuten conditie, ${T.mobDays}× ${T.balance ? "stretchen en balans" : "stretchen"}.</p>`;
   box.querySelectorAll("[data-adv]").forEach(btn => { btn.onclick = tips[+btn.dataset.adv].act; });
 }
